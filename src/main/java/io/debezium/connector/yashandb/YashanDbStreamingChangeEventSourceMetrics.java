@@ -175,8 +175,8 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         reset();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public void reset() {
         batchSize.set(batchSizeDefault);
         millisecondToSleepBetweenMiningQuery.set(sleepTimeDefault);
@@ -251,14 +251,14 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         }
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMinimumMinedLogCount() {
         return minimumLogsMined.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMaximumMinedLogCount() {
         return maximumLogsMined.get();
     }
@@ -338,80 +338,80 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         networkConnectionProblemsCounter.incrementAndGet();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public String getCurrentScn() {
         return currentScn.get().toString();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getTotalCapturedDmlCount() {
         return totalCapturedDmlCount.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public String[] getCurrentRedoLogFileName() {
         return currentLogFileName.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public String[] getRedoLogStatus() {
         return redoLogStatus.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public int getSwitchCounter() {
         return switchCounter.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public Long getLastDurationOfFetchQueryInMilliseconds() {
         return lastDurationOfFetchingQuery.get() == null ? 0 : lastDurationOfFetchingQuery.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getLastBatchProcessingTimeInMilliseconds() {
         return lastBatchProcessingDuration.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public Long getMaxDurationOfFetchQueryInMilliseconds() {
         return maxDurationOfFetchingQuery.get() == null ? 0 : maxDurationOfFetchingQuery.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public Long getMaxCapturedDmlInBatch() {
         return maxCapturedDmlCount.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public int getLastCapturedDmlCount() {
         return lastCapturedDmlCount.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getTotalProcessedRows() {
         return totalProcessedRows.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getTotalResultSetNextTimeInMilliseconds() {
         return totalResultSetNextTime.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getAverageBatchProcessingThroughput() {
         if (totalBatchProcessingDuration.get().isZero()) {
             return 0L;
@@ -419,8 +419,8 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         return Math.round((totalCapturedDmlCount.floatValue() / totalBatchProcessingDuration.get().toMillis()) * 1000);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getLastBatchProcessingThroughput() {
         if (lastBatchProcessingDuration.get().isZero()) {
             return 0L;
@@ -428,50 +428,50 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         return Math.round((lastCapturedDmlCount.floatValue() / lastBatchProcessingDuration.get().toMillis()) * 1000);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getFetchingQueryCount() {
         return logMinerQueryCount.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public int getBatchSize() {
         return batchSize.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMillisecondToSleepBetweenMiningQuery() {
         return millisecondToSleepBetweenMiningQuery.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public int getHoursToKeepTransactionInBuffer() {
         return (int) keepTransactionsDuration.get().toHours();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMillisecondsToKeepTransactionsInBuffer() {
         return keepTransactionsDuration.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMaxBatchProcessingThroughput() {
         return maxBatchProcessingThroughput.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getNetworkConnectionProblemsCounter() {
         return networkConnectionProblemsCounter.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getTotalParseTimeInMilliseconds() {
         return totalParseTime.get().toMillis();
     }
@@ -485,8 +485,8 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         totalParseTime.accumulateAndGet(currentParseTime, Duration::plus);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getTotalMiningSessionStartTimeInMilliseconds() {
         return totalStartLogMiningSessionDuration.get().toMillis();
     }
@@ -504,32 +504,32 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         totalStartLogMiningSessionDuration.accumulateAndGet(currentStartLogMiningSession, Duration::plus);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getLastMiningSessionStartTimeInMilliseconds() {
         return lastStartLogMiningSessionDuration.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMaxMiningSessionStartTimeInMilliseconds() {
         return maxStartingLogMiningSessionDuration.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getTotalProcessingTimeInMilliseconds() {
         return totalProcessingTime.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMinBatchProcessingTimeInMilliseconds() {
         return minBatchProcessingTime.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMaxBatchProcessingTimeInMilliseconds() {
         return maxBatchProcessingTime.get().toMillis();
     }
@@ -562,24 +562,24 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         totalProcessedRows.getAndAdd(rows);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public void setBatchSize(int size) {
         if (size >= batchSizeMin && size <= batchSizeMax) {
             batchSize.set(size);
         }
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public void setMillisecondToSleepBetweenMiningQuery(long milliseconds) {
         if (milliseconds >= sleepTimeMin && milliseconds < sleepTimeMax) {
             millisecondToSleepBetweenMiningQuery.set(milliseconds);
         }
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public void changeSleepingTime(boolean increment) {
         long sleepTime = millisecondToSleepBetweenMiningQuery.get();
         if (increment && sleepTime < sleepTimeMax) {
@@ -592,8 +592,8 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         LOGGER.debug("Updating sleep time window. Sleep time {}. Min sleep time {}. Max sleep time {}.", sleepTime, sleepTimeMin, sleepTimeMax);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public void changeBatchSize(boolean increment, boolean lobEnabled) {
 
         int currentBatchSize = batchSize.get();
@@ -622,147 +622,147 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
 
     // transactional buffer metrics
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getNumberOfActiveTransactions() {
         return activeTransactions.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getNumberOfRolledBackTransactions() {
         return rolledBackTransactions.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getNumberOfCommittedTransactions() {
         return committedTransactions.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getNumberOfOversizedTransactions() {
         return oversizedTransactions.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getCommitThroughput() {
         long timeSpent = Duration.between(startTime, clock.instant()).toMillis();
         return committedTransactions.get() * MILLIS_PER_SECOND / (timeSpent != 0 ? timeSpent : 1);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getRegisteredDmlCount() {
         return registeredDmlCount.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public String getOldestScn() {
         return oldestScn.get().toString();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public String getCommittedScn() {
         return committedScn.get().toString();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public String getOffsetScn() {
         return offsetScn.get().toString();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getLagFromSourceInMilliseconds() {
         return lagFromTheSourceDuration.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMaxLagFromSourceInMilliseconds() {
         return maxLagFromTheSourceDuration.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMinLagFromSourceInMilliseconds() {
         return minLagFromTheSourceDuration.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public Set<String> getAbandonedTransactionIds() {
         return abandonedTransactionIds.get().keySet();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public Set<String> getRolledBackTransactionIds() {
         return rolledBackTransactionIds.get().keySet();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getLastCommitDurationInMilliseconds() {
         return lastCommitDuration.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMaxCommitDurationInMilliseconds() {
         return maxCommitDuration.get().toMillis();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public int getErrorCount() {
         return errorCount.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public int getWarningCount() {
         return warningCount.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public int getScnFreezeCount() {
         return scnFreezeCount.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public int getUnparsableDdlCount() {
         return unparsableDdlCount.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMiningSessionUserGlobalAreaMemoryInBytes() {
         return miningSessionUserGlobalAreaMemory.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMiningSessionUserGlobalAreaMaxMemoryInBytes() {
         return miningSessionUserGlobalAreaMaxMemory.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMiningSessionProcessGlobalAreaMemoryInBytes() {
         return miningSessionProcessGlobalAreaMemory.get();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public long getMiningSessionProcessGlobalAreaMaxMemoryInBytes() {
         return miningSessionProcessGlobalAreaMaxMemory.get();
     }
@@ -982,8 +982,8 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         }
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public String toString() {
         return "YashanDbStreamingChangeEventSourceMetrics{" +
                 "currentScn=" + currentScn +

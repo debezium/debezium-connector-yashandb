@@ -44,13 +44,13 @@ public class YashanDbErrorHandler extends ErrorHandler {
         super(YashanDbConnector.class, connectorConfig, queue, replacedErrorHandler);
     }
 
-    @Override
     /**
      * Determines if the given throwable is retriable.
      *
      * @param throwable the throwable to check
      * @return true if the error is retriable, false otherwise
      */
+    @Override
     protected boolean isRetriable(Throwable throwable) {
         while (throwable != null) {
             // Always retry any recoverable error

@@ -28,8 +28,8 @@ public class YashanDbChangeEventSourceMetricsFactory extends DefaultChangeEventS
         this.streamingMetrics = streamingMetrics;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public <T extends CdcSourceTaskContext> StreamingChangeEventSourceMetrics<YashanDbPartition> getStreamingMetrics(T taskContext,
                                                                                                                      ChangeEventQueueMetrics changeEventQueueMetrics,
                                                                                                                      EventMetadataProvider eventMetadataProvider,

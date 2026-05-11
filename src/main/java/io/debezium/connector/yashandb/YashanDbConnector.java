@@ -33,26 +33,26 @@ public class YashanDbConnector extends RelationalBaseSourceConnector implements 
 
     private Map<String, String> properties;
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public String version() {
         return Module.version();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public void start(Map<String, String> props) {
         this.properties = Collections.unmodifiableMap(new HashMap<>(props));
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public Class<? extends Task> taskClass() {
         return YashanDbConnectorTask.class;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
         if (maxTasks > 1) {
             throw new IllegalArgumentException("Only a single connector task may be started");
@@ -61,19 +61,19 @@ public class YashanDbConnector extends RelationalBaseSourceConnector implements 
         return Collections.singletonList(properties);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public void stop() {
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public ConfigDef config() {
         return YashanDbConnectorConfig.configDef();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected void validateConnection(Map<String, ConfigValue> configValues, Configuration config) {
         final ConfigValue databaseValue = configValues.get(RelationalDatabaseConnectorConfig.DATABASE_NAME.name());
         if (!databaseValue.errorMessages().isEmpty()) {
@@ -96,20 +96,20 @@ public class YashanDbConnector extends RelationalBaseSourceConnector implements 
         }
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Map<String, ConfigValue> validateAllFields(Configuration config) {
         return config.validate(YashanDbConnectorConfig.ALL_FIELDS);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public Field.Set getConfigFields() {
         return YashanDbConnectorConfig.ALL_FIELDS;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public ExactlyOnceSupport exactlyOnceSupport(Map<String, String> connectorConfig) {
         return ExactlyOnceSupport.SUPPORTED;
     }
