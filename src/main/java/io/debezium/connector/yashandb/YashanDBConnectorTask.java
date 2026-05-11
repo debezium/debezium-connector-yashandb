@@ -85,7 +85,6 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
 
     @Override
     public ChangeEventSourceCoordinator<YashanDBPartition, YashanDBOffsetContext> start(Configuration config) {
-        // 每个表对应topic的命名规则
         partitionProvider = new YashanDBPartition.Provider(connectorConfig);
         offsetContextLoader = connectorConfig.getAdapter().getOffsetContextLoader();
         TopicNamingStrategy<TableId> topicNamingStrategy = connectorConfig.getTopicNamingStrategy(CommonConnectorConfig.TOPIC_NAMING_STRATEGY);
@@ -99,7 +98,6 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
         jdbcConnection = connectionFactory.mainConnection();
         validateYStreamServer(connectorConfig);
 
-        // 验证redo log 是否开启
         validateRedoLogConfiguration(connectorConfig);
 
         registerServiceProviders(connectorConfig.getServiceRegistry());

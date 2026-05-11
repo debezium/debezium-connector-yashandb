@@ -89,7 +89,7 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
             return new YStreamPosition(new Position(new SystemChangeNumber(scn), new LogPosition(Byte.parseByte(instanceId), groupLsn, groupOffset, batchRowId)));
         }
         else {
-            // 兼容旧数据 AAAAAAA=
+            // Backward compatibility with legacy offset data (e.g., Base64-encoded instance ID like "AAAAAAA=")
             byte[] instanceIdBytes = Base64.getDecoder().decode(instanceId);
             return new YStreamPosition(new Position(new SystemChangeNumber(scn), new LogPosition(instanceIdBytes[0], groupLsn, groupOffset, batchRowId)));
         }
@@ -135,7 +135,7 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
 
     private Scn calculateEarliestActiveTxnScn(
                                               Scn st, Scn e1, Scn e2) {
-        // 选择3个值当中的最小值
+        // Select the minimum value among the three SCNs
         Scn res = st;
         if (e1 != null) {
             res = res.compareTo(e1) < 0 ? res : e1;

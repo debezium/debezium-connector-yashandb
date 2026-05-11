@@ -40,7 +40,7 @@
         </repository>
     </repositories>
 
-    <!-- 配置插件仓库 -->
+    <!-- Configure plugin repository -->
     <pluginRepositories>
         <pluginRepository>
             <id>sics</id>
@@ -357,11 +357,11 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <!-- 指定语法文件源目录 -->
+                    <!-- Specify source directory for ANTLR grammar files -->
                     <sourceDirectory>src/main/resources</sourceDirectory>
-                    <!-- 指定生成代码的输出目录 -->
+                    <!-- Specify output directory for generated code -->
                     <outputDirectory>src/main/java/io/debezium/connector/yashandb/ddl/parser/gen</outputDirectory>
-                    <!-- 强制生成包路径 -->
+                    <!-- Force generate package path -->
                     <arguments>
                         <argument>-package</argument>
                         <argument>io.debezium.connector.yashandb.ddl.parser.gen</argument>
@@ -369,7 +369,7 @@
                     </arguments>
                     <listener>true</listener>
                     <visitor>false</visitor>
-                    <!-- 覆盖默认的包路径生成逻辑 -->
+                    <!-- Override default package path generation logic -->
                 </configuration>
             </plugin>
 
