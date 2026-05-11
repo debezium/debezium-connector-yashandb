@@ -20,7 +20,8 @@ import io.debezium.connector.yashandb.Scn;
 import io.debezium.connector.yashandb.YashanDbOffsetContext;
 
 /**
- * The logical encapsulation of raw LCR byte array.
+ * A value class that wraps a raw YStream LCR {@link Position} and derives the corresponding
+ * {@link Scn} (System Change Number) for ordering and comparison purposes.
  */
 public class YStreamPosition implements Comparable<YStreamPosition> {
 
@@ -29,17 +30,34 @@ public class YStreamPosition implements Comparable<YStreamPosition> {
     private final Position rawPosition;
     private Scn scn;
 
+    /**
+     * Creates a YStreamPosition from the given raw LCR position, deriving the SCN from it.
+     *
+     * @param rawPosition the raw LCR position
+     */
     public YStreamPosition(Position rawPosition) {
         this.rawPosition = rawPosition;
         this.scn = new Scn(BigInteger.valueOf(rawPosition.getCommitScn().getScn()));
         LOGGER.trace("LCR position {} converted to SCN", rawPosition);
     }
 
+    /**
+     * Creates a YStreamPosition from the given SCN value.
+     *
+     * @param scn the system change number
+     * @return a YStreamPosition with the given SCN
+     */
     public static YStreamPosition valueOf(long scn) {
         Position position = new Position(new SystemChangeNumber(scn), new LogPosition());
         return new YStreamPosition(position);
     }
 
+    /**
+     * Creates a YStreamPosition from the given SCN string value.
+     *
+     * @param scn the system change number as a string
+     * @return a YStreamPosition with the given SCN, or null if the input is null
+     */
     public static YStreamPosition valueOf(String scn) {
         if (scn == null) {
             return null;
@@ -48,14 +66,27 @@ public class YStreamPosition implements Comparable<YStreamPosition> {
         return new YStreamPosition(position);
     }
 
+    /**
+     * Creates a YStreamPosition from the given offset map.
+     *
+     * @param offset the offset map containing position data
+     * @return a YStreamPosition constructed from the offset
+     * @throws NullPointerException if the offset does not contain a recoverable position
+     */
     public static YStreamPosition valueOf(Map<String, ?> offset) {
         return new YStreamPosition(Objects.requireNonNull(YashanDbOffsetContext.loadRecoverPosition(offset)));
     }
 
+    /**
+     * @return the raw LCR position
+     */
     public Position getRawPosition() {
         return rawPosition;
     }
 
+    /**
+     * @return the system change number
+     */
     public Scn getScn() {
         return scn;
     }

@@ -24,6 +24,9 @@ import io.debezium.connector.common.RelationalBaseSourceConnector;
 import io.debezium.metadata.ConfigDescriptor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 
+/**
+ * Connector implementation for YashanDB.
+ */
 public class YashanDbConnector extends RelationalBaseSourceConnector implements ConfigDescriptor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbConnector.class);
@@ -31,21 +34,25 @@ public class YashanDbConnector extends RelationalBaseSourceConnector implements 
     private Map<String, String> properties;
 
     @Override
+    /** {@inheritDoc} */
     public String version() {
         return Module.version();
     }
 
     @Override
+    /** {@inheritDoc} */
     public void start(Map<String, String> props) {
         this.properties = Collections.unmodifiableMap(new HashMap<>(props));
     }
 
     @Override
+    /** {@inheritDoc} */
     public Class<? extends Task> taskClass() {
         return YashanDbConnectorTask.class;
     }
 
     @Override
+    /** {@inheritDoc} */
     public List<Map<String, String>> taskConfigs(int maxTasks) {
         if (maxTasks > 1) {
             throw new IllegalArgumentException("Only a single connector task may be started");
@@ -55,15 +62,18 @@ public class YashanDbConnector extends RelationalBaseSourceConnector implements 
     }
 
     @Override
+    /** {@inheritDoc} */
     public void stop() {
     }
 
     @Override
+    /** {@inheritDoc} */
     public ConfigDef config() {
         return YashanDbConnectorConfig.configDef();
     }
 
     @Override
+    /** {@inheritDoc} */
     protected void validateConnection(Map<String, ConfigValue> configValues, Configuration config) {
         final ConfigValue databaseValue = configValues.get(RelationalDatabaseConnectorConfig.DATABASE_NAME.name());
         if (!databaseValue.errorMessages().isEmpty()) {
@@ -87,16 +97,19 @@ public class YashanDbConnector extends RelationalBaseSourceConnector implements 
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Map<String, ConfigValue> validateAllFields(Configuration config) {
         return config.validate(YashanDbConnectorConfig.ALL_FIELDS);
     }
 
     @Override
+    /** {@inheritDoc} */
     public Field.Set getConfigFields() {
         return YashanDbConnectorConfig.ALL_FIELDS;
     }
 
     @Override
+    /** {@inheritDoc} */
     public ExactlyOnceSupport exactlyOnceSupport(Map<String, String> connectorConfig) {
         return ExactlyOnceSupport.SUPPORTED;
     }

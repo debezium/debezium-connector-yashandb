@@ -23,6 +23,11 @@ public class YashanDbMetadataProvider implements ComponentMetadataProvider {
 
     private final ComponentMetadataFactory componentMetadataFactory = new ComponentMetadataFactory();
 
+    /**
+     * Returns the component metadata for the YashanDB connector and its custom converters.
+     *
+     * @return the list of component metadata entries
+     */
     @Override
     public List<ComponentMetadata> getConnectorMetadata() {
         return List.of(

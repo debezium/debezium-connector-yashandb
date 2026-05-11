@@ -21,36 +21,71 @@ public class YashanDbEventRouterConfigurationProvider implements EventRouterConf
 
     private Configuration configuration;
 
+    /**
+     * Returns the name of this configuration provider.
+     *
+     * @return the provider name
+     */
     @Override
     public String getName() {
         return Module.name();
     }
 
+    /**
+     * Configures this provider from the given configuration map.
+     *
+     * @param configMap the configuration key-value pairs
+     */
     @Override
     public void configure(Map<String, ?> configMap) {
         this.configuration = Configuration.from(configMap);
     }
 
+    /**
+     * Returns the configured event ID field name in uppercase.
+     *
+     * @return the field name for event ID
+     */
     @Override
     public String getFieldEventId() {
         return getStringWithUpperCaseDefault(EventRouterConfigDefinition.FIELD_EVENT_ID);
     }
 
+    /**
+     * Returns the configured event key field name in uppercase.
+     *
+     * @return the field name for event key
+     */
     @Override
     public String getFieldEventKey() {
         return getStringWithUpperCaseDefault(EventRouterConfigDefinition.FIELD_EVENT_KEY);
     }
 
+    /**
+     * Returns the configured event timestamp field name in uppercase.
+     *
+     * @return the field name for event timestamp
+     */
     @Override
     public String getFieldEventTimestamp() {
         return getStringWithUpperCaseDefault(EventRouterConfigDefinition.FIELD_EVENT_TIMESTAMP);
     }
 
+    /**
+     * Returns the configured payload field name in uppercase.
+     *
+     * @return the field name for payload
+     */
     @Override
     public String getFieldPayload() {
         return getStringWithUpperCaseDefault(EventRouterConfigDefinition.FIELD_PAYLOAD);
     }
 
+    /**
+     * Returns the configured route-by field name in uppercase.
+     *
+     * @return the field name used to determine the event route
+     */
     @Override
     public String getRouteByField() {
         return getStringWithUpperCaseDefault(EventRouterConfigDefinition.ROUTE_BY_FIELD);

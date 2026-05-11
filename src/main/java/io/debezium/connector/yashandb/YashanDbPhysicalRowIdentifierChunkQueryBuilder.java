@@ -21,6 +21,12 @@ public class YashanDbPhysicalRowIdentifierChunkQueryBuilder<T extends DataCollec
     private static final String ROWID = "ROWID";
     private static final String ROWID_TABLE_ALIAS = "DBZ_ROWID_ALIAS";
 
+    /**
+     * Creates a new chunk query builder that uses physical ROWIDs.
+     *
+     * @param config the connector configuration
+     * @param jdbcConnection the JDBC connection
+     */
     public YashanDbPhysicalRowIdentifierChunkQueryBuilder(RelationalDatabaseConnectorConfig config,
                                                           JdbcConnection jdbcConnection) {
         super(config,

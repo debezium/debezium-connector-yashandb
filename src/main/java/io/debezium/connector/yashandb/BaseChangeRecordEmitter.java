@@ -41,6 +41,25 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
     private final YashanDbDatabaseSchema schema;
     protected final Table table;
 
+    /**
+     * Creates a BaseChangeRecordEmitter instance initialized with the given parameters for emitting change data based on a single entry event.
+     *
+     * @param connectorConfig the connector configuration
+     *
+     * @param partition the source partition
+     *
+     * @param offset the offset context
+     *
+     * @param schema the database schema
+     *
+     * @param table the relational table
+     *
+     * @param clock the clock for time-based operations
+     *
+     * @param oldColumnValues the old column values before the change
+     *
+     * @param newColumnValues the new column values after the change
+     */
     protected BaseChangeRecordEmitter(YashanDbConnectorConfig connectorConfig, YashanDbPartition partition, OffsetContext offset,
                                       YashanDbDatabaseSchema schema, Table table, Clock clock, Object[] oldColumnValues,
                                       Object[] newColumnValues) {
@@ -52,11 +71,21 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
         this.table = table;
     }
 
+    /**
+     * Returns the old column values for the change event.
+     *
+     * @return the array of old column values
+     */
     @Override
     protected Object[] getOldColumnValues() {
         return oldColumnValues;
     }
 
+    /**
+     * Returns the new column values for the change event.
+     *
+     * @return the array of new column values
+     */
     @Override
     protected Object[] getNewColumnValues() {
         return newColumnValues;

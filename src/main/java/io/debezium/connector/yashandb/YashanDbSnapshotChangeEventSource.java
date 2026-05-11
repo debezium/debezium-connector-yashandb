@@ -58,6 +58,18 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     private final YashanDbConnection jdbcConnection;
     private final YashanDbDatabaseSchema databaseSchema;
 
+    /**
+     * Creates a new snapshot change event source.
+     *
+     * @param connectorConfig the connector configuration
+     * @param connectionFactory the connection factory
+     * @param schema the database schema
+     * @param dispatcher the event dispatcher
+     * @param clock the clock for time-based operations
+     * @param snapshotProgressListener the snapshot progress listener
+     * @param notificationService the notification service
+     * @param snapshotterService the snapshotter service
+     */
     public YashanDbSnapshotChangeEventSource(YashanDbConnectorConfig connectorConfig, MainConnectionProvidingConnectionFactory connectionFactory,
                                              YashanDbDatabaseSchema schema, EventDispatcher<YashanDbPartition, TableId> dispatcher, Clock clock,
                                              SnapshotProgressListener<YashanDbPartition> snapshotProgressListener,
@@ -69,12 +81,14 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected SnapshotContext<YashanDbPartition, YashanDbOffsetContext> prepare(YashanDbPartition partition, boolean onDemand) {
 
         return new YashanDbSnapshotContext(partition, connectorConfig.getDatabaseName(), onDemand);
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Set<TableId> getAllTableIds(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx)
             throws Exception {
         return jdbcConnection.getAllTableIds(ctx.catalogName);
@@ -83,6 +97,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected void lockTablesForSchemaSnapshot(ChangeEventSourceContext sourceContext,
                                                RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext)
             throws SQLException, InterruptedException {
@@ -109,6 +124,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext)
             throws SQLException {
         if (connectorConfig.getSnapshotLockingMode().get().usesLocking()) {
@@ -117,6 +133,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected void determineSnapshotOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx,
                                            YashanDbOffsetContext previousOffset)
             throws Exception {
@@ -131,6 +148,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected void readTableStructure(ChangeEventSourceContext sourceContext,
                                       RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                       YashanDbOffsetContext offsetContext, SnapshottingTask snapshottingTask)
@@ -176,6 +194,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected String enhanceOverriddenSelect(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                              String overriddenSelect, TableId tableId) {
         String snapshotOffset = (String) snapshotContext.offset.getOffset().get(SourceInfo.SCN_KEY);
@@ -187,11 +206,13 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Collection<TableId> getTablesForSchemaChange(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext) {
         return snapshotContext.capturedSchemaTables;
     }
 
     @Override
+    /** {@inheritDoc} */
     protected SchemaChangeEvent getCreateTableEvent(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                                     Table table)
             throws SQLException {
@@ -206,6 +227,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Instant getSnapshotSourceTimestamp(JdbcConnection jdbcConnection, YashanDbOffsetContext offset, TableId tableId) {
         try {
             final YashanDbConnection connection = (YashanDbConnection) jdbcConnection;
@@ -228,6 +250,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
      * @return a valid query string
      */
     @Override
+    /** {@inheritDoc} */
     protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                                  TableId tableId, List<String> columns) {
 
@@ -235,6 +258,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected List<Pattern> getSignalDataCollectionPattern(String signalingDataCollection) {
         // YashanDB expects this value to be supplied using "<database>.<schema>.<table>"; however the
         // TableIdMapper used by the connector uses only "<schema>.<table>". This primarily targets
@@ -260,10 +284,17 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected YashanDbOffsetContext copyOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext) {
         return load(snapshotContext.offset.getOffset());
     }
 
+    /**
+     * Loads offset context from a map.
+     *
+     * @param offset the offset map
+     * @return the loaded offset context
+     */
     public YashanDbOffsetContext load(Map<String, ?> offset) {
         boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
         boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY));
@@ -281,6 +312,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Callable<Void> createDataEventsForTableCallable(ChangeEventSourceContext sourceContext,
                                                               RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                                               EventDispatcher.SnapshotReceiver<YashanDbPartition> snapshotReceiver, Table table,

@@ -29,6 +29,9 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.spi.schema.DataCollectionId;
 
+/**
+ * JDBC connection for YashanDB.
+ */
 public class YashanDbConnection extends JdbcConnection {
     private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbConnection.class);
 
@@ -38,18 +41,42 @@ public class YashanDbConnection extends JdbcConnection {
 
     private static final int YASHANDB_UNSET_SCALE = -127;
 
+    /**
+     * Creates a new YashanDB connection.
+     *
+     * @param config the JDBC configuration
+     */
     public YashanDbConnection(JdbcConfiguration config) {
         super(config, resolveConnectionFactory(config), QUOTED_CHARACTER, QUOTED_CHARACTER);
     }
 
+    /**
+     * Creates a new YashanDB connection with a custom connection factory.
+     *
+     * @param config the JDBC configuration
+     * @param connectionFactory the connection factory
+     */
     public YashanDbConnection(JdbcConfiguration config, ConnectionFactory connectionFactory) {
         super(config, connectionFactory, QUOTED_CHARACTER, QUOTED_CHARACTER);
     }
 
+    /**
+     * Creates a new YashanDB connection with initial operations.
+     *
+     * @param config the JDBC configuration
+     * @param connectionFactory the connection factory
+     * @param initialOperations the initial operations to execute
+     */
     protected YashanDbConnection(JdbcConfiguration config, ConnectionFactory connectionFactory, Operations initialOperations) {
         super(config, connectionFactory, initialOperations, QUOTED_CHARACTER, QUOTED_CHARACTER);
     }
 
+    /**
+     * Retrieves the current system change number from the database.
+     *
+     * @return the current SCN
+     * @throws SQLException if the query fails
+     */
     public Scn getCurrentScn() throws SQLException {
         return queryAndMap("SELECT CURRENT_SCN FROM V$DATABASE", (rs) -> {
             if (rs.next()) {
@@ -59,6 +86,12 @@ public class YashanDbConnection extends JdbcConnection {
         });
     }
 
+    /**
+     * Queries the oldest transaction start SCN from open transactions.
+     *
+     * @return the oldest transaction start SCN, or NULL if no open transactions
+     * @throws SQLException if the query fails
+     */
     public Scn queryOldTransactionStartScn() throws SQLException {
         return queryAndMap("SELECT MIN(START_SCN) FROM SYS.V_$TRANSACTION WHERE STATUS = 'OPEN'", (rs) -> {
             if (rs.next()) {
@@ -74,12 +107,25 @@ public class YashanDbConnection extends JdbcConnection {
         return JdbcConnection.patternBasedFactory(connectionString(config));
     }
 
+    /**
+     * Builds the JDBC connection string from the configuration.
+     *
+     * @param config the JDBC configuration
+     * @return the connection string
+     */
     public static String connectionString(JdbcConfiguration config) {
         return config.getString(URL) != null ? config.getString(URL)
                 : String.format("jdbc:yasdb://%s:%s/%s", config.getString(JdbcConfiguration.HOSTNAME), config.getString(JdbcConfiguration.PORT),
                         config.getString(JdbcConfiguration.DATABASE));
     }
 
+    /**
+     * Retrieves the DDL metadata for the specified table.
+     *
+     * @param tableId the table identifier
+     * @return the DDL statement for the table
+     * @throws SQLException if the query fails
+     */
     public String getTableMetadataDdl(TableId tableId) throws SQLException {
         final String schema = tableId.schema();
         final String table = tableId.table();
@@ -145,6 +191,13 @@ public class YashanDbConnection extends JdbcConnection {
         }
     }
 
+    /**
+     * Retrieves all table IDs from the specified catalog.
+     *
+     * @param catalogName the catalog name
+     * @return the set of table IDs
+     * @throws SQLException if the query fails
+     */
     public Set<TableId> getAllTableIds(String catalogName) throws SQLException {
         final String query = "select owner, table_name from all_tables ";
 
@@ -159,6 +212,13 @@ public class YashanDbConnection extends JdbcConnection {
         return tableIds;
     }
 
+    /**
+     * Converts an SCN to a timestamp.
+     *
+     * @param scn the system change number
+     * @return the corresponding timestamp, or empty if conversion fails
+     * @throws SQLException if the query fails
+     */
     public Optional<Instant> getScnToTimestamp(Scn scn) throws SQLException {
         try {
             return queryAndMap("SELECT scn_to_timestamp(" + scn + ") FROM DUAL", rs -> rs.next()
@@ -187,6 +247,11 @@ public class YashanDbConnection extends JdbcConnection {
         return column;
     }
 
+    /**
+     * Retrieves the SQL keywords from the JDBC driver metadata.
+     *
+     * @return the list of SQL keywords
+     */
     public List<String> getSQLKeywords() {
         try {
             return Arrays.asList(connection().getMetaData().getSQLKeywords().split(","));

@@ -38,6 +38,11 @@ public class CommitScn implements Comparable<Scn> {
     // Explicitly use TreeMap to guarantee output render order
     private final Map<Integer, RedoThreadCommitScn> redoThreadCommitScns = new TreeMap<>();
 
+    /**
+     * Creates a CommitScn instance from a set of redo thread commit SCNs.
+     *
+     * @param commitScns the set of redo thread commit SCNs
+     */
     private CommitScn(Set<RedoThreadCommitScn> commitScns) {
         for (RedoThreadCommitScn commitScn : commitScns) {
             redoThreadCommitScns.put(commitScn.getThread(), commitScn);
@@ -93,7 +98,13 @@ public class CommitScn implements Comparable<Scn> {
         }
     }
 
-    @Override
+    /**
+     * Compares this CommitScn with the specified SCN for ordering.
+     *
+     * @param scn the SCN to compare against
+     *
+     * @return comparison result based on the minimum commit SCN across redo threads
+     */
     public int compareTo(Scn scn) {
         if (redoThreadCommitScns.isEmpty()) {
             return Scn.NULL.compareTo(scn);
@@ -141,7 +152,9 @@ public class CommitScn implements Comparable<Scn> {
     }
 
     /**
-     * Returns a loggable string representing the commit scn
+     * Returns a loggable string representation of the commit SCN across all redo threads.
+     *
+     * @return the loggable format string
      */
     public String toLoggableFormat() {
         final StringBuilder sb = new StringBuilder("[");
@@ -154,7 +167,11 @@ public class CommitScn implements Comparable<Scn> {
         return sb.toString();
     }
 
-    @Override
+    /**
+     * Returns a string representation of this CommitScn.
+     *
+     * @return the string representation
+     */
     public String toString() {
         return "CommitScn [redoThreadCommitScns=" + redoThreadCommitScns + "]";
     }
@@ -216,6 +233,13 @@ public class CommitScn implements Comparable<Scn> {
         return new CommitScn(Collections.emptySet());
     }
 
+    /**
+     * Enhances the given schema builder with the redo thread field schema.
+     *
+     * @param schemaBuilder the schema builder to enhance
+     *
+     * @return the enhanced schema builder
+     */
     public static SchemaBuilder schemaBuilder(SchemaBuilder schemaBuilder) {
         return schemaBuilder.field(REDO_THREAD_KEY, Schema.OPTIONAL_INT32_SCHEMA);
     }
@@ -233,7 +257,7 @@ public class CommitScn implements Comparable<Scn> {
     }
 
     /**
-     * Represents a commit {@link Scn} for a specific redo thread.
+     * Represents a commit SCN for a specific redo thread, tracking the commit position and active transaction IDs for that thread.
      */
     public static class RedoThreadCommitScn {
 
@@ -241,10 +265,22 @@ public class CommitScn implements Comparable<Scn> {
         private Scn commitScn;
         private Set<String> txIds;
 
+        /**
+         * Creates a RedoThreadCommitScn instance for the specified thread with default values.
+         *
+         * @param thread the redo thread number
+         */
         public RedoThreadCommitScn(int thread) {
             this(thread, Scn.NULL, Collections.emptySet());
         }
 
+        /**
+         * Creates a RedoThreadCommitScn instance with the specified thread, commit SCN, and transaction IDs.
+         *
+         * @param thread the redo thread number
+         * @param commitScn the commit SCN value
+         * @param txIds the set of active transaction IDs
+         */
         public RedoThreadCommitScn(int thread, Scn commitScn, Set<String> txIds) {
             this.thread = thread;
             this.commitScn = commitScn;
@@ -252,30 +288,64 @@ public class CommitScn implements Comparable<Scn> {
             this.txIds = new TreeSet<>(txIds);
         }
 
+        /**
+         * Returns the redo thread number for this commit SCN.
+         *
+         * @return the redo thread number
+         */
         public int getThread() {
             return thread;
         }
 
+        /**
+         * Returns the commit SCN for this redo thread.
+         *
+         * @return the commit SCN
+         */
         public Scn getCommitScn() {
             return commitScn;
         }
 
+        /**
+         * Sets the commit SCN for this redo thread.
+     *
+         * @param commitScn the commit SCN to set
+         */
         public void setCommitScn(Scn commitScn) {
             this.commitScn = commitScn;
         }
 
+        /**
+         * Returns the set of active transaction IDs for this redo thread.
+         *
+         * @return the set of transaction IDs
+         */
         public Set<String> getTxIds() {
             return txIds;
         }
 
+        /**
+         * Resets the set of active transaction IDs to an empty set.
+         */
         public void resetTxIds() {
             this.txIds = new TreeSet<>();
         }
 
+        /**
+         * Returns a formatted string representation of the commit SCN with thread and transaction IDs.
+         *
+         * @return the formatted commit SCN string
+         */
         public String getFormattedString() {
             return commitScn.toString() + ":" + thread + ":" + Strings.join("-", txIds);
         }
 
+        /**
+         * Parses a string-based representation of a redo thread commit SCN entry.
+         *
+         * @param value the commit SCN string entry
+         * @return the RedoThreadCommitScn instance
+         */
         public static RedoThreadCommitScn valueOf(String value) {
             final String[] parts = value.split(":", -1);
             if (parts.length == 1) {
@@ -311,6 +381,11 @@ public class CommitScn implements Comparable<Scn> {
             throw new DebeziumException("An unexpected redo thread commit scn entry: '" + value + "'");
         }
 
+    /**
+     * Returns a string representation of this redo thread commit SCN.
+     *
+     * @return the string representation
+     */
         @Override
         public String toString() {
             return "RedoThreadCommitScn{" +

@@ -33,11 +33,24 @@ public class YashanDbErrorHandler extends ErrorHandler {
     @Immutable
     private static final Set<String> RETRIABLE_ERROR_MESSAGES = Collect.unmodifiableSet();
 
+    /**
+     * Creates a new error handler for YashanDB.
+     *
+     * @param connectorConfig the connector configuration
+     * @param queue the change event queue
+     * @param replacedErrorHandler the error handler to replace
+     */
     public YashanDbErrorHandler(YashanDbConnectorConfig connectorConfig, ChangeEventQueue<?> queue, ErrorHandler replacedErrorHandler) {
         super(YashanDbConnector.class, connectorConfig, queue, replacedErrorHandler);
     }
 
     @Override
+    /**
+     * Determines if the given throwable is retriable.
+     *
+     * @param throwable the throwable to check
+     * @return true if the error is retriable, false otherwise
+     */
     protected boolean isRetriable(Throwable throwable) {
         while (throwable != null) {
             // Always retry any recoverable error

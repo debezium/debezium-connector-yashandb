@@ -64,6 +64,19 @@ class YStreamEventHandler {
     private YStreamRecord currentRecord;
     private int outRowSize;
 
+    /**
+     * Creates a YStreamEventHandler with the given configuration and dependencies.
+     *
+     * @param connectorConfig the connector configuration
+     * @param errorHandler the error handler
+     * @param dispatcher the event dispatcher
+     * @param clock the clock for timestamping
+     * @param schema the database schema
+     * @param partition the YashanDB partition
+     * @param offsetContext the offset context
+     * @param eventSource the streaming change event source
+     * @param streamingMetrics the streaming metrics
+     */
     YStreamEventHandler(YashanDbConnectorConfig connectorConfig, ErrorHandler errorHandler,
                         EventDispatcher<YashanDbPartition, TableId> dispatcher, Clock clock,
                         YashanDbDatabaseSchema schema, YashanDbPartition partition, YashanDbOffsetContext offsetContext, YStreamStreamingChangeEventSource eventSource,
@@ -80,6 +93,11 @@ class YStreamEventHandler {
         this.columnChunks = new LinkedHashMap<>();
     }
 
+    /**
+     * Processes a YStream record, dispatching the appropriate change events.
+     *
+     * @param record the YStream record to process
+     */
     public void processRecord(YStreamRecord record) {
         LOGGER.trace("Received Record {}", record);
         try {
@@ -279,6 +297,13 @@ class YStreamEventHandler {
                 "columns on the table: {}", tableId.schema(), tableId.table(), columnsInSchema, columnsOnTable);
     }
 
+    /**
+     * Retrieves and loads the table schema for the given table ID if not already loaded.
+     *
+     * @param tableId the table identifier
+     * @return the table metadata, or null if the table is excluded
+     * @throws InterruptedException if the thread is interrupted
+     */
     public Table getTable(TableId tableId) throws InterruptedException {
         if (!connectorConfig.getTableFilters().dataCollectionFilter().isIncluded(tableId)) {
             LOGGER.trace("Table {} is new but excluded, schema change skipped.", tableId);
@@ -410,6 +435,11 @@ class YStreamEventHandler {
         LOGGER.trace("Offsets recorded to YashanDB");
     }
 
+    /**
+     * Processes a chunk of LOB data, accumulating chunks until the end is reached.
+     *
+     * @param chunk the YStream chunk to process
+     */
     public void processChunk(YstreamChunk chunk) {
         columnChunks.computeIfAbsent(chunk.getColumn().getColumnName(), v -> new ChunkColumnValues()).add(chunk);
         if (chunk.isEnd()) {

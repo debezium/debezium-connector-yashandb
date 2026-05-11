@@ -15,6 +15,12 @@ import io.debezium.util.Strings;
  */
 public class YashanDbTableIdParser {
 
+    /**
+     * Parses a table identifier string into a TableId.
+     *
+     * @param identifier the table identifier string
+     * @return the parsed TableId
+     */
     public static TableId parse(String identifier) {
         final String[] parts = TableId.parseParts(identifier);
         if (parts.length > 3) {
@@ -29,6 +35,15 @@ public class YashanDbTableIdParser {
         return TableId.parse(identifier, false);
     }
 
+    /**
+     * Quotes table identifier parts if needed based on SQL keywords.
+     *
+     * @param tableId the table identifier
+     * @param useCatalog whether to include the catalog
+     * @param useSchema whether to include the schema
+     * @param keywords list of SQL keywords to check against
+     * @return the quoted table identifier string
+     */
     public static String quoteIfNeeded(TableId tableId, boolean useCatalog, boolean useSchema, List<String> keywords) {
         final StringBuilder sb = new StringBuilder();
         if (useCatalog) {

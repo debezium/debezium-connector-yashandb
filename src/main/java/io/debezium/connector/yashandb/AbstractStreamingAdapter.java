@@ -26,10 +26,22 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
 
     protected final YashanDbConnectorConfig connectorConfig;
 
+    /**
+     * Creates an AbstractStreamingAdapter instance initialized with the given connector configuration.
+     *
+     * @param connectorConfig the connector configuration, must not be null
+     */
     public AbstractStreamingAdapter(YashanDbConnectorConfig connectorConfig) {
         this.connectorConfig = connectorConfig;
     }
 
+    /**
+     * Resolves a System Change Number from the given document, handling both string and legacy long-based SCN representations.
+     *
+     * @param document the document containing the SCN value
+     *
+     * @return the resolved Scn instance
+     */
     protected Scn resolveScn(Document document) {
         final String scn = document.getString(SourceInfo.SCN_KEY);
         if (scn == null) {

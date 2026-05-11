@@ -21,6 +21,10 @@ import io.debezium.relational.TableEditor;
 import io.debezium.relational.TableId;
 import io.debezium.text.ParsingException;
 
+/**
+ * This class is parsing YashanDB create table statements.
+ * It maps the table and column definitions to the relational table model.
+ */
 public class CreateTableParserListener extends BaseParserListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CreateTableParserListener.class);
@@ -33,6 +37,14 @@ public class CreateTableParserListener extends BaseParserListener {
     private ColumnDefinitionParserListener columnDefinitionParserListener;
     private String inlinePrimaryKey;
 
+    /**
+     * Creates a new CreateTableParserListener.
+     *
+     * @param catalogName the catalog (database) name
+     * @param schemaName the schema name
+     * @param parser the parent DDL parser
+     * @param listeners the list of registered parse tree listeners
+     */
     CreateTableParserListener(final String catalogName, final String schemaName, final YashanDbDdlParser parser,
                               final List<ParseTreeListener> listeners) {
         this.catalogName = catalogName;
@@ -41,6 +53,12 @@ public class CreateTableParserListener extends BaseParserListener {
         this.listeners = listeners;
     }
 
+    /**
+     * Called when entering the create_table_statement parse tree node.
+     * Initializes the table editor for the new table.
+     *
+     * @param ctx the create_table_statement parse context
+     */
     @Override
     public void enterCreate_table_statement(YashanDbParser.Create_table_statementContext ctx) {
         if (ctx.relation_properties() == null) {
@@ -58,6 +76,12 @@ public class CreateTableParserListener extends BaseParserListener {
         }
     }
 
+    /**
+     * Called when exiting the create_table_statement parse tree node.
+     * Finalizes table creation and signals the create table event.
+     *
+     * @param ctx the create_table_statement parse context
+     */
     @Override
     public void exitCreate_table_statement(YashanDbParser.Create_table_statementContext ctx) {
         parser.runIfNotNull(() -> {
@@ -81,6 +105,12 @@ public class CreateTableParserListener extends BaseParserListener {
         super.exitCreate_table_statement(ctx);
     }
 
+    /**
+     * Called when entering the column_definition parse tree node.
+     * Creates a column editor and registers the column definition listener.
+     *
+     * @param ctx the column_definition parse context
+     */
     @Override
     public void enterColumn_definition(YashanDbParser.Column_definitionContext ctx) {
         parser.runIfNotNull(() -> {
@@ -98,6 +128,12 @@ public class CreateTableParserListener extends BaseParserListener {
         super.enterColumn_definition(ctx);
     }
 
+    /**
+     * Called when exiting the column_definition parse tree node.
+     * Adds the parsed column to the table editor.
+     *
+     * @param ctx the column_definition parse context
+     */
     @Override
     public void exitColumn_definition(YashanDbParser.Column_definitionContext ctx) {
         parser.runIfNotNull(() -> tableEditor.addColumn(columnDefinitionParserListener.getColumn()),
@@ -105,6 +141,12 @@ public class CreateTableParserListener extends BaseParserListener {
         super.exitColumn_definition(ctx);
     }
 
+    /**
+     * Called when exiting the inline_constraint parse tree node.
+     * Handles inline PRIMARY KEY constraint definitions.
+     *
+     * @param ctx the inline_constraint parse context
+     */
     @Override
     public void exitInline_constraint(YashanDbParser.Inline_constraintContext ctx) {
         if (ctx.PRIMARY() != null) {
@@ -116,6 +158,12 @@ public class CreateTableParserListener extends BaseParserListener {
         super.exitInline_constraint(ctx);
     }
 
+    /**
+     * Called when exiting the index_definition parse tree node.
+     * Handles out-of-line PRIMARY KEY index definitions.
+     *
+     * @param ctx the index_definition parse context
+     */
     @Override
     public void exitIndex_definition(YashanDbParser.Index_definitionContext ctx) {
         parser.runIfNotNull(() -> {
@@ -133,6 +181,11 @@ public class CreateTableParserListener extends BaseParserListener {
         super.exitIndex_definition(ctx);
     }
 
+    /**
+     * Returns the created table from the table editor, or null if no editor exists.
+     *
+     * @return the table instance or null
+     */
     private Table getTable() {
         return tableEditor != null ? tableEditor.create() : null;
     }

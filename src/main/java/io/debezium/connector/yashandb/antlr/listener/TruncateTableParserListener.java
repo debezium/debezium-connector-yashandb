@@ -11,6 +11,7 @@ import io.debezium.relational.TableId;
 
 /**
  * This class is parsing YashanDB truncate table statements.
+ * Truncating a table generates a schema change event.
  */
 public class TruncateTableParserListener extends BaseParserListener {
 
@@ -18,12 +19,25 @@ public class TruncateTableParserListener extends BaseParserListener {
     private final String schemaName;
     private final YashanDbDdlParser parser;
 
+    /**
+     * Creates a new TruncateTableParserListener.
+     *
+     * @param catalogName the catalog (database) name
+     * @param schemaName the schema name
+     * @param parser the parent DDL parser
+     */
     TruncateTableParserListener(final String catalogName, final String schemaName, final YashanDbDdlParser parser) {
         this.catalogName = catalogName;
         this.schemaName = schemaName;
         this.parser = parser;
     }
 
+    /**
+     * Called when entering the truncate_table_statement parse tree node.
+     * Signals the truncate table event.
+     *
+     * @param ctx the truncate_table_statement parse context
+     */
     @Override
     public void enterTruncate_table_statement(final YashanDbParser.Truncate_table_statementContext ctx) {
         TableId tableId = new TableId(catalogName, schemaName, getTableNameFromTruncate(ctx));

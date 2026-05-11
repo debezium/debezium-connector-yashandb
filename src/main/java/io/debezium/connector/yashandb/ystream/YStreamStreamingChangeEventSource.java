@@ -59,6 +59,17 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     private final AtomicReference<PositionAndScn> lcrMessage = new AtomicReference<>();
     private YashanDbOffsetContext effectiveOffset;
 
+    /**
+     * Creates a YStreamStreamingChangeEventSource with the given configuration and dependencies.
+     *
+     * @param connectorConfig the connector configuration
+     * @param jdbcConnection the JDBC connection
+     * @param dispatcher the event dispatcher
+     * @param errorHandler the error handler
+     * @param clock the clock for timestamping
+     * @param schema the database schema
+     * @param streamingMetrics the streaming metrics
+     */
     public YStreamStreamingChangeEventSource(YashanDbConnectorConfig connectorConfig, YashanDbConnection jdbcConnection,
                                              EventDispatcher<YashanDbPartition, TableId> dispatcher, ErrorHandler errorHandler,
                                              Clock clock, YashanDbDatabaseSchema schema,
@@ -73,11 +84,21 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         this.yStreamServerName = connectorConfig.getYstreamServerName();
     }
 
+    /**
+     * Initializes the streaming event source with the given offset context.
+     *
+     * @param offsetContext the offset context to use, or null for a fresh start
+     */
     @Override
     public void init(YashanDbOffsetContext offsetContext) throws InterruptedException {
         this.effectiveOffset = offsetContext == null ? emptyContext() : offsetContext;
     }
 
+    /**
+     * Creates an empty offset context with default values.
+     *
+     * @return a new empty YashanDbOffsetContext
+     */
     private YashanDbOffsetContext emptyContext() {
         return YashanDbOffsetContext.create().logicalName(connectorConfig)
                 .snapshotPendingTransactions(Collections.emptyMap())
@@ -85,6 +106,13 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
                 .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>()).build();
     }
 
+    /**
+     * Executes the streaming loop, receiving and processing YStream events until the context is stopped.
+     *
+     * @param context the change event source context
+     * @param partition the YashanDB partition
+     * @param offsetContext the offset context
+     */
     @Override
     public void execute(ChangeEventSourceContext context, YashanDbPartition partition, YashanDbOffsetContext offsetContext)
             throws InterruptedException {
@@ -142,6 +170,12 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         }
     }
 
+    /**
+     * Commits the given offset to the YStream server for watermark tracking.
+     *
+     * @param partition the partition map
+     * @param offset the offset map
+     */
     @Override
     public void commitOffset(Map<String, ?> partition, Map<String, ?> offset) {
         if (ystreamClientBoot != null) {
@@ -154,31 +188,57 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         }
     }
 
+    /**
+     * @return the effective offset context
+     */
     @Override
     public YashanDbOffsetContext getOffsetContext() {
         return effectiveOffset;
     }
 
+    /**
+     * A simple container holding a YStream position and an SCN value.
+     */
     public static class PositionAndScn {
         public final YStreamPosition position;
         public final Scn scn;
 
+        /**
+         * Creates a PositionAndScn with the given position and SCN.
+         *
+         * @param position the YStream position
+         * @param scn the system change number
+         */
         public PositionAndScn(YStreamPosition position, Scn scn) {
             this.position = position;
             this.scn = scn;
         }
     }
 
+    /**
+     * @return the YStream client boot instance
+     */
     public YstreamClientBoot<YStreamRecord> getYstreamClientBoot() {
         return ystreamClientBoot;
     }
 
+    /**
+     * Sends the published position and SCN to the message box for the YStream thread to process.
+     *
+     * @param lcrPosition the LCR position to publish
+     * @param scn the system change number to publish
+     */
     private void sendPublishedPosition(final YStreamPosition lcrPosition, final Scn scn) {
         if (lcrPosition.getRawPosition().compareTo(this.effectiveOffset.getRecoverPosition()) > 0) {
             lcrMessage.set(new PositionAndScn(lcrPosition, scn));
         }
     }
 
+    /**
+     * Retrieves and clears the published position from the message box.
+     *
+     * @return the published position and SCN, or null if none pending
+     */
     PositionAndScn receivePublishedPosition() {
         return lcrMessage.getAndSet(null);
     }

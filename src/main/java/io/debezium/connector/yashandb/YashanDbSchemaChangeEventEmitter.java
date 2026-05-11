@@ -50,6 +50,21 @@ public class YashanDbSchemaChangeEventEmitter implements SchemaChangeEventEmitte
     private final TruncateReceiver truncateReceiver;
     private final YashanDbConnectorConfig connectorConfig;
 
+    /**
+     * Creates a new schema change event emitter.
+     *
+     * @param connectorConfig the connector configuration
+     * @param partition the partition
+     * @param offsetContext the offset context
+     * @param tableId the table identifier
+     * @param sourceDatabaseName the source database name
+     * @param objectOwner the object owner
+     * @param ddlText the DDL text to emit
+     * @param schema the database schema
+     * @param changeTime the change timestamp
+     * @param streamingMetrics the streaming metrics
+     * @param truncateReceiver the truncate event receiver
+     */
     public YashanDbSchemaChangeEventEmitter(YashanDbConnectorConfig connectorConfig, YashanDbPartition partition,
                                             YashanDbOffsetContext offsetContext, TableId tableId, String sourceDatabaseName,
                                             String objectOwner, String ddlText, YashanDbDatabaseSchema schema,

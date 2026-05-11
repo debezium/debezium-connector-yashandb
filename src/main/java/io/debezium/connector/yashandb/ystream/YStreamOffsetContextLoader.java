@@ -21,17 +21,27 @@ import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 
 /**
- * The {@link OffsetContext} loader implementation for the YashanDB YStream adapter
- *
+ * The {@link OffsetContext} loader implementation for the YashanDB YStream adapter.
  */
 public class YStreamOffsetContextLoader implements OffsetContext.Loader<YashanDbOffsetContext> {
     private static final Logger LOGGER = LoggerFactory.getLogger(YStreamOffsetContextLoader.class);
     private final YashanDbConnectorConfig connectorConfig;
 
+    /**
+     * Creates a YStreamOffsetContextLoader with the given connector configuration.
+     *
+     * @param connectorConfig the YashanDB connector configuration
+     */
     public YStreamOffsetContextLoader(YashanDbConnectorConfig connectorConfig) {
         this.connectorConfig = connectorConfig;
     }
 
+    /**
+     * Loads a YashanDbOffsetContext from the given offset map.
+     *
+     * @param offset the offset map containing snapshot and position data
+     * @return the loaded YashanDbOffsetContext
+     */
     @Override
     public YashanDbOffsetContext load(Map<String, ?> offset) {
         boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
