@@ -42,3 +42,15 @@ jenkins-jobs/docker/artifact-server/plugins
 # AI assistant rules (local only)
 .bob/
 .mvn/wrapper/maven-wrapper.jar
+
+# Antlr4 generated files
+src/main/java/io/debezium/connector/yashandb/ddl/parser/gen/
+*.interp
+*.tokens
+
+# Maven build output
+target/
+
+# IDE files
+.idea/
+*.iml
