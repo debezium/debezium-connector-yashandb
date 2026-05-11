@@ -11,11 +11,15 @@ import org.apache.kafka.connect.data.Struct;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.AbstractSourceInfoStructMaker;
 
+/**
+ * Creates source info structs for YashanDB change events.
+ */
 public class YashanDbSourceInfoStructMaker extends AbstractSourceInfoStructMaker<SourceInfo> {
 
     private Schema schema;
 
     @Override
+    /** {@inheritDoc} */
     public void init(String connector, String version, CommonConnectorConfig connectorConfig) {
         super.init(connector, version, connectorConfig);
         this.schema = CommitScn.schemaBuilder(commonSchemaBuilder()
@@ -39,11 +43,13 @@ public class YashanDbSourceInfoStructMaker extends AbstractSourceInfoStructMaker
     }
 
     @Override
+    /** {@inheritDoc} */
     public Schema schema() {
         return schema;
     }
 
     @Override
+    /** {@inheritDoc} */
     public Struct struct(SourceInfo sourceInfo) {
         final String eventScn = sourceInfo.getEventScn() == null ? null : sourceInfo.getEventScn().toString();
 

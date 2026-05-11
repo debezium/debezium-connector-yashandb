@@ -25,6 +25,11 @@ public class Scn implements Comparable<Scn> {
 
     private final BigInteger scn;
 
+    /**
+     * Creates a Scn instance with the given BigInteger value.
+     *
+     * @param scn the system change number value, may be null
+     */
     public Scn(BigInteger scn) {
         this.scn = scn;
     }
@@ -131,6 +136,13 @@ public class Scn implements Comparable<Scn> {
         return scn.compareTo(o.scn);
     }
 
+    /**
+     * Compares this SCN to another object for equality.
+     *
+     * @param o the object to compare to
+     *
+     * @return true if the objects are equal, false otherwise
+     */
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -143,11 +155,21 @@ public class Scn implements Comparable<Scn> {
         return Objects.equals(scn, scn1.scn);
     }
 
+    /**
+     * Returns a hash code for this SCN instance.
+     *
+     * @return the hash code value
+     */
     @Override
     public int hashCode() {
         return Objects.hash(scn);
     }
 
+    /**
+     * Returns a string representation of this SCN.
+     *
+     * @return the string representation, or null if this SCN has no value
+     */
     @Override
     public String toString() {
         return isNull() ? "null" : scn.toString();

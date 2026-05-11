@@ -36,6 +36,19 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
 
     private final YStreamDataChangeRecord record;
 
+    /**
+     * Creates a YStreamChangeRecordEmitter for the given change record.
+     *
+     * @param connectorConfig the connector configuration
+     * @param partition the YashanDB partition
+     * @param offset the offset context
+     * @param record the data change record to emit
+     * @param table the table metadata
+     * @param schema the database schema
+     * @param clock the clock for timestamping
+     * @param newValues the new column values
+     * @param oldValues the old column values
+     */
     public YStreamChangeRecordEmitter(YashanDbConnectorConfig connectorConfig, YashanDbPartition partition, OffsetContext offset, YStreamDataChangeRecord record,
                                       Table table, YashanDbDatabaseSchema schema, Clock clock, Object[] newValues, Object[] oldValues) {
         super(connectorConfig, partition, offset, schema, table, clock, oldValues,
@@ -43,6 +56,9 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
         this.record = record;
     }
 
+    /**
+     * @return the Debezium operation type for this change record
+     */
     @Override
     public Operation getOperation() {
         if (record.isTruncateTable()) {
@@ -109,6 +125,14 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
         }
     }
 
+    /**
+     * Extracts column values from a {@link YstreamColumns} and overlays any chunk values.
+     *
+     * @param table the table metadata for column mapping
+     * @param columnValues the YStream column values
+     * @param chunkValues a map of chunk values to overlay onto the column values
+     * @return an array of column values indexed by column position
+     */
     public static Object[] getColumnValues(Table table, YstreamColumns columnValues, Map<String, Object> chunkValues) {
         Object[] values = new Object[table.columns().size()];
         if (columnValues != null) {

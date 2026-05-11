@@ -44,6 +44,18 @@ public class YashanDbDatabaseSchema extends HistorizedRelationalDatabaseSchema {
 
     private boolean storageInitializationExecuted = false;
 
+    /**
+     * Creates a new database schema instance.
+     *
+     * @param connectorConfig the connector configuration
+     * @param valueConverters the value converters
+     * @param defaultValueConverter the default value converter
+     * @param schemaNameAdjuster the schema name adjuster
+     * @param topicNamingStrategy the topic naming strategy
+     * @param tableNameCaseSensitivity the table name case sensitivity
+     * @param customConverterRegistry the custom converter registry
+     * @param taskContext the task context
+     */
     public YashanDbDatabaseSchema(YashanDbConnectorConfig connectorConfig, YashanDbValueConverters valueConverters,
                                   DefaultValueConverter defaultValueConverter, SchemaNameAdjuster schemaNameAdjuster,
                                   TopicNamingStrategy<TableId> topicNamingStrategy,
@@ -73,20 +85,32 @@ public class YashanDbDatabaseSchema extends HistorizedRelationalDatabaseSchema {
                 connectorConfig.getTableFilters().dataCollectionFilter());
     }
 
+    /**
+     * Returns the tables tracked by this schema.
+     *
+     * @return the tables
+     */
     public Tables getTables() {
         return tables();
     }
 
+    /**
+     * Returns the value converters used by this schema.
+     *
+     * @return the value converters
+     */
     public YashanDbValueConverters getValueConverters() {
         return valueConverters;
     }
 
     @Override
+    /** {@inheritDoc} */
     public YashanDbDdlParser getDdlParser() {
         return ddlParser;
     }
 
     @Override
+    /** {@inheritDoc} */
     public void applySchemaChange(SchemaChangeEvent schemaChange) {
         LOGGER.debug("Applying schema change event {}", schemaChange);
 
@@ -112,17 +136,28 @@ public class YashanDbDatabaseSchema extends HistorizedRelationalDatabaseSchema {
     }
 
     @Override
+    /** {@inheritDoc} */
     public void initializeStorage() {
         super.initializeStorage();
         storageInitializationExecuted = true;
     }
 
+    /**
+     * Returns whether storage initialization has been executed.
+     *
+     * @return true if storage was initialized, false otherwise
+     */
     public boolean isStorageInitializationExecuted() {
         return storageInitializationExecuted;
     }
 
     /**
      * Return true if the database schema history entity exists
+     */
+    /**
+     * Returns whether the database schema history exists.
+     *
+     * @return true if history exists, false otherwise
      */
     public boolean historyExists() {
         return schemaHistory.exists();

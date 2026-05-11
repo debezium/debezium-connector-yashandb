@@ -46,6 +46,9 @@ import io.debezium.time.ZonedTimestamp;
 import io.debezium.util.NumberConversions;
 import io.debezium.util.Strings;
 
+/**
+ * Value converters for YashanDB column types.
+ */
 public class YashanDbValueConverters extends JdbcValueConverters {
 
     /**
@@ -105,6 +108,12 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     private final byte[] unavailableValuePlaceholderBinary;
     private final String unavailableValuePlaceholderString;
 
+    /**
+     * Creates a new value converter for YashanDB.
+     *
+     * @param config the connector configuration
+     * @param connection the JDBC connection
+     */
     public YashanDbValueConverters(YashanDbConnectorConfig config, YashanDbConnection connection) {
         super(config.getDecimalMode(), config.getTemporalPrecisionMode(), ZoneOffset.UTC, null, null, config.binaryHandlingMode());
         this.connection = connection;
@@ -115,15 +124,26 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         this.unavailableValuePlaceholderString = new String(config.getUnavailableValuePlaceholder());
     }
 
+    /**
+     * Returns the binary placeholder for unavailable column values.
+     *
+     * @return the unavailable value placeholder as bytes
+     */
     public byte[] getUnavailableValuePlaceholderBinary() {
         return unavailableValuePlaceholderBinary;
     }
 
+    /**
+     * Returns the string placeholder for unavailable column values.
+     *
+     * @return the unavailable value placeholder as string
+     */
     public String getUnavailableValuePlaceholderString() {
         return unavailableValuePlaceholderString;
     }
 
     @Override
+    /** {@inheritDoc} */
     public SchemaBuilder schemaBuilder(Column column) {
         logger.debug("Building schema for column {} of type {} named {} with constraints ({},{})",
                 column.name(),
@@ -202,6 +222,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     public ValueConverter converter(Column column, Field fieldDefn) {
         switch (column.jdbcType()) {
             case Types.CHAR:
@@ -234,6 +255,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertReal(Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, 0.0f, (r) -> {
             if (data instanceof String) {
@@ -245,6 +267,14 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         });
     }
 
+    /**
+     * Converts JSON column values.
+     *
+     * @param column the column definition
+     * @param fieldDefn the field definition
+     * @param data the data to convert
+     * @return the converted value
+     */
     protected Object convertJson(Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, "{}", (r) -> {
             // The SnapshotReader sees JSON values as UTF-8 encoded strings.
@@ -302,6 +332,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertString(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             return data;
@@ -339,6 +370,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertBinary(Column column, Field fieldDefn, Object data, BinaryHandlingMode mode) {
         try {
             if (data instanceof String) {
@@ -377,12 +409,14 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertInteger(Column column, Field fieldDefn, Object data) {
 
         return super.convertInteger(column, fieldDefn, data);
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertFloat(Column column, Field fieldDefn, Object data) {
         if (data instanceof Float) {
             return data;
@@ -395,6 +429,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertDouble(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             return Double.parseDouble((String) data);
@@ -404,6 +439,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertDecimal(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             // In the case when the value is of String, convert it to a BigDecimal so that we can then
@@ -421,23 +457,56 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertNumeric(Column column, Field fieldDefn, Object data) {
         return convertDecimal(column, fieldDefn, data);
     }
 
+    /**
+     * Converts a numeric value to a tiny int.
+     *
+     * @param column the column definition
+     * @param fieldDefn the field definition
+     * @param data the data to convert
+     * @return the converted value
+     */
     protected Object convertNumericAsTinyInt(Column column, Field fieldDefn, Object data) {
 
         return convertTinyInt(column, fieldDefn, data);
     }
 
+    /**
+     * Converts a numeric value to a small int.
+     *
+     * @param column the column definition
+     * @param fieldDefn the field definition
+     * @param data the data to convert
+     * @return the converted value
+     */
     protected Object convertNumericAsSmallInt(Column column, Field fieldDefn, Object data) {
         return super.convertSmallInt(column, fieldDefn, data);
     }
 
+    /**
+     * Converts a numeric value to an integer.
+     *
+     * @param column the column definition
+     * @param fieldDefn the field definition
+     * @param data the data to convert
+     * @return the converted value
+     */
     protected Object convertNumericAsInteger(Column column, Field fieldDefn, Object data) {
         return super.convertInteger(column, fieldDefn, data);
     }
 
+    /**
+     * Converts a numeric value to a big integer.
+     *
+     * @param column the column definition
+     * @param fieldDefn the field definition
+     * @param data the data to convert
+     * @return the converted value
+     */
     protected Object convertNumericAsBigInteger(Column column, Field fieldDefn, Object data) {
         return super.convertBigInt(column, fieldDefn, data);
     }
@@ -452,6 +521,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
      * @throws IllegalArgumentException if the value could not be converted but the column does not allow nulls
      */
     @Override
+    /** {@inheritDoc} */
     protected Object convertBoolean(Column column, Field fieldDefn, Object data) {
         if (data instanceof BigDecimal) {
             return ((BigDecimal) data).byteValue() == 0 ? Boolean.FALSE : Boolean.TRUE;
@@ -463,6 +533,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertTinyInt(Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, BYTE_FALSE, (r) -> {
             if (data instanceof Byte) {
@@ -481,6 +552,14 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         });
     }
 
+    /**
+     * Converts a column value with variable scale.
+     *
+     * @param column the column definition
+     * @param fieldDefn the field definition
+     * @param data the data to convert
+     * @return the converted value
+     */
     protected Object convertVariableScale(Column column, Field fieldDefn, Object data) {
         data = convertNumeric(column, fieldDefn, data); // provides default value
 
@@ -502,11 +581,19 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return handleUnknownData(column, fieldDefn, data);
     }
 
+    /**
+     * Converts YashanDB-specific time classes to standard Java types.
+     *
+     * @param column the column definition
+     * @param data the data to convert
+     * @return the converted value
+     */
     protected Object fromYashanDbTimeClasses(Column column, Object data) {
         return data;
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertTimestampToEpochMillisAsDate(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             data = resolveTimestampStringAsInstant((String) data);
@@ -515,6 +602,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertTimestampToEpochMicros(Column column, Field fieldDefn, Object data) {
         if (data instanceof Long) {
             return data;
@@ -526,6 +614,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertTimestampToEpochMillis(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             data = resolveTimestampStringAsInstant((String) data);
@@ -534,6 +623,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertTimestampToEpochNanos(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             data = resolveTimestampStringAsInstant((String) data);
@@ -567,6 +657,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     }
 
     @Override
+    /** {@inheritDoc} */
     protected Object convertTimestampWithZone(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             final Matcher toTimestampTzMatcher = TO_TIMESTAMP_TZ.matcher((String) data);
@@ -588,6 +679,14 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         });
     }
 
+    /**
+     * Converts year-month interval values.
+     *
+     * @param column the column definition
+     * @param fieldDefn the field definition
+     * @param data the data to convert
+     * @return the converted value
+     */
     protected Object convertIntervalYearMonth(Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, NumberConversions.LONG_FALSE, (r) -> {
             if (data instanceof Number) {
@@ -629,6 +728,14 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         }
     }
 
+    /**
+     * Converts day-second interval values.
+     *
+     * @param column the column definition
+     * @param fieldDefn the field definition
+     * @param data the data to convert
+     * @return the converted value
+     */
     protected Object convertIntervalDaySecond(Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, NumberConversions.LONG_FALSE, (r) -> {
             if (data instanceof Number) {

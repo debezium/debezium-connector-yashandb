@@ -28,6 +28,9 @@ import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.relational.TableId;
 import io.debezium.spi.schema.DataCollectionId;
 
+/**
+ * Tracks the offset context for the YashanDB connector during both snapshot and streaming operations, maintaining SCN positions, transaction state, and incremental snapshot context.
+ */
 public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
 
     private static final Logger log = LoggerFactory.getLogger(YashanDbOffsetContext.class);
@@ -67,6 +70,33 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      */
     private boolean snapshotCompleted;
 
+    /**
+     * Creates a YashanDbOffsetContext instance with an additional CommitScn parameter for tracking the high-watermark across redo threads.
+     *
+     * @param connectorConfig the connector configuration
+     *
+     * @param scn the current SCN
+     *
+     * @param commitScn the commit SCN for redo threads
+     *
+     * @param snapshotScn the snapshot SCN
+     *
+     * @param ystreamStartScn the YStream start SCN
+     *
+     * @param recoverPosition the recover position
+     *
+     * @param snapshotPendingTransactions the pending transactions map
+     *
+     * @param snapshot whether a snapshot is in progress
+     *
+     * @param snapshotCompleted whether the snapshot is completed
+     *
+     * @param transactionContext the transaction context
+     *
+     * @param incrementalSnapshotContext the incremental snapshot context
+     *
+     * @param isCreateServer whether the YStream server was created
+     */
     public YashanDbOffsetContext(YashanDbConnectorConfig connectorConfig, Scn scn, CommitScn commitScn,
                                  Scn snapshotScn, Scn ystreamStartScn, Position recoverPosition, Map<String, Scn> snapshotPendingTransactions,
                                  boolean snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
@@ -76,6 +106,31 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         sourceInfo.setCommitScn(commitScn);
     }
 
+    /**
+     * Creates a YashanDbOffsetContext instance initialized with the given parameters for tracking offset state without an explicit CommitScn.
+     *
+     * @param connectorConfig the connector configuration
+     *
+     * @param scn the current SCN
+     *
+     * @param snapshotScn the snapshot SCN
+     *
+     * @param ystreamStartScn the YStream start SCN
+     *
+     * @param recoverPosition the recover position
+     *
+     * @param snapshotPendingTransactions the pending transactions map
+     *
+     * @param snapshot whether a snapshot is in progress
+     *
+     * @param snapshotCompleted whether the snapshot is completed
+     *
+     * @param transactionContext the transaction context
+     *
+     * @param incrementalSnapshotContext the incremental snapshot context
+     *
+     * @param isCreateServer whether the YStream server was created
+     */
     public YashanDbOffsetContext(YashanDbConnectorConfig connectorConfig, Scn scn,
                                  Scn snapshotScn, Scn ystreamStartScn, Position recoverPosition, Map<String, Scn> snapshotPendingTransactions,
                                  boolean snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
@@ -110,6 +165,9 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         }
     }
 
+/**
+ * Builder for constructing YashanDbOffsetContext instances with a fluent API.
+ */
     public static class Builder {
 
         private YashanDbConnectorConfig connectorConfig;
@@ -124,61 +182,143 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         private Scn ystreamStartScn;
         private Position recoverPosition;
 
+    /**
+     * Sets the connector configuration (logical name).
+     *
+     * @param connectorConfig the connector configuration
+     *
+     * @return this builder for method chaining
+     */
         public Builder logicalName(YashanDbConnectorConfig connectorConfig) {
             this.connectorConfig = connectorConfig;
             return this;
         }
 
+    /**
+     * Sets the YStream start SCN.
+     *
+     * @param scn the YStream start SCN
+     *
+     * @return this builder for method chaining
+     */
         public Builder ystreamStartScn(Scn scn) {
             this.ystreamStartScn = scn;
             return this;
         }
 
+    /**
+     * Sets the recover position.
+     *
+     * @param recoverPosition the recover position
+     *
+     * @return this builder for method chaining
+     */
         public Builder recoverPosition(Position recoverPosition) {
             this.recoverPosition = recoverPosition;
             return this;
         }
 
+    /**
+     * Sets the SCN.
+     *
+     * @param scn the SCN value
+     *
+     * @return this builder for method chaining
+     */
         public Builder scn(Scn scn) {
             this.scn = scn;
             return this;
         }
 
+    /**
+     * Sets the LCR position string.
+     *
+     * @param lcrPosition the LCR position string
+     *
+     * @return this builder for method chaining
+     */
         public Builder lcrPosition(String lcrPosition) {
             this.lcrPosition = lcrPosition;
             return this;
         }
 
+    /**
+     * Sets the snapshot flag.
+     *
+     * @param snapshot the snapshot flag
+     *
+     * @return this builder for method chaining
+     */
         public Builder snapshot(boolean snapshot) {
             this.snapshot = snapshot;
             return this;
         }
 
+    /**
+     * Sets the snapshot completion flag.
+     *
+     * @param snapshotCompleted the snapshot completed flag
+     *
+     * @return this builder for method chaining
+     */
         public Builder snapshotCompleted(boolean snapshotCompleted) {
             this.snapshotCompleted = snapshotCompleted;
             return this;
         }
 
+    /**
+     * Sets the transaction context.
+     *
+     * @param transactionContext the transaction context
+     *
+     * @return this builder for method chaining
+     */
         public Builder transactionContext(TransactionContext transactionContext) {
             this.transactionContext = transactionContext;
             return this;
         }
 
+    /**
+     * Sets the incremental snapshot context.
+     *
+     * @param incrementalSnapshotContext the incremental snapshot context
+     *
+     * @return this builder for method chaining
+     */
         public Builder incrementalSnapshotContext(IncrementalSnapshotContext<TableId> incrementalSnapshotContext) {
             this.incrementalSnapshotContext = incrementalSnapshotContext;
             return this;
         }
 
+    /**
+     * Sets the snapshot pending transactions map.
+     *
+     * @param snapshotPendingTransactions the pending transaction map
+     *
+     * @return this builder for method chaining
+     */
         public Builder snapshotPendingTransactions(Map<String, Scn> snapshotPendingTransactions) {
             this.snapshotPendingTransactions = snapshotPendingTransactions;
             return this;
         }
 
+    /**
+     * Sets the snapshot SCN.
+     *
+     * @param scn the snapshot SCN
+     *
+     * @return this builder for method chaining
+     */
         public Builder snapshotScn(Scn scn) {
             this.snapshotScn = scn;
             return this;
         }
 
+    /**
+     * Builds and returns a YashanDbOffsetContext instance from the configured builder parameters.
+     *
+     * @return the built YashanDbOffsetContext instance
+     */
         public YashanDbOffsetContext build() {
             return new YashanDbOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
                     snapshotCompleted, transactionContext,
@@ -186,10 +326,20 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         }
     }
 
+    /**
+     * Creates a new builder for constructing YashanDbOffsetContext instances.
+     *
+     * @return a new builder instance
+     */
     public static Builder create() {
         return new Builder();
     }
 
+    /**
+     * Returns the current offset map for both snapshot and streaming states.
+     *
+     * @return the offset map
+     */
     @Override
     public Map<String, ?> getOffset() {
         if (sourceInfo.isSnapshot()) {
@@ -251,115 +401,248 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         }
     }
 
+    /**
+     * Returns the schema of the source info.
+     *
+     * @return the source info schema
+     */
     @Override
     public Schema getSourceInfoSchema() {
         return sourceInfoSchema;
     }
 
+    /**
+     * Sets the current SCN.
+     *
+     * @param scn the SCN to set
+     */
     public void setScn(Scn scn) {
         sourceInfo.setScn(scn);
     }
 
+    /**
+     * Sets the event SCN for the current change event.
+     *
+     * @param eventScn the event SCN to set
+     */
     public void setEventScn(Scn eventScn) {
         sourceInfo.setEventScn(eventScn);
     }
 
+    /**
+     * Returns the current SCN.
+     *
+     * @return the SCN
+     */
     public Scn getScn() {
         return sourceInfo.getScn();
     }
 
+    /**
+     * Returns the commit SCN tracking the high-watermark for streaming changes.
+     *
+     * @return the commit SCN
+     */
     public CommitScn getCommitScn() {
         return sourceInfo.getCommitScn();
     }
 
+    /**
+     * Returns the event SCN for the current change event.
+     *
+     * @return the event SCN
+     */
     public Scn getEventScn() {
         return sourceInfo.getEventScn();
     }
 
+    /**
+     * Returns the YStream start SCN.
+     *
+     * @return the YStream start SCN
+     */
     public Scn getYstreamStartScn() {
         return ystreamStartScn;
     }
 
+    /**
+     * Returns the recover position used to resume streaming.
+     *
+     * @return the recover position
+     */
     public Position getRecoverPosition() {
         return recoverPosition;
     }
 
+    /**
+     * Sets the LCR position for the current event.
+     *
+     * @param lcrPosition the LCR position to set
+     */
     public void setLcrPosition(Position lcrPosition) {
         sourceInfo.setLcrPosition(lcrPosition);
     }
 
+    /**
+     * Returns the current LCR position.
+     *
+     * @return the LCR position
+     */
     public Position getLcrPosition() {
         return sourceInfo.getLcrPosition();
     }
 
+    /**
+     * Returns the SCN that was used for the initial consistent snapshot.
+     *
+     * @return the snapshot SCN
+     */
     public Scn getSnapshotScn() {
         return snapshotScn;
     }
 
+    /**
+     * Returns the map of in-progress transactions at snapshot time.
+     *
+     * @return the snapshot pending transactions map
+     */
     public Map<String, Scn> getSnapshotPendingTransactions() {
         return snapshotPendingTransactions;
     }
 
+    /**
+     * Sets the map of in-progress transactions at snapshot time.
+     *
+     * @param snapshotPendingTransactions the pending transaction map
+     */
     public void setSnapshotPendingTransactions(Map<String, Scn> snapshotPendingTransactions) {
         this.snapshotPendingTransactions = snapshotPendingTransactions;
     }
 
+    /**
+     * Sets the transaction identifier for the current event.
+     *
+     * @param transactionId the transaction identifier to set
+     */
     public void setTransactionId(String transactionId) {
         sourceInfo.setTransactionId(transactionId);
     }
 
+    /**
+     * Sets the database user name for the current event.
+     *
+     * @param userName the user name to set
+     */
     public void setUserName(String userName) {
         sourceInfo.setUserName(userName);
     }
 
+    /**
+     * Sets the source time for the current event.
+     *
+     * @param instant the source time instant to set
+     */
     public void setSourceTime(Instant instant) {
         sourceInfo.setSourceTime(instant);
     }
 
+    /**
+     * Sets the current table event to the given table ID.
+     *
+     * @param tableId the table identifier
+     */
     public void setTableId(TableId tableId) {
         sourceInfo.tableEvent(tableId);
     }
 
+    /**
+     * Returns the redo thread number for the current event.
+     *
+     * @return the redo thread number
+     */
     public Integer getRedoThread() {
         return sourceInfo.getRedoThread();
     }
 
+    /**
+     * Sets the redo thread number for the current event.
+     *
+     * @param redoThread the redo thread number to set
+     */
     public void setRedoThread(Integer redoThread) {
         sourceInfo.setRedoThread(redoThread);
     }
 
+    /**
+     * Sets the redo record segment identifier for the current event.
+     *
+     * @param rsId the redo record segment identifier to set
+     */
     public void setRsId(String rsId) {
         sourceInfo.setRsId(rsId);
     }
 
+    /**
+     * Sets the SQL sequence number for the current event.
+     *
+     * @param ssn the SQL sequence number to set
+     */
     public void setSsn(long ssn) {
         sourceInfo.setSsn(ssn);
     }
 
+    /**
+     * Returns whether the YStream server was created.
+     *
+     * @return the server creation flag
+     */
     public boolean isCreateServer() {
         return isCreateServer;
     }
 
+    /**
+     * Sets whether the YStream server was created.
+     *
+     * @param createServer the server creation flag
+     */
     public void setCreateServer(boolean createServer) {
         isCreateServer = createServer;
     }
 
+    /**
+     * Returns whether an initial snapshot is currently running.
+     *
+     * @return true if a snapshot is in progress, false otherwise
+     */
     @Override
     public boolean isInitialSnapshotRunning() {
         return sourceInfo.isSnapshot() && !snapshotCompleted;
     }
 
+    /**
+     * Called before the snapshot starts to initialize the snapshot state.
+     *
+     * @param onDemand whether the snapshot is triggered on demand
+     */
     @Override
     public void preSnapshotStart(boolean onDemand) {
         sourceInfo.setSnapshot(SnapshotRecord.TRUE);
         snapshotCompleted = false;
     }
 
+    /**
+     * Called before the snapshot completion to mark the snapshot as complete.
+     */
     @Override
     public void preSnapshotCompletion() {
         snapshotCompleted = true;
     }
 
+    /**
+     * Returns a string representation of this offset context.
+     *
+     * @return the string representation
+     */
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("YashanDbOffsetContext [scn=").append(getScn());
@@ -376,27 +659,57 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         return sb.toString();
     }
 
+    /**
+     * Records an event for the given data collection and timestamp.
+     *
+     * @param tableId the table identifier
+     * @param timestamp the event timestamp
+     */
     @Override
     public void event(DataCollectionId tableId, Instant timestamp) {
         sourceInfo.tableEvent((TableId) tableId);
         sourceInfo.setSourceTime(timestamp);
     }
 
+    /**
+     * Records a table event with the given table ID and source timestamp.
+     *
+     * @param tableId the table identifier
+     *
+     * @param timestamp the event timestamp
+     */
     public void tableEvent(TableId tableId, Instant timestamp) {
         sourceInfo.setSourceTime(timestamp);
         sourceInfo.tableEvent(tableId);
     }
 
+    /**
+     * Records multiple table events with the given table IDs and source timestamp.
+     *
+     * @param tableIds the set of table identifiers
+     *
+     * @param timestamp the event timestamp
+     */
     public void tableEvent(Set<TableId> tableIds, Instant timestamp) {
         sourceInfo.setSourceTime(timestamp);
         sourceInfo.tableEvent(tableIds);
     }
 
+    /**
+     * Returns the transaction context.
+     *
+     * @return the transaction context
+     */
     @Override
     public TransactionContext getTransactionContext() {
         return transactionContext;
     }
 
+    /**
+     * Returns the incremental snapshot context.
+     *
+     * @return the incremental snapshot context
+     */
     @Override
     public IncrementalSnapshotContext<?> getIncrementalSnapshotContext() {
         return incrementalSnapshotContext;
@@ -453,10 +766,24 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         return getScnFromOffsetMapByKey(offset, SNAPSHOT_SCN_KEY);
     }
 
+    /**
+     * Loads the YStream start SCN from the offset map.
+     *
+     * @param offset the offset map
+     *
+     * @return the YStream start SCN, or null if not found
+     */
     public static Scn loadYstreamStartScn(Map<String, ?> offset) {
         return getScnFromOffsetMapByKey(offset, YSTREAM_START_SCN_KEY);
     }
 
+    /**
+     * Loads the recover position from the offset map.
+     *
+     * @param offset the offset map
+     *
+     * @return the recovered Position, or null if not found
+     */
     public static Position loadRecoverPosition(Map<String, ?> offset) {
         Object scn = offset.get(SourceInfo.POSITION_SCN_KEY);
         String instanceId = String.valueOf(offset.get(SourceInfo.INSTANCE_ID_KEY));

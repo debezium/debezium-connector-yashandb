@@ -16,7 +16,8 @@ import io.debezium.relational.TableEditor;
 import io.debezium.relational.TableId;
 
 /**
- * This class is parsing YashanDB table's column comment statements.
+ * This class is parsing YashanDB table and column comment statements.
+ * Column comments are used to enrich the table column metadata.
  */
 public class CommentParserListener extends BaseParserListener {
     private final String catalogName;
@@ -24,12 +25,25 @@ public class CommentParserListener extends BaseParserListener {
     private final YashanDbDdlParser parser;
     private TableEditor tableEditor;
 
+    /**
+     * Creates a new CommentParserListener.
+     *
+     * @param catalogName the catalog (database) name
+     * @param schemaName the schema name
+     * @param parser the parent DDL parser
+     */
     CommentParserListener(final String catalogName, final String schemaName, final YashanDbDdlParser parser) {
         this.catalogName = catalogName;
         this.schemaName = schemaName;
         this.parser = parser;
     }
 
+    /**
+     * Called when entering the comment_statement parse tree node.
+     * Parses COMMENT ON TABLE and COMMENT ON COLUMN statements.
+     *
+     * @param ctx the comment_statement parse context
+     */
     @Override
     public void enterComment_statement(YashanDbParser.Comment_statementContext ctx) {
         if (!parser.skipComments()) {
@@ -97,6 +111,12 @@ public class CommentParserListener extends BaseParserListener {
         super.enterComment_statement(ctx);
     }
 
+    /**
+     * Called when exiting the comment_statement parse tree node.
+     * Finalizes and persists the table comment changes.
+     *
+     * @param ctx the comment_statement parse context
+     */
     @Override
     public void exitComment_statement(YashanDbParser.Comment_statementContext ctx) {
         if (!parser.skipComments()) {

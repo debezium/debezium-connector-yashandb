@@ -37,6 +37,11 @@ public class TimestampToStringConverter implements CustomConverter<SchemaBuilder
     private Predicate<RelationalColumn> selector = x -> true;
     private DateTimeFormatter formatter;
 
+    /**
+     * Configures the timestamp-to-string converter with datetime format and column selector.
+     *
+     * @param props configuration properties containing optional {@code format} and {@code selector} keys
+     */
     @Override
     public void configure(Properties props) {
         String datetimeFormat = props.getProperty("format", "yyyy-MM-dd HH:mm:ss.SSSSSS");
@@ -48,6 +53,13 @@ public class TimestampToStringConverter implements CustomConverter<SchemaBuilder
         selector = Predicates.includes(selectorConfig.trim(), x -> x.dataCollection() + "." + x.name());
     }
 
+    /**
+     * Registers a string converter for TIMESTAMP columns that match the configured selector.
+     * Supports TIMESTAMP(0) through TIMESTAMP(6) types introduced in YashanDB 23.4.7.1+.
+     *
+     * @param field the relational column to check for conversion
+     * @param registration the registration callback to register the converter
+     */
     @Override
     public void converterFor(RelationalColumn field, ConverterRegistration<SchemaBuilder> registration) {
         // Compatible with TIMESTAMP(0)~TIMESTAMP(6) types introduced after YashanDB version 23.4.7.1
@@ -86,6 +98,11 @@ public class TimestampToStringConverter implements CustomConverter<SchemaBuilder
         });
     }
 
+    /**
+     * Returns the configuration fields supported by this converter.
+     *
+     * @return the set of configuration fields
+     */
     @Override
     public Field.Set getConfigFields() {
         return Field.setOf(Field.create(SELECTOR_PROPERTY), Field.create("format"));

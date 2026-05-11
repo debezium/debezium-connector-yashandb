@@ -21,14 +21,20 @@ import io.debezium.text.ParsingException;
 
 /**
  * This class is the main YashanDB DDL parser listener class.
- * It instantiates supported listeners, walks listeners through every parsing rule and collects parsing exceptions.
- *
+ * It collects errors during parsing and provides callback hooks for DDL statement processing.
  */
 public class YashanDbDdlParserListener extends YashanDbParserBaseListener implements AntlrDdlParserListener {
 
     private final List<ParseTreeListener> listeners = new CopyOnWriteArrayList<>();
     private final Collection<ParsingException> errors = new ArrayList<>();
 
+    /**
+     * Creates a new YashanDbDdlParserListener and registers all supported DDL statement listeners.
+     *
+     * @param catalogName the catalog (database) name
+     * @param schemaName the schema name
+     * @param parser the parent DDL parser
+     */
     public YashanDbDdlParserListener(final String catalogName, final String schemaName,
                                      final YashanDbDdlParser parser) {
         listeners.add(new CreateTableParserListener(catalogName, schemaName, parser, listeners));
@@ -38,16 +44,33 @@ public class YashanDbDdlParserListener extends YashanDbParserBaseListener implem
         listeners.add(new TruncateTableParserListener(catalogName, schemaName, parser));
     }
 
+    /**
+     * Returns the collection of parsing errors collected during parsing.
+     *
+     * @return the collection of parsing exceptions
+     */
     @Override
     public Collection<ParsingException> getErrors() {
         return errors;
     }
 
+    /**
+     * Called when entering every parse tree rule.
+     * Delegates the enter event to all registered listeners.
+     *
+     * @param ctx the parser rule context
+     */
     @Override
     public void enterEveryRule(ParserRuleContext ctx) {
         ProxyParseTreeListenerUtil.delegateEnterRule(ctx, listeners, errors);
     }
 
+    /**
+     * Called when exiting every parse tree rule.
+     * Delegates the exit event to all registered listeners.
+     *
+     * @param ctx the parser rule context
+     */
     @Override
     public void exitEveryRule(ParserRuleContext ctx) {
         ProxyParseTreeListenerUtil.delegateExitRule(ctx, listeners, errors);

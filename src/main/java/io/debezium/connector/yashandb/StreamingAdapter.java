@@ -43,12 +43,66 @@ public interface StreamingAdapter {
         INSENSITIVE
     };
 
+
+    /**
+     * Returns the type of this streaming adapter.
+     *
+     * @return the adapter type string
+     */
+    /**
+     * Returns the type identifier of this streaming adapter.
+     *
+     * @return the adapter type string
+     */
     String getType();
 
+
+    /**
+     * Returns the history record comparator for schema history.
+     *
+     * @return the history record comparator
+     */
+    /**
+     * Returns the comparator used for comparing history records.
+     *
+     * @return the history record comparator
+     */
     HistoryRecordComparator getHistoryRecordComparator();
 
+
+    /**
+     * Returns the offset context loader for reconstructing offsets from storage.
+     *
+     * @return the offset context loader
+     */
+    /**
+     * Returns the loader for deserializing offset context from stored offsets.
+     *
+     * @return the offset context loader
+     */
     OffsetContext.Loader<YashanDbOffsetContext> getOffsetContextLoader();
 
+    /**
+     * Creates and returns a streaming change event source.
+     *
+     * @param connection the YashanDB connection
+     *
+     * @param dispatcher the event dispatcher
+     *
+     * @param errorHandler the error handler
+     *
+     * @param clock the clock for time-based operations
+     *
+     * @param schema the database schema
+     *
+     * @param taskContext the task context
+     *
+     * @param jdbcConfig the JDBC configuration
+     *
+     * @param streamingMetrics the streaming metrics
+     *
+     * @return the streaming change event source
+     */
     StreamingChangeEventSource<YashanDbPartition, YashanDbOffsetContext> getSource(YashanDbConnection connection,
                                                                                    EventDispatcher<YashanDbPartition, TableId> dispatcher,
                                                                                    ErrorHandler errorHandler, Clock clock,
@@ -79,6 +133,15 @@ public interface StreamingAdapter {
      * @param connectorConfig the connector configuration, should never be {@code null}
      * @param connection the database connection, should never be {@code null}
      * @return the offset context, never {@code null}
+     * @throws SQLException if a database error occurred
+     */
+    /**
+     * Determines the starting offset for streaming after a snapshot, based on the snapshot state.
+     *
+     * @param ctx the relational snapshot context, should never be {@code null}
+     * @param connectorConfig the connector configuration, should never be {@code null}
+     * @param connection the database connection, should never be {@code null}
+     * @return the offset context for streaming, never {@code null}
      * @throws SQLException if a database error occurred
      */
     YashanDbOffsetContext determineSnapshotOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx,

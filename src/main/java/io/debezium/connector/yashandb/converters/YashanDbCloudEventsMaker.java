@@ -28,11 +28,24 @@ public class YashanDbCloudEventsMaker extends CloudEventsMaker {
             COMMIT_SCN_KEY,
             LCR_POSITION_KEY);
 
+    /**
+     * Creates a new CloudEvents maker for YashanDB with the given record and schema context.
+     *
+     * @param recordAndMetadata the record and associated metadata
+     * @param dataContentType the serialization format for the CloudEvent data
+     * @param dataSchemaUriBase the base URI for data schema resolution
+     * @param cloudEventsSchemaName the CloudEvents schema name
+     */
     public YashanDbCloudEventsMaker(RecordAndMetadata recordAndMetadata, SerializerType dataContentType, String dataSchemaUriBase,
                                     String cloudEventsSchemaName) {
         super(recordAndMetadata, dataContentType, dataSchemaUriBase, cloudEventsSchemaName, Envelope.FieldName.BEFORE, Envelope.FieldName.AFTER);
     }
 
+    /**
+     * Generates a unique CloudEvents identifier based on YashanDB source metadata fields.
+     *
+     * @return the CloudEvents id string
+     */
     @Override
     public String ceId() {
         return "name:" + sourceField(AbstractSourceInfo.SERVER_NAME_KEY)
@@ -41,6 +54,11 @@ public class YashanDbCloudEventsMaker extends CloudEventsMaker {
                 + ";lcr_position:" + sourceField(LCR_POSITION_KEY);
     }
 
+    /**
+     * Returns the set of YashanDB-specific source field names to include in CloudEvents.
+     *
+     * @return the set of connector-specific source field names
+     */
     @Override
     public Set<String> connectorSpecificSourceFields() {
         return YASHANDB_SOURCE_FIELDS;

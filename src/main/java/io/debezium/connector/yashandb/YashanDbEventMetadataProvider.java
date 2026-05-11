@@ -16,9 +16,13 @@ import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Collect;
 
+/**
+ * Provides event metadata for YashanDB change events.
+ */
 class YashanDbEventMetadataProvider implements EventMetadataProvider {
 
     @Override
+    /** {@inheritDoc} */
     public Instant getEventTimestamp(DataCollectionId source, OffsetContext offset, Object key, Struct value) {
         if (value == null) {
             return null;
@@ -32,6 +36,7 @@ class YashanDbEventMetadataProvider implements EventMetadataProvider {
     }
 
     @Override
+    /** {@inheritDoc} */
     public Map<String, String> getEventSourcePosition(DataCollectionId source, OffsetContext offset, Object key, Struct value) {
         if (value == null) {
             return null;
@@ -45,6 +50,7 @@ class YashanDbEventMetadataProvider implements EventMetadataProvider {
     }
 
     @Override
+    /** {@inheritDoc} */
     public String getTransactionId(DataCollectionId source, OffsetContext offset, Object key, Struct value) {
         if (value == null) {
             return null;

@@ -23,6 +23,9 @@ import io.debezium.snapshot.SnapshotterService;
 import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Clock;
 
+/**
+ * Factory for creating YashanDB change event sources.
+ */
 public class YashanDbChangeEventSourceFactory implements ChangeEventSourceFactory<YashanDbPartition, YashanDbOffsetContext> {
 
     private final YashanDbConnectorConfig configuration;
@@ -36,6 +39,20 @@ public class YashanDbChangeEventSourceFactory implements ChangeEventSourceFactor
     private final YashanDbStreamingChangeEventSourceMetrics streamingMetrics;
     private final SnapshotterService snapshotterService;
 
+    /**
+     * Creates a new change event source factory.
+     *
+     * @param configuration the connector configuration
+     * @param connectionFactory the connection factory
+     * @param errorHandler the error handler
+     * @param dispatcher the event dispatcher
+     * @param clock the clock for time-based operations
+     * @param schema the database schema
+     * @param jdbcConfig the JDBC configuration
+     * @param taskContext the task context
+     * @param streamingMetrics the streaming metrics
+     * @param snapshotterService the snapshotter service
+     */
     public YashanDbChangeEventSourceFactory(YashanDbConnectorConfig configuration, MainConnectionProvidingConnectionFactory<YashanDbConnection> connectionFactory,
                                             ErrorHandler errorHandler, EventDispatcher<YashanDbPartition, TableId> dispatcher, Clock clock, YashanDbDatabaseSchema schema,
                                             Configuration jdbcConfig, YashanDbTaskContext taskContext,
@@ -53,6 +70,7 @@ public class YashanDbChangeEventSourceFactory implements ChangeEventSourceFactor
     }
 
     @Override
+    /** {@inheritDoc} */
     public SnapshotChangeEventSource<YashanDbPartition, YashanDbOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener<YashanDbPartition> snapshotProgressListener,
                                                                                                             NotificationService<YashanDbPartition, YashanDbOffsetContext> notificationService) {
         return new YashanDbSnapshotChangeEventSource(configuration, connectionFactory, schema, dispatcher, clock, snapshotProgressListener, notificationService,
@@ -60,6 +78,7 @@ public class YashanDbChangeEventSourceFactory implements ChangeEventSourceFactor
     }
 
     @Override
+    /** {@inheritDoc} */
     public StreamingChangeEventSource<YashanDbPartition, YashanDbOffsetContext> getStreamingChangeEventSource() {
         return configuration.getAdapter().getSource(
                 connectionFactory.mainConnection(),
@@ -73,6 +92,7 @@ public class YashanDbChangeEventSourceFactory implements ChangeEventSourceFactor
     }
 
     @Override
+    /** {@inheritDoc} */
     public Optional<IncrementalSnapshotChangeEventSource<YashanDbPartition, ? extends DataCollectionId>> getIncrementalSnapshotChangeEventSource(
                                                                                                                                                  YashanDbOffsetContext offsetContext,
                                                                                                                                                  SnapshotProgressListener<YashanDbPartition> snapshotProgressListener,

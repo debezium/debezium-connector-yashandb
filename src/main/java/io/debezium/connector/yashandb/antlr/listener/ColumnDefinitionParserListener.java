@@ -30,6 +30,14 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
     private final List<ParseTreeListener> listeners;
     private ColumnEditor columnEditor;
 
+    /**
+     * Creates a new ColumnDefinitionParserListener.
+     *
+     * @param tableEditor the table editor to update
+     * @param columnEditor the column editor to configure
+     * @param parser the parent DDL parser
+     * @param listeners the list of registered parse tree listeners
+     */
     ColumnDefinitionParserListener(final TableEditor tableEditor, final ColumnEditor columnEditor, YashanDbDdlParser parser,
                                    List<ParseTreeListener> listeners) {
         this.tableEditor = tableEditor;
@@ -39,14 +47,30 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
         this.listeners = listeners;
     }
 
+    /**
+     * Sets the column editor for parsing the next column definition.
+     *
+     * @param columnEditor the column editor to use
+     */
     void setColumnEditor(ColumnEditor columnEditor) {
         this.columnEditor = columnEditor;
     }
 
+    /**
+     * Returns the fully parsed column from the current column editor.
+     *
+     * @return the parsed Column instance
+     */
     Column getColumn() {
         return columnEditor.create();
     }
 
+    /**
+     * Called when entering the column_definition parse tree node.
+     * Resolves the column data type and handles default value constraints.
+     *
+     * @param ctx the column_definition parse context
+     */
     @Override
     public void enterColumn_definition(YashanDbParser.Column_definitionContext ctx) {
         resolveColumnDataType(ctx);

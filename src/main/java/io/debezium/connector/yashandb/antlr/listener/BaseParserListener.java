@@ -9,10 +9,17 @@ import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParser;
 import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParserBaseListener;
 
 /**
- * This class contains common methods for all listeners
+ * This class contains common methods for all listeners.
+ * It provides helper methods for resolving table names and column names.
  */
 class BaseParserListener extends YashanDbParserBaseListener {
 
+    /**
+     * Extracts the table name from a table_name parser context.
+     *
+     * @param table_name the table_name parse context
+     * @return the resolved table name
+     */
     String getTableName(final YashanDbParser.Table_nameContext table_name) {
         // table_name: identifier | schema '.' identifier
         if (table_name.schema() != null) {
@@ -25,6 +32,12 @@ class BaseParserListener extends YashanDbParserBaseListener {
         return getTableOrColumnName(table_name.getText());
     }
 
+    /**
+     * Extracts the table name from a tableview_name parser context.
+     *
+     * @param tableview_name the tableview_name parse context
+     * @return the resolved table name
+     */
     String getTableName(final YashanDbParser.Tableview_nameContext tableview_name) {
         // tableview_name: (identifier '.')? identifier (...)
         // Get the actual table/view name (last identifier part)
@@ -35,6 +48,12 @@ class BaseParserListener extends YashanDbParserBaseListener {
         return getTableOrColumnName(tableview_name.getText());
     }
 
+    /**
+     * Extracts the table name from a column_name parser context.
+     *
+     * @param ctx the column_name parse context
+     * @return the resolved table name
+     */
     String getTableName(final YashanDbParser.Column_nameContext ctx) {
         // column_name: (identifier '.')? pseudo_column or (PRIOR|CONNECT_BY_ROOT)? identifier ('.' column_field)*
         if (ctx.identifier() != null) {
@@ -43,6 +62,12 @@ class BaseParserListener extends YashanDbParserBaseListener {
         return getTableOrColumnName(ctx.getText());
     }
 
+    /**
+     * Extracts the column name from a column_name parser context.
+     *
+     * @param ctx the column_name parse context
+     * @return the resolved column name
+     */
     String getColumnName(final YashanDbParser.Column_nameContext ctx) {
         // column_name: (identifier '.')? pseudo_column or (PRIOR|CONNECT_BY_ROOT)? identifier ('.' column_field)*
         // Get the actual column name (last meaningful part)

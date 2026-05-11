@@ -631,6 +631,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      */
     public static Field.Set ALL_FIELDS = Field.setOf(CONFIG_DEFINITION.all());
 
+    /**
+     * Returns the configuration definition.
+     *
+     * @return the ConfigDef
+     */
     public static ConfigDef configDef() {
         return CONFIG_DEFINITION.configDef();
     }
@@ -689,6 +694,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final boolean legacyDecimalHandlingStrategy;
     private final int snapshotRetryDatabaseErrorsMaxRetries;
 
+    /**
+     * Creates a new connector configuration.
+     *
+     * @param config the configuration properties
+     */
     public YashanDbConnectorConfig(Configuration config) {
         super(
                 YashanDbConnector.class, config,
@@ -757,50 +767,110 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         return property == null ? null : property.toUpperCase();
     }
 
+    /**
+     * Returns the database name.
+     *
+     * @return the database name
+     */
     public String getDatabaseName() {
         return databaseName;
     }
 
+    /**
+     * Returns the YStream server name.
+     *
+     * @return the YStream server name
+     */
     public String getYstreamServerName() {
         return ystreamServerName;
     }
 
+    /**
+     * Returns whether DDL parse failure retry reading table is enabled.
+     *
+     * @return true if retry is enabled, false otherwise
+     */
     public Boolean getDdlParseFailRetryReadTable() {
         return ddlParseFailRetryReadTable;
     }
 
+    /**
+     * Returns the interval handling mode.
+     *
+     * @return the interval handling mode
+     */
     public IntervalHandlingMode getIntervalHandlingMode() {
         return intervalHandlingMode;
     }
 
+    /**
+     * Returns the snapshot mode.
+     *
+     * @return the snapshot mode
+     */
     public SnapshotMode getSnapshotMode() {
         return snapshotMode;
     }
 
+    /**
+     * Returns the snapshot locking mode.
+     *
+     * @return the snapshot locking mode
+     */
     public Optional<SnapshotLockingMode> getSnapshotLockingMode() {
         return Optional.ofNullable(snapshotLockingMode);
     }
 
+    /**
+     * Returns the YStream queue size.
+     *
+     * @return the queue size
+     */
     public int getyStreamQueueSize() {
         return yStreamQueueSize;
     }
 
+    /**
+     * Returns the YStream poll timeout in seconds.
+     *
+     * @return the poll timeout
+     */
     public int getyStreamPollTimeout() {
         return yStreamPollTimeout;
     }
 
+    /**
+     * Returns the YStream client response timeout in seconds.
+     *
+     * @return the response timeout
+     */
     public int getyStreamClientResponseTimeout() {
         return yStreamClientResponseTimeout;
     }
 
+    /**
+     * Returns whether logical sharding is enabled.
+     *
+     * @return true if enabled, false otherwise
+     */
     public Boolean getLogicShardEnabled() {
         return logicShardEnabled;
     }
 
+    /**
+     * Returns the number of read threads per table.
+     *
+     * @return the thread count
+     */
     public int getTableReadThreads() {
         return tableReadThreads;
     }
 
+    /**
+     * Returns the maximum number of retries for snapshot database errors.
+     *
+     * @return the max retry count
+     */
     public int getSnapshotRetryDatabaseErrorsMaxRetries() {
         return snapshotRetryDatabaseErrorsMaxRetries;
     }
@@ -808,16 +878,23 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      * @return {@code true} if the legacy decimal handling behavior is used, {@code false} otherwise
      */
+    /**
+     * Returns whether the legacy decimal handling strategy is used.
+     *
+     * @return true if legacy strategy is used, false otherwise
+     */
     public boolean isUsingLegacyDecimalHandlingStrategy() {
         return legacyDecimalHandlingStrategy;
     }
 
     @Override
+    /** {@inheritDoc} */
     public int getQueryFetchSize() {
         return queryFetchSize;
     }
 
     @Override
+    /** {@inheritDoc} */
     public HistoryRecordComparator getHistoryRecordComparator() {
         return streamingAdapter.getHistoryRecordComparator();
     }
@@ -1287,12 +1364,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      * @return String token to replace
      */
+    /**
+     * Returns the token to replace in snapshot predicate.
+     *
+     * @return the replacement token
+     */
     public String getTokenToReplaceInSnapshotPredicate() {
         return snapshotEnhancementToken;
     }
 
     /**
      * @return the duration that archive logs are scanned for log mining
+     */
+    /**
+     * Returns the archive log retention duration for log mining.
+     *
+     * @return the archive log retention duration
      */
     public Duration getLogMiningArchiveLogRetention() {
         return logMiningArchiveLogRetention;
@@ -1302,6 +1389,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      *
      * @return int The minimum SCN interval used when mining redo/archive logs
      */
+    /**
+     * Returns the minimum SCN interval used when mining redo/archive logs.
+     *
+     * @return the minimum batch size
+     */
     public int getLogMiningBatchSizeMin() {
         return logMiningBatchSizeMin;
     }
@@ -1309,6 +1401,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      *
      * @return int The maximum SCN interval used when mining redo/archive logs
+     */
+    /**
+     * Returns the maximum SCN interval used when mining redo/archive logs.
+     *
+     * @return the maximum batch size
      */
     public int getLogMiningBatchSizeMax() {
         return logMiningBatchSizeMax;
@@ -1318,6 +1415,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      *
      * @return int Scn gap size for SCN gap detection
      */
+    /**
+     * Returns the SCN gap size for SCN gap detection.
+     *
+     * @return the gap size
+     */
     public int getLogMiningScnGapDetectionGapSizeMin() {
         return logMiningScnGapDetectionGapSizeMin;
     }
@@ -1325,6 +1427,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      *
      * @return int Time interval for SCN gap detection
+     */
+    /**
+     * Returns the time interval for SCN gap detection.
+     *
+     * @return the time interval in milliseconds
      */
     public int getLogMiningScnGapDetectionTimeIntervalMaxMs() {
         return logMiningScnGapDetectionTimeIntervalMaxMs;
@@ -1334,6 +1441,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      *
      * @return int The minimum sleep time used when mining redo/archive logs
      */
+    /**
+     * Returns the minimum sleep time used when mining redo/archive logs.
+     *
+     * @return the minimum sleep time
+     */
     public Duration getLogMiningSleepTimeMin() {
         return logMiningSleepTimeMin;
     }
@@ -1341,6 +1453,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      *
      * @return int The maximum sleep time used when mining redo/archive logs
+     */
+    /**
+     * Returns the maximum sleep time used when mining redo/archive logs.
+     *
+     * @return the maximum sleep time
      */
     public Duration getLogMiningSleepTimeMax() {
         return logMiningSleepTimeMax;
@@ -1350,10 +1467,20 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      *
      * @return int The default sleep time used when mining redo/archive logs
      */
+    /**
+     * Returns the default sleep time used when mining redo/archive logs.
+     *
+     * @return the default sleep time
+     */
     public Duration getLogMiningSleepTimeDefault() {
         return logMiningSleepTimeDefault;
     }
 
+    /**
+     * Returns the streaming adapter.
+     *
+     * @return the streaming adapter
+     */
     public StreamingAdapter getAdapter() {
         return streamingAdapter;
     }
@@ -1362,12 +1489,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      *
      * @return int The increment in sleep time when doing auto-tuning while mining redo/archive logs
      */
+    /**
+     * Returns the increment in sleep time when doing auto-tuning while mining redo/archive logs.
+     *
+     * @return the sleep time increment
+     */
     public Duration getLogMiningSleepTimeIncrement() {
         return logMiningSleepTimeIncrement;
     }
 
     /**
      * @return the duration for which long running transactions are permitted in the transaction buffer between log switches
+     */
+    /**
+     * Returns the duration for which long running transactions are retained in the transaction buffer.
+     *
+     * @return the transaction retention duration
      */
     public Duration getLogMiningTransactionRetention() {
         return logMiningTransactionRetention;
@@ -1376,12 +1513,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      * @return true if the connector is to mine archive logs only, false to mine all logs.
      */
+    /**
+     * Returns whether the connector is to mine archive logs only.
+     *
+     * @return true if archive log only mode, false otherwise
+     */
     public boolean isArchiveLogOnlyMode() {
         return archiveLogOnlyMode;
     }
 
     /**
      * @return the duration that archive log only will use to wait between polling scn availability
+     */
+    /**
+     * Returns the duration that archive log only will use to wait between polling scn availability.
+     *
+     * @return the poll time duration
      */
     public Duration getArchiveLogOnlyScnPollTime() {
         return archiveLogOnlyScnPollTime;
@@ -1390,12 +1537,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      * @return true if LOB fields are to be captured; false otherwise to not capture LOB fields.
      */
+    /**
+     * Returns whether LOB fields are to be captured.
+     *
+     * @return true if LOB capture is enabled, false otherwise
+     */
     public boolean isLobEnabled() {
         return lobEnabled;
     }
 
     /**
      * @return User names to include from the LogMiner query
+     */
+    /**
+     * Returns the usernames to include from the LogMiner query.
+     *
+     * @return the set of included usernames
      */
     public Set<String> getLogMiningUsernameIncludes() {
         return logMiningUsernameIncludes;
@@ -1404,12 +1561,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      * @return User names to exclude from the LogMiner query
      */
+    /**
+     * Returns the usernames to exclude from the LogMiner query.
+     *
+     * @return the set of excluded usernames
+     */
     public Set<String> getLogMiningUsernameExcludes() {
         return logMiningUsernameExcludes;
     }
 
     /**
      * @return name of the archive destination configuration to use
+     */
+    /**
+     * Returns the name of the archive destination configuration to use.
+     *
+     * @return the archive destination name
      */
     public String getLogMiningArchiveDestinationName() {
         return logMiningArchiveDestinationName;
@@ -1422,12 +1589,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      * @return the event count threshold for when a transaction should be discarded in the buffer.
      */
+    /**
+     * Returns the event count threshold for when a transaction should be discarded in the buffer.
+     *
+     * @return the event count threshold
+     */
     public long getLogMiningBufferTransactionEventsThreshold() {
         return logMiningBufferTransactionEventsThreshold;
     }
 
     /**
      * @return whether buffer cache should be dropped on connector stop.
+     */
+    /**
+     * Returns whether buffer cache should be dropped on connector stop.
+     *
+     * @return true if buffer is dropped on stop, false otherwise
      */
     public boolean isLogMiningBufferDropOnStop() {
         return logMiningBufferDropOnStop;
@@ -1437,12 +1614,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      *
      * @return int The default SCN interval used when mining redo/archive logs
      */
+    /**
+     * Returns the default SCN interval used when mining redo/archive logs.
+     *
+     * @return the default batch size
+     */
     public int getLogMiningBatchSizeDefault() {
         return logMiningBatchSizeDefault;
     }
 
     /**
      * @return the initial delay for the log query delay strategy
+     */
+    /**
+     * Returns the initial delay for the log query delay strategy.
+     *
+     * @return the initial delay duration
      */
     public Duration getLogMiningInitialDelay() {
         return logMiningInitialDelay;
@@ -1451,12 +1638,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      * @return the maximum delay for the log query delay strategy
      */
+    /**
+     * Returns the maximum delay for the log query delay strategy.
+     *
+     * @return the maximum delay duration
+     */
     public Duration getLogMiningMaxDelay() {
         return logMiningMaxDelay;
     }
 
     /**
      * @return the maximum duration for a LogMiner session
+     */
+    /**
+     * Returns the maximum duration for a LogMiner session.
+     *
+     * @return the maximum session duration, or empty if indefinite
      */
     public Optional<Duration> getLogMiningMaximumSession() {
         return logMiningMaximumSession.toMillis() == 0L ? Optional.empty() : Optional.of(logMiningMaximumSession);
@@ -1465,12 +1662,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      * @return how in-progress transactions are the snapshot boundary are to be handled.
      */
+    /**
+     * Returns how in-progress transactions at the snapshot boundary are to be handled.
+     *
+     * @return the transaction snapshot boundary mode
+     */
     public TransactionSnapshotBoundaryMode getLogMiningTransactionSnapshotBoundaryMode() {
         return logMiningTransactionSnapshotBoundaryMode;
     }
 
     /**
      * @return true if log mining should operate in read-only mode.
+     */
+    /**
+     * Returns whether log mining should operate in read-only mode.
+     *
+     * @return true if read-only mode, false otherwise
      */
     public boolean isLogMiningReadOnly() {
         return logMiningReadOnly;
@@ -1479,6 +1686,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      * @return the log mining flush table name
      */
+    /**
+     * Returns the log mining flush table name.
+     *
+     * @return the flush table name
+     */
     public String getLogMiningFlushTableName() {
         return logMiningFlushTableName;
     }
@@ -1486,12 +1698,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     /**
      * @return how the LogMiner query include/exclude filters are applied to the query.
      */
+    /**
+     * Returns how the LogMiner query include/exclude filters are applied to the query.
+     *
+     * @return the query filter mode
+     */
     public LogMiningQueryFilterMode getLogMiningQueryFilterMode() {
         return logMiningQueryFilterMode;
     }
 
     /**
      * @return whether the connector should restart the JDBC connection after log switches or maximum session windows.
+     */
+    /**
+     * Returns whether the connector should restart the JDBC connection after log switches or maximum session windows.
+     *
+     * @return true if connection restart is enabled, false otherwise
      */
     public boolean isLogMiningRestartConnection() {
         return logMiningRestartConnection;
@@ -1503,11 +1725,17 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      *
      * @return the deviation duration.
      */
+    /**
+     * Returns the deviation in milliseconds applied to the end SCN calculation.
+     *
+     * @return the deviation duration
+     */
     public Duration getLogMiningMaxScnDeviation() {
         return logMiningMaxScnDeviation;
     }
 
     @Override
+    /** {@inheritDoc} */
     public String getConnectorName() {
         return Module.name();
     }

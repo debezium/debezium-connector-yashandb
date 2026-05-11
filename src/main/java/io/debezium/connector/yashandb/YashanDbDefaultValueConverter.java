@@ -42,6 +42,9 @@ import io.debezium.util.Strings;
 
 @ThreadSafe
 @Immutable
+/**
+ * Default value converter for YashanDB column types.
+ */
 public class YashanDbDefaultValueConverter implements DefaultValueConverter {
 
     private static Logger LOGGER = LoggerFactory.getLogger(YashanDbDefaultValueConverter.class);
@@ -52,12 +55,19 @@ public class YashanDbDefaultValueConverter implements DefaultValueConverter {
     private static final Pattern TIMESTAMP_PATTERN = Pattern.compile("([0-9]*-[0-9]*-[0-9]*) ([0-9]*:[0-9]*:[0-9]*(\\.([0-9]*))?)");
     private static final Pattern DATE_PATTERN = Pattern.compile("([0-9]*-[0-9]*-[0-9]*)");
 
+    /**
+     * Creates a new default value converter.
+     *
+     * @param valueConverters the value converters for type conversion
+     * @param jdbcConnection the JDBC connection for database queries
+     */
     public YashanDbDefaultValueConverter(YashanDbValueConverters valueConverters, YashanDbConnection jdbcConnection) {
         this.valueConverters = valueConverters;
         this.defaultValueMappers = Collections.unmodifiableMap(createDefaultValueMappers(jdbcConnection));
     }
 
     @Override
+    /** {@inheritDoc} */
     public Optional<Object> parseDefaultValue(Column column, String defaultValue) {
         final int dataType = column.jdbcType();
         final DefaultValueMapper mapper = defaultValueMappers.get(dataType);

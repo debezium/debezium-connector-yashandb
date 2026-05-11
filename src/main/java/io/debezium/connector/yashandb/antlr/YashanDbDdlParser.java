@@ -28,7 +28,8 @@ import io.debezium.relational.Tables.TableFilter;
 import io.debezium.relational.ddl.DdlChanges;
 
 /**
- * This is the main YashanDB Antlr DDL parser
+ * This class contains the main YashanDB Antlr DDL parser.
+ * It is used to parse DDL statements and update the relational database model.
  */
 public class YashanDbDdlParser extends AntlrDdlParser<YashanDbLexer, YashanDbParser> {
 
@@ -38,22 +39,53 @@ public class YashanDbDdlParser extends AntlrDdlParser<YashanDbLexer, YashanDbPar
     private String catalogName;
     private String schemaName;
 
+    /**
+     * Creates a new YashanDbDdlParser instance with default settings.
+     * Error throwing is disabled, views and comments are not included.
+     */
     public YashanDbDdlParser() {
         this(null, TableFilter.includeAll());
     }
 
+    /**
+     * Creates a new YashanDbDdlParser instance with the given value converters.
+     *
+     * @param valueConverters the value converters to use for data type conversion
+     */
     public YashanDbDdlParser(YashanDbValueConverters valueConverters) {
         this(true, valueConverters, TableFilter.includeAll());
     }
 
+    /**
+     * Creates a new YashanDbDdlParser instance with the given value converters and table filter.
+     *
+     * @param valueConverters the value converters to use for data type conversion
+     * @param tableFilter the filter to determine which tables to include
+     */
     public YashanDbDdlParser(YashanDbValueConverters valueConverters, TableFilter tableFilter) {
         this(true, valueConverters, tableFilter);
     }
 
+    /**
+     * Creates a new YashanDbDdlParser instance with configurable error handling.
+     *
+     * @param throwErrorsFromTreeWalk whether to throw errors during tree walk
+     * @param converters the value converters to use for data type conversion
+     * @param tableFilter the filter to determine which tables to include
+     */
     public YashanDbDdlParser(boolean throwErrorsFromTreeWalk, YashanDbValueConverters converters, TableFilter tableFilter) {
         this(throwErrorsFromTreeWalk, false, false, converters, tableFilter);
     }
 
+    /**
+     * Creates a new YashanDbDdlParser instance with full configuration.
+     *
+     * @param throwErrorsFromTreeWalk whether to throw errors during tree walk
+     * @param includeViews whether to include views in parsing
+     * @param includeComments whether to include comments in parsing
+     * @param converters the value converters to use for data type conversion
+     * @param tableFilter the filter to determine which tables to include
+     */
     public YashanDbDdlParser(boolean throwErrorsFromTreeWalk, boolean includeViews, boolean includeComments,
                              YashanDbValueConverters converters, TableFilter tableFilter) {
         super(throwErrorsFromTreeWalk, includeViews, includeComments);
@@ -61,6 +93,14 @@ public class YashanDbDdlParser extends AntlrDdlParser<YashanDbLexer, YashanDbPar
         this.tableFilter = tableFilter;
     }
 
+    /**
+     * Parses the given DDL content and updates the database tables model.
+     * Ensures the DDL content ends with a semicolon before parsing.
+     *
+     * @param ddlContent the DDL content to parse
+     * @param databaseTables the database tables model to update
+     * @return the DDL changes detected during parsing
+     */
     @Override
     public DdlChanges parse(String ddlContent, Tables databaseTables) {
         if (!ddlContent.endsWith(";")) {
@@ -69,31 +109,65 @@ public class YashanDbDdlParser extends AntlrDdlParser<YashanDbLexer, YashanDbPar
         return super.parse(ddlContent, databaseTables);
     }
 
+    /**
+     * Returns the root of the parse tree for the YashanDB SQL script grammar.
+     *
+     * @param parser the parser to use for tree construction
+     * @return the parse tree root node
+     */
     @Override
     public ParseTree parseTree(YashanDbParser parser) {
         return parser.sql_script();
     }
 
+    /**
+     * Creates a new parse tree walker listener for YashanDB DDL processing.
+     *
+     * @return a new YashanDbDdlParserListener instance
+     */
     @Override
     protected AntlrDdlParserListener createParseTreeWalkerListener() {
         return new YashanDbDdlParserListener(catalogName, schemaName, this);
     }
 
+    /**
+     * Creates a new lexer instance for the YashanDB grammar.
+     *
+     * @param charStreams the character stream input
+     * @return a new YashanDbLexer instance
+     */
     @Override
     protected YashanDbLexer createNewLexerInstance(CharStream charStreams) {
         return new YashanDbLexer(charStreams);
     }
 
+    /**
+     * Creates a new parser instance for the YashanDB grammar.
+     *
+     * @param commonTokenStream the token stream input
+     * @return a new YashanDbParser instance
+     */
     @Override
     protected YashanDbParser createNewParserInstance(CommonTokenStream commonTokenStream) {
         return new YashanDbParser(commonTokenStream);
     }
 
+    /**
+     * Indicates whether the YashanDB grammar uses upper-case tokens.
+     *
+     * @return true since YashanDB grammar tokens are in upper case
+     */
     @Override
     protected boolean isGrammarInUpperCase() {
         return true;
     }
 
+    /**
+     * Returns the data type resolver for YashanDB native data types.
+     * Maps YashanDB data type names to JDBC type codes.
+     *
+     * @return the data type resolver
+     */
     @Override
     public DataTypeResolver dataTypeResolver() {
         // todo, register all and use in ColumnDefinitionParserListener
@@ -135,29 +209,49 @@ public class YashanDbDdlParser extends AntlrDdlParser<YashanDbLexer, YashanDbPar
         return dataTypeResolverBuilder.build();
     }
 
+    /**
+     * Creates a new system variables instance. Currently not implemented.
+     *
+     * @return null as system variables are not yet supported
+     */
     @Override
     protected SystemVariables createNewSystemVariablesInstance() {
         // todo implement
         return null;
     }
 
+    /**
+     * Sets the current database (catalog) context for DDL parsing.
+     *
+     * @param databaseName the database name to set as current
+     */
     @Override
     public void setCurrentDatabase(String databaseName) {
         this.catalogName = databaseName;
     }
 
+    /**
+     * Sets the current schema context for DDL parsing.
+     *
+     * @param schemaName the schema name to set as current
+     */
     @Override
     public void setCurrentSchema(String schemaName) {
         this.schemaName = schemaName;
     }
 
+    /**
+     * Returns the system variables instance. Currently not implemented.
+     *
+     * @return never returns normally, throws UnsupportedOperationException
+     */
     @Override
     public SystemVariables systemVariables() {
         throw new UnsupportedOperationException("Not implemented yet");
     }
 
     /**
-     * Runs a function if all given object are not null.
+     * Runs a function if all given objects are not null.
      *
      * @param function        function to run; may not be null
      * @param nullableObjects object to be tested, if they are null.
@@ -171,10 +265,20 @@ public class YashanDbDdlParser extends AntlrDdlParser<YashanDbLexer, YashanDbPar
         function.run();
     }
 
+    /**
+     * Returns the value converters used by this parser.
+     *
+     * @return the value converters instance
+     */
     public YashanDbValueConverters getConverters() {
         return converters;
     }
 
+    /**
+     * Returns the table filter used to determine which tables to include.
+     *
+     * @return the table filter instance
+     */
     public TableFilter getTableFilter() {
         return tableFilter;
     }

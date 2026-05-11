@@ -20,10 +20,25 @@ import io.debezium.relational.TableId;
 import io.debezium.schema.DatabaseSchema;
 import io.debezium.util.Clock;
 
+/**
+ * Signal-based incremental snapshot change event source for YashanDB.
+ */
 public class YashanDbSignalBasedIncrementalSnapshotChangeEventSource extends SignalBasedIncrementalSnapshotChangeEventSource<YashanDbPartition, TableId> {
 
     private final YashanDbConnection connection;
 
+    /**
+     * Creates a new signal-based incremental snapshot change event source.
+     *
+     * @param config the connector configuration
+     * @param jdbcConnection the JDBC connection
+     * @param dispatcher the event dispatcher
+     * @param databaseSchema the database schema
+     * @param clock the clock for time-based operations
+     * @param progressListener the snapshot progress listener
+     * @param dataChangeEventListener the data change event listener
+     * @param notificationService the notification service
+     */
     public YashanDbSignalBasedIncrementalSnapshotChangeEventSource(RelationalDatabaseConnectorConfig config,
                                                                    JdbcConnection jdbcConnection,
                                                                    EventDispatcher<YashanDbPartition, TableId> dispatcher,
@@ -37,22 +52,26 @@ public class YashanDbSignalBasedIncrementalSnapshotChangeEventSource extends Sig
     }
 
     @Override
+    /** {@inheritDoc} */
     protected String getSignalTableName(String dataCollectionId) {
         final TableId tableId = YashanDbTableIdParser.parse(dataCollectionId);
         return YashanDbTableIdParser.quoteIfNeeded(tableId, false, true, connection.getSQLKeywords());
     }
 
     @Override
+    /** {@inheritDoc} */
     protected void preReadChunk(IncrementalSnapshotContext<TableId> context) {
         super.preReadChunk(context);
     }
 
     @Override
+    /** {@inheritDoc} */
     protected void postReadChunk(IncrementalSnapshotContext<TableId> context) {
         super.postReadChunk(context);
     }
 
     @Override
+    /** {@inheritDoc} */
     protected void postIncrementalSnapshotCompleted() {
         super.postIncrementalSnapshotCompleted();
 

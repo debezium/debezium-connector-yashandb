@@ -51,18 +51,36 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
 
     public static final String TYPE = "ystream";
 
+    /**
+     * Creates a YStreamAdapter with the given connector configuration.
+     *
+     * @param connectorConfig the YashanDB connector configuration
+     */
     public YStreamAdapter(YashanDbConnectorConfig connectorConfig) {
         super(connectorConfig);
     }
 
+    /**
+     * @return the streaming adapter type identifier
+     */
     @Override
     public String getType() {
         return TYPE;
     }
 
+    /**
+     * Returns a comparator that determines if one recorded position is at or before another.
+     */
     @Override
     public HistoryRecordComparator getHistoryRecordComparator() {
         return new HistoryRecordComparator() {
+            /**
+             * Compares two document positions to determine if recorded is at or before desired.
+             *
+             * @param recorded the recorded position document
+             * @param desired the desired position document
+             * @return true if recorded is at or before desired
+             */
             @Override
             public boolean isPositionAtOrBefore(Document recorded, Document desired) {
                 final YStreamPosition recordedPosition = documentToPosition(recorded);
@@ -77,6 +95,12 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
         };
     }
 
+    /**
+     * Converts a document containing position data into a YStreamPosition.
+     *
+     * @param document the document containing position keys
+     * @return a YStreamPosition constructed from the document
+     */
     private static YStreamPosition documentToPosition(Document document) {
         long scn = document.getLong(SourceInfo.POSITION_SCN_KEY);
         String instanceId = document.getString(SourceInfo.INSTANCE_ID_KEY);
@@ -93,6 +117,12 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
         }
     }
 
+    /**
+     * Checks if the given string contains only digit characters.
+     *
+     * @param s the string to check
+     * @return true if all characters are digits
+     */
     private static boolean isDigit(String s) {
         for (char c : s.toCharArray()) {
             if (!Character.isDigit(c)) {
@@ -102,11 +132,27 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
         return true;
     }
 
+    /**
+     * @return the offset context loader for YStream
+     */
     @Override
     public OffsetContext.Loader<YashanDbOffsetContext> getOffsetContextLoader() {
         return new YStreamOffsetContextLoader(connectorConfig);
     }
 
+    /**
+     * Creates and returns a new streaming change event source.
+     *
+     * @param connection the database connection
+     * @param dispatcher the event dispatcher
+     * @param errorHandler the error handler
+     * @param clock the clock for timestamping
+     * @param schema the database schema
+     * @param taskContext the task context
+     * @param jdbcConfig the JDBC configuration
+     * @param streamingMetrics the streaming metrics
+     * @return a new YStreamStreamingChangeEventSource
+     */
     @Override
     public StreamingChangeEventSource<YashanDbPartition, YashanDbOffsetContext> getSource(YashanDbConnection connection,
                                                                                           EventDispatcher<YashanDbPartition, TableId> dispatcher,
@@ -126,11 +172,22 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
                 streamingMetrics);
     }
 
+    /**
+     * @return the table name case sensitivity for the connection
+     */
     @Override
     public TableNameCaseSensitivity getTableNameCaseSensitivity(YashanDbConnection connection) {
         return super.getTableNameCaseSensitivity(connection);
     }
 
+    /**
+     * Calculates the earliest active transaction SCN from the given values.
+     *
+     * @param st the start SCN
+     * @param e1 the first end SCN, may be null
+     * @param e2 the second end SCN, may be null
+     * @return the minimum SCN among the provided values
+     */
     private Scn calculateEarliestActiveTxnScn(
                                               Scn st, Scn e1, Scn e2) {
         // Select the minimum value among the three SCNs
@@ -144,6 +201,15 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
         return res;
     }
 
+    /**
+     * Determines the snapshot offset for the YStream adapter after an initial snapshot.
+     *
+     * @param ctx the snapshot context
+     * @param connectorConfig the connector configuration
+     * @param connection the database connection
+     * @return the resolved offset context for streaming
+     * @throws SQLException if there is a database error
+     */
     @Override
     public YashanDbOffsetContext determineSnapshotOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx,
                                                          YashanDbConnectorConfig connectorConfig,

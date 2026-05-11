@@ -10,12 +10,19 @@ import java.util.Properties;
 import io.debezium.util.IoUtil;
 
 /**
- * Information about this module.
+ * Provides metadata information about the YashanDB connector module, including version and plugin name.
+ *
+ * @author Debezium Authors
  */
 public final class Module {
 
     private static final Properties INFO = IoUtil.loadProperties(Module.class, "io/debezium/connector/yashandb/build.version");
 
+    /**
+     * Returns the version of this connector module.
+     *
+     * @return the module version string
+     */
     public static String version() {
         return INFO.getProperty("version");
     }

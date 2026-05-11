@@ -56,6 +56,12 @@ public class AlterTableParserListener extends BaseParserListener {
         this.listeners = listeners;
     }
 
+    /**
+     * Called when entering the alter_table_statement parse tree node.
+     * Initializes the table editor for the table being altered.
+     *
+     * @param ctx the alter_table_statement parse context
+     */
     @Override
     public void enterAlter_table_statement(YashanDbParser.Alter_table_statementContext ctx) {
         previousTableId = null;
@@ -73,6 +79,12 @@ public class AlterTableParserListener extends BaseParserListener {
         super.enterAlter_table_statement(ctx);
     }
 
+    /**
+     * Called when exiting the alter_table_statement parse tree node.
+     * Finalizes the table changes and signals the alter table event.
+     *
+     * @param ctx the alter_table_statement parse context
+     */
     @Override
     public void exitAlter_table_statement(YashanDbParser.Alter_table_statementContext ctx) {
         parser.runIfNotNull(() -> {
@@ -83,6 +95,12 @@ public class AlterTableParserListener extends BaseParserListener {
         super.exitAlter_table_statement(ctx);
     }
 
+    /**
+     * Called when entering the rename_clause parse tree node.
+     * Handles renaming a table to a new name.
+     *
+     * @param ctx the rename_clause parse context
+     */
     @Override
     public void enterRename_clause(YashanDbParser.Rename_clauseContext ctx) {
         parser.runIfNotNull(() -> {
@@ -102,6 +120,12 @@ public class AlterTableParserListener extends BaseParserListener {
         super.enterRename_clause(ctx);
     }
 
+    /**
+     * Called when entering the alter_column_clause parse tree node.
+     * Handles ADD, MODIFY, RENAME, and DROP column operations.
+     *
+     * @param ctx the alter_column_clause parse context
+     */
     @Override
     public void enterAlter_column_clause(YashanDbParser.Alter_column_clauseContext ctx) {
         parser.runIfNotNull(() -> {
@@ -157,6 +181,12 @@ public class AlterTableParserListener extends BaseParserListener {
         super.enterAlter_column_clause(ctx);
     }
 
+    /**
+     * Called when exiting the alter_column_clause parse tree node.
+     * Finalizes column additions and modifications.
+     *
+     * @param ctx the alter_column_clause parse context
+     */
     @Override
     public void exitAlter_column_clause(YashanDbParser.Alter_column_clauseContext ctx) {
         parser.runIfNotNull(() -> {
@@ -170,6 +200,12 @@ public class AlterTableParserListener extends BaseParserListener {
         super.exitAlter_column_clause(ctx);
     }
 
+    /**
+     * Called when exiting the column_definition parse tree node.
+     * Manages multi-column definition parsing.
+     *
+     * @param ctx the column_definition parse context
+     */
     @Override
     public void exitColumn_definition(YashanDbParser.Column_definitionContext ctx) {
         parser.runIfNotNull(() -> {
@@ -191,6 +227,12 @@ public class AlterTableParserListener extends BaseParserListener {
         super.exitColumn_definition(ctx);
     }
 
+    /**
+     * Called when entering the alter_constraint_clause parse tree node.
+     * Handles ADD and DROP PRIMARY KEY constraints.
+     *
+     * @param ctx the alter_constraint_clause parse context
+     */
     @Override
     public void enterAlter_constraint_clause(YashanDbParser.Alter_constraint_clauseContext ctx) {
         parser.runIfNotNull(() -> {
