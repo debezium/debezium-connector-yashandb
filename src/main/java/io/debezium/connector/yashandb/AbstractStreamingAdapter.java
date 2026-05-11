@@ -65,7 +65,6 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
     /**
      * Returns the SCN of the latest DDL change to the captured tables.
      * The result will be empty if there is no table to capture as per the configuration.
-     *  查询最近的DDL变更的SCN
      * @param ctx the snapshot contest, must not be {@code null}
      * @param connection the database connection, must not be {@code null}
      * @return the latest table DDL system change number, never {@code null} but may be empty.

@@ -38,7 +38,7 @@ public class TimeToStringConverter implements CustomConverter<SchemaBuilder, Rel
     public static final String SELECTOR_PROPERTY = "selector";
 
     private Predicate<RelationalColumn> selector = x -> true;
-    private DateTimeFormatter formatter; // 存储配置参数
+    private DateTimeFormatter formatter;
 
     @Override
     public void configure(Properties props) {
@@ -72,7 +72,7 @@ public class TimeToStringConverter implements CustomConverter<SchemaBuilder, Rel
                 return formatter.format(((Time) x).toLocalTime());
             }
             else if (x instanceof Long) {
-                // 假设为微秒级时间戳
+                // Assumed to be a microsecond-precision epoch timestamp
                 long epochMicros = (Long) x;
                 long epochMillis = epochMicros / 1000L;
                 return formatter.format(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()));

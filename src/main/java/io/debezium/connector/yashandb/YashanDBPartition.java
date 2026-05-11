@@ -17,7 +17,6 @@ import io.debezium.util.Collect;
 public class YashanDBPartition extends AbstractPartition implements Partition {
     private static final String SERVER_PARTITION_KEY = "server";
 
-    // 配置的topic前缀
     private final String serverName;
 
     public YashanDBPartition(String serverName, String databaseName) {

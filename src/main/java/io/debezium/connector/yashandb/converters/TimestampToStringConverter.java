@@ -35,7 +35,7 @@ public class TimestampToStringConverter implements CustomConverter<SchemaBuilder
     public static final String SELECTOR_PROPERTY = "selector";
 
     private Predicate<RelationalColumn> selector = x -> true;
-    private DateTimeFormatter formatter; // 存储配置参数
+    private DateTimeFormatter formatter;
 
     @Override
     public void configure(Properties props) {
@@ -50,7 +50,7 @@ public class TimestampToStringConverter implements CustomConverter<SchemaBuilder
 
     @Override
     public void converterFor(RelationalColumn field, ConverterRegistration<SchemaBuilder> registration) {
-        // 兼容yashandb23.4.7.1版本之后的TIMESTAMP(0)~TIMESTAMP(6)类型
+        // Compatible with TIMESTAMP(0)~TIMESTAMP(6) types introduced after YashanDB version 23.4.7.1
         final String typeName = field.typeName();
         final boolean isPlainTimestamp = typeName != null
                 && typeName.trim().matches("(?i)^TIMESTAMP(\\s*\\(\\s*(?:[0-6])\\s*\\))?$");
@@ -70,7 +70,7 @@ public class TimestampToStringConverter implements CustomConverter<SchemaBuilder
                 }
             }
             if (x instanceof Long) {
-                // 假设为微秒级时间戳
+                // Assumed to be a microsecond-precision epoch timestamp
                 long epochMicros = (Long) x;
                 long epochMillis = epochMicros / 1000L;
                 return formatter.format(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()));

@@ -469,7 +469,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
             instanceIdB = Byte.parseByte(instanceId);
         }
         else {
-            // 兼容旧数据 AAAAAAA=
+            // Backward compatibility with legacy offset data (e.g., Base64-encoded instance ID like "AAAAAAA=")
             byte[] instanceIdBytes = Base64.getDecoder().decode(instanceId);
             instanceIdB = instanceIdBytes[0];
         }

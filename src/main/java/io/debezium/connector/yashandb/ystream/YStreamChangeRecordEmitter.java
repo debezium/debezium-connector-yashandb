@@ -100,7 +100,8 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
             if (index < 0 || index >= oldValues.length) {
                 continue;
             }
-            // 针对被修改的字段，如果原有的值不为null，修改之后的值为null的时候，新的值不在赋值为原有的值。
+            // For modified columns: if the original value is non-null and the new value is null,
+            // do not overwrite the new null value with the old value (preserve the explicit null update).
             if (columnNamesPresentInAfter.contains(column.name())) {
                 continue;
             }

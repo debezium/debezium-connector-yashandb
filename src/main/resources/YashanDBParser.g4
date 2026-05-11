@@ -1297,7 +1297,7 @@ expression
     | standard_function
     | case_clause
     | subquery
-    | expression ('+' | '-' | '*' | '/' | '%' | BAR BAR) expression // todo 优先级
+    | expression ('+' | '-' | '*' | '/' | '%' | BAR BAR) expression // TODO: operator precedence needs review
     | '(' expression ')'
     | column_name
     ;
@@ -2518,34 +2518,34 @@ numeric_negative
 // User and Role DDL Statements
 //
 
-// CREATE USER 语句
-// 选项不可组合：IDENTIFIED BY / ACCOUNT LOCK|UNLOCK / PASSWORD EXPIRE
+// CREATE USER statement
+// Options are mutually exclusive: IDENTIFIED BY / ACCOUNT LOCK|UNLOCK / PASSWORD EXPIRE
 create_user_statement
     : CREATE USER identifier IDENTIFIED BY quoted_string
     | CREATE USER identifier ACCOUNT (LOCK | UNLOCK)
     | CREATE USER identifier PASSWORD EXPIRE
     ;
 
-// user_name 用于 ALTER USER 和 DROP USER
+// user_name is used for both ALTER USER and DROP USER
 user_name
     : identifier
     | schema '.' identifier
     ;
 
-// ALTER USER 语句
-// 选项不可组合：IDENTIFIED BY / PASSWORD EXPIRE / ACCOUNT LOCK|UNLOCK
+// ALTER USER statement
+// Options are mutually exclusive: IDENTIFIED BY / PASSWORD EXPIRE / ACCOUNT LOCK|UNLOCK
 alter_user_statement
     : ALTER USER user_name IDENTIFIED BY quoted_string
     | ALTER USER user_name PASSWORD EXPIRE
     | ALTER USER user_name ACCOUNT (LOCK | UNLOCK)
     ;
 
-// DROP USER 语句
+// DROP USER statement
 drop_user_statement
     : DROP USER user_name CASCADE?
     ;
 
-// CREATE ROLE 语句
+// CREATE ROLE statement
 // CREATE ROLE role [SLOT slot_id] [container "=" (CURRENT|ALL)]
 create_role_statement
     : CREATE ROLE role_name
@@ -2554,18 +2554,18 @@ create_role_statement
     | CREATE ROLE role_name SLOT UNSIGNED_INTEGER CONTAINER '=' (CURRENT | ALL)
     ;
 
-// role_name 用于 CREATE ROLE 和 DROP ROLE
+// role_name is used for both CREATE ROLE and DROP ROLE
 role_name
     : identifier
     | schema '.' identifier
     ;
 
-// DROP ROLE 语句
+// DROP ROLE statement
 drop_role_statement
     : DROP ROLE role_name
     ;
 
-// CREATE PROFILE 语句
+// CREATE PROFILE statement
 // CREATE PROFILE profile_name LIMIT params [CONTAINER "=" (CURRENT|ALL)]
 create_profile_statement
     : CREATE PROFILE identifier LIMIT profile_parameters+ container_clause?
@@ -2576,7 +2576,7 @@ profile_parameters
     : profile_parameter_name (UNSIGNED_INTEGER | UNLIMITED)
     ;
 
-// profile_parameter_name: PROFILE 参数名称
+// profile_parameter_name: names of PROFILE parameters
 profile_parameter_name
     : FAILED_LOGIN_ATTEMPTS
     | PASSWORD_LIFE_TIME
@@ -2598,12 +2598,12 @@ container_clause
     : CONTAINER '=' (CURRENT | ALL)
     ;
 
-// ALTER PROFILE 语句
+// ALTER PROFILE statement
 alter_profile_statement
     : ALTER PROFILE identifier LIMIT profile_parameters+ container_clause?
     ;
 
-// DROP PROFILE 语句
+// DROP PROFILE statement
 drop_profile_statement
     : DROP PROFILE identifier CASCADE?
     ;
@@ -2617,8 +2617,8 @@ size_clause
 // Tablespace DDL Statements
 //
 
-// CREATE TABLESPACE 语句
-// 简化版本：CREATE [BIGFILE|SMALLFILE] TABLESPACE name [datafile_clause] [extent_management_clause]
+// CREATE TABLESPACE statement
+// Simplified version: CREATE [BIGFILE|SMALLFILE] TABLESPACE name [datafile_clause] [extent_management_clause]
 create_tablespace_statement
     : CREATE (BIGFILE | SMALLFILE)? TABLESPACE identifier datafile_clause? extent_management_clause?
     | CREATE (TEMPORARY | LOCAL TEMPORARY)? TABLESPACE identifier datafile_clause? extent_management_clause?
@@ -2640,14 +2640,14 @@ extent_management_clause
     : EXTENT (AUTOALLOCATE | UNIFORM SIZE size_clause)
     ;
 
-// DROP TABLESPACE 语句
+// DROP TABLESPACE statement
 // DROP TABLESPACE [IF EXISTS] name [INCLUDING CONTENTS [(AND|KEEP) DATAFILES] [CASCADE CONSTRAINTS]]
 drop_tablespace_statement
     : DROP TABLESPACE if_exists? identifier INCLUDING CONTENTS (AND | KEEP)? DATAFILES? (CASCADE CONSTRAINTS)?
     | DROP TABLESPACE if_exists? identifier (CASCADE CONSTRAINTS)?
     ;
 
-// ALTER TABLESPACE 语句
+// ALTER TABLESPACE statement
 // ALTER TABLESPACE name add_datafile | drop_datafile | shrink | offline | online | rename
 alter_tablespace_statement
     : ALTER TABLESPACE identifier ADD (DATAFILE | TEMPFILE) quoted_string
@@ -2662,7 +2662,7 @@ alter_tablespace_statement
 // Synonym and Directory DDL Statements
 //
 
-// CREATE SYNONYM 语句
+// CREATE SYNONYM statement
 // CREATE [OR REPLACE] [EDITIONABLE|NONEDITIONABLE] [PUBLIC] SYNONYM [schema "."] synonym FOR object
 create_synonym_statement
     : CREATE SYNONYM identifier FOR identifier
@@ -2671,33 +2671,33 @@ create_synonym_statement
     | CREATE OR REPLACE PUBLIC SYNONYM identifier FOR identifier
     ;
 
-// DROP SYNONYM 语句
+// DROP SYNONYM statement
 // DROP [PUBLIC] SYNONYM synonym_name
 drop_synonym_statement
     : DROP PUBLIC? SYNONYM identifier
     ;
 
-// CREATE DIRECTORY 语句
+// CREATE DIRECTORY statement
 // CREATE [OR REPLACE] DIRECTORY directory_name AS 'path_name'
 create_directory_statement
     : CREATE DIRECTORY identifier AS quoted_string
     | CREATE OR REPLACE DIRECTORY identifier AS quoted_string
     ;
 
-// DROP DIRECTORY 语句
+// DROP DIRECTORY statement
 // DROP DIRECTORY directory_name
 drop_directory_statement
     : DROP DIRECTORY identifier
     ;
 
-// RENAME 语句
+// RENAME statement
 // RENAME TABLE old_table_name TO new_table_name
 rename_statement
     : RENAME TABLE identifier TO identifier
     | RENAME TABLE schema '.' identifier TO schema '.' identifier
     ;
 
-// COMMENT 语句
+// COMMENT statement
 // COMMENT ON TABLE|COLUMN ...
 comment_statement
     : COMMENT ON TABLE identifier IS quoted_string
@@ -2706,7 +2706,7 @@ comment_statement
     | COMMENT ON COLUMN schema '.' identifier '.' identifier IS quoted_string
     ;
 
-// TRUNCATE TABLE 语句
+// TRUNCATE TABLE statement
 // TRUNCATE TABLE table_name [DROP STORAGE|REUSE STORAGE]
 truncate_table_statement
     : TRUNCATE TABLE identifier
@@ -2721,7 +2721,7 @@ truncate_table_statement
 // Grant and Revoke Statements
 //
 
-// GRANT 语句
+// GRANT statement
 // GRANT privilege TO user [WITH GRANT OPTION]
 grant_statement
     : GRANT privilege_name TO user_name
@@ -2744,20 +2744,20 @@ privilege_name
     | REFERENCES
     ;
 
-// REVOKE 语句
+// REVOKE statement
 // REVOKE privilege FROM user
 revoke_statement
     : REVOKE privilege_name FROM user_name
     | REVOKE privilege_name ON table_name FROM user_name
     ;
 
-// AUDIT 语句
+// AUDIT statement
 audit_statement
     : AUDIT privilege_name ON identifier
     | AUDIT privilege_name
     ;
 
-// NOAUDIT 语句
+// NOAUDIT statement
 noaudit_statement
     : NOAUDIT privilege_name ON identifier
     | NOAUDIT privilege_name

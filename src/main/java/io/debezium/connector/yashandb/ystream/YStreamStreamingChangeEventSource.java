@@ -95,8 +95,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         // create
         String serverName = connectorConfig.getYstreamServerName();
         LOGGER.info("YStream serverName: {}", serverName);
-        // 创建YStream Server
-        LOGGER.info("Init YStream serverName");
+        LOGGER.info("Init YStream server");
 
         try {
             try {

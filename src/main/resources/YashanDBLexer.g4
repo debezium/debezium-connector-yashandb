@@ -341,7 +341,7 @@ LEVEL                             : 'LEVEL';
 LIBRARY                           : 'LIBRARY';
 LIKE                              : 'LIKE';
 LIMIT                             : 'LIMIT';
-// PROFILE 参数关键字
+// PROFILE parameter keywords
 FAILED_LOGIN_ATTEMPTS             : 'FAILED_LOGIN_ATTEMPTS';
 PASSWORD_LIFE_TIME                : 'PASSWORD_LIFE_TIME';
 PASSWORD_REUSE_TIME               : 'PASSWORD_REUSE_TIME';
@@ -836,7 +836,7 @@ PATH                              : 'PATH';
 VALUE                             : 'VALUE';
 
 
-// 关键字缺失
+// Keywords not defined in grammar rules
 BTREE     : 'BTREE';
 KEY        : 'KEY';
 LOCKED     : 'LOCKED';
@@ -868,7 +868,7 @@ BOTH       : 'BOTH';
 EXTENDED   : 'EXTENDED';
 PRETTY     : 'PRETTY';
 
-// 函数缺失
+// Functions not defined in grammar rules
 PX_CHANNEL : 'PX_CHANNEL';
 PX_OBJ     : 'PX_OBJ';
 
