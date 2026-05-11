@@ -142,8 +142,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return unavailableValuePlaceholderString;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public SchemaBuilder schemaBuilder(Column column) {
         logger.debug("Building schema for column {} of type {} named {} with constraints ({},{})",
                 column.name(),
@@ -221,8 +221,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return SpecialValueDecimal.builder(decimalMode, column.length(), column.scale().orElse(-1));
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public ValueConverter converter(Column column, Field fieldDefn) {
         switch (column.jdbcType()) {
             case Types.CHAR:
@@ -254,8 +254,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return super.converter(column, fieldDefn);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertReal(Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, 0.0f, (r) -> {
             if (data instanceof String) {
@@ -331,8 +331,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return super.withScaleAdjustedIfNeeded(column, data);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertString(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             return data;
@@ -369,8 +369,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return super.convertString(column, fieldDefn, data);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertBinary(Column column, Field fieldDefn, Object data, BinaryHandlingMode mode) {
         try {
             if (data instanceof String) {
@@ -408,15 +408,15 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         }
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertInteger(Column column, Field fieldDefn, Object data) {
 
         return super.convertInteger(column, fieldDefn, data);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertFloat(Column column, Field fieldDefn, Object data) {
         if (data instanceof Float) {
             return data;
@@ -428,8 +428,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return super.convertFloat(column, fieldDefn, data);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertDouble(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             return Double.parseDouble((String) data);
@@ -438,8 +438,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return super.convertDouble(column, fieldDefn, data);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertDecimal(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             // In the case when the value is of String, convert it to a BigDecimal so that we can then
@@ -456,8 +456,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return super.convertDecimal(column, fieldDefn, data);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertNumeric(Column column, Field fieldDefn, Object data) {
         return convertDecimal(column, fieldDefn, data);
     }
@@ -520,8 +520,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
      * @return the converted value, or null if the conversion could not be made and the column allows nulls
      * @throws IllegalArgumentException if the value could not be converted but the column does not allow nulls
      */
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertBoolean(Column column, Field fieldDefn, Object data) {
         if (data instanceof BigDecimal) {
             return ((BigDecimal) data).byteValue() == 0 ? Boolean.FALSE : Boolean.TRUE;
@@ -532,8 +532,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return super.convertBoolean(column, fieldDefn, data);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertTinyInt(Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, BYTE_FALSE, (r) -> {
             if (data instanceof Byte) {
@@ -592,8 +592,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return data;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertTimestampToEpochMillisAsDate(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             data = resolveTimestampStringAsInstant((String) data);
@@ -601,8 +601,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return super.convertTimestampToEpochMillisAsDate(column, fieldDefn, fromYashanDbTimeClasses(column, data));
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertTimestampToEpochMicros(Column column, Field fieldDefn, Object data) {
         if (data instanceof Long) {
             return data;
@@ -613,8 +613,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return super.convertTimestampToEpochMicros(column, fieldDefn, fromYashanDbTimeClasses(column, data));
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertTimestampToEpochMillis(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             data = resolveTimestampStringAsInstant((String) data);
@@ -622,8 +622,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return super.convertTimestampToEpochMillis(column, fieldDefn, fromYashanDbTimeClasses(column, data));
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertTimestampToEpochNanos(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             data = resolveTimestampStringAsInstant((String) data);
@@ -656,8 +656,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
         return null;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Object convertTimestampWithZone(Column column, Field fieldDefn, Object data) {
         if (data instanceof String) {
             final Matcher toTimestampTzMatcher = TO_TIMESTAMP_TZ.matcher((String) data);

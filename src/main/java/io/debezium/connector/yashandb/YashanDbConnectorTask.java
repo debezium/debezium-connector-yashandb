@@ -72,14 +72,14 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
     private Partition.Provider<YashanDbPartition> partitionProvider = null;
     private OffsetContext.Loader<YashanDbOffsetContext> offsetContextLoader = null;
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public String version() {
         return Module.version();
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public CdcSourceTaskContext<? extends CommonConnectorConfig> preStart(Configuration config) {
 
         connectorConfig = new YashanDbConnectorConfig(config);
@@ -88,8 +88,8 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         return taskContext;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public ChangeEventSourceCoordinator<YashanDbPartition, YashanDbOffsetContext> start(Configuration config) {
         partitionProvider = new YashanDbPartition.Provider(connectorConfig);
         offsetContextLoader = connectorConfig.getAdapter().getOffsetContextLoader();
@@ -207,8 +207,8 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         return coordinator;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected String connectorName() {
         return Module.name();
     }
@@ -217,8 +217,8 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         return new YashanDbConnection(jdbcConfig);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public List<SourceRecord> doPoll() throws InterruptedException {
         List<DataChangeEvent> records = queue.poll();
 
@@ -227,14 +227,14 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
                 .collect(Collectors.toList());
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Optional<ErrorHandler> getErrorHandler() {
         return Optional.ofNullable(errorHandler);
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public void doStop() {
         try {
             if (jdbcConnection != null) {
@@ -259,14 +259,14 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         }
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     protected Iterable<Field> getAllConfigurationFields() {
         return YashanDbConnectorConfig.ALL_FIELDS;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public void performCommit() {
 
         final boolean locked = commitLock.tryLock();

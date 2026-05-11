@@ -887,14 +887,14 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         return legacyDecimalHandlingStrategy;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public int getQueryFetchSize() {
         return queryFetchSize;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public HistoryRecordComparator getHistoryRecordComparator() {
         return streamingAdapter.getHistoryRecordComparator();
     }
@@ -1734,8 +1734,8 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         return logMiningMaxScnDeviation;
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public String getConnectorName() {
         return Module.name();
     }

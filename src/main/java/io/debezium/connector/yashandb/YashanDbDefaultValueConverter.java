@@ -66,8 +66,8 @@ public class YashanDbDefaultValueConverter implements DefaultValueConverter {
         this.defaultValueMappers = Collections.unmodifiableMap(createDefaultValueMappers(jdbcConnection));
     }
 
-    @Override
     /** {@inheritDoc} */
+    @Override
     public Optional<Object> parseDefaultValue(Column column, String defaultValue) {
         final int dataType = column.jdbcType();
         final DefaultValueMapper mapper = defaultValueMappers.get(dataType);
