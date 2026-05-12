@@ -5,16 +5,6 @@
  */
 package io.debezium.connector.yashandb;
 
-import io.debezium.annotation.ThreadSafe;
-import io.debezium.annotation.VisibleForTesting;
-import io.debezium.connector.base.ChangeEventQueueMetrics;
-import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.pipeline.metrics.DefaultStreamingChangeEventSourceMetrics;
-import io.debezium.pipeline.source.spi.EventMetadataProvider;
-import io.debezium.util.LRUCacheMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,6 +16,18 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.debezium.annotation.ThreadSafe;
+import io.debezium.annotation.VisibleForTesting;
+import io.debezium.connector.base.ChangeEventQueueMetrics;
+import io.debezium.connector.common.CdcSourceTaskContext;
+import io.debezium.pipeline.metrics.CapturedTablesSupplier;
+import io.debezium.pipeline.metrics.DefaultStreamingChangeEventSourceMetrics;
+import io.debezium.pipeline.source.spi.EventMetadataProvider;
+import io.debezium.util.LRUCacheMap;
 
 /**
  * The metrics implementation for YashanDB connector streaming phase.
@@ -115,8 +117,9 @@ public class YashanDBStreamingChangeEventSourceMetrics extends DefaultStreamingC
 
     public YashanDBStreamingChangeEventSourceMetrics(CdcSourceTaskContext taskContext, ChangeEventQueueMetrics changeEventQueueMetrics,
                                                      EventMetadataProvider metadataProvider,
-                                                     YashanDBConnectorConfig connectorConfig) {
-        this(taskContext, changeEventQueueMetrics, metadataProvider, connectorConfig, Clock.systemUTC());
+                                                     YashanDBConnectorConfig connectorConfig,
+                                                     CapturedTablesSupplier capturedTablesSupplier) {
+        this(taskContext, changeEventQueueMetrics, metadataProvider, connectorConfig, Clock.systemUTC(), capturedTablesSupplier);
     }
 
     /**
@@ -126,8 +129,9 @@ public class YashanDBStreamingChangeEventSourceMetrics extends DefaultStreamingC
     YashanDBStreamingChangeEventSourceMetrics(CdcSourceTaskContext taskContext, ChangeEventQueueMetrics changeEventQueueMetrics,
                                               EventMetadataProvider metadataProvider,
                                               YashanDBConnectorConfig connectorConfig,
-                                              Clock clock) {
-        super(taskContext, changeEventQueueMetrics, metadataProvider);
+                                              Clock clock,
+                                              CapturedTablesSupplier capturedTablesSupplier) {
+        super(taskContext, changeEventQueueMetrics, metadataProvider, capturedTablesSupplier);
 
         this.clock = clock;
         startTime = clock.instant();

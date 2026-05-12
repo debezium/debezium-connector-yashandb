@@ -10,7 +10,7 @@ import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
 import io.debezium.relational.TableId;
 
 /**
- * This class is parsing Oracle drop table statements.
+ * This class is parsing YashanDB drop table statements.
  */
 public class DropTableParserListener extends BaseParserListener {
 
@@ -25,10 +25,10 @@ public class DropTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterDrop_table(final YashanDBParser.Drop_tableContext ctx) {
-        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name().get(0)));
+    public void enterDrop_table_statement(final YashanDBParser.Drop_table_statementContext ctx) {
+        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.table_name()));
         parser.databaseTables().removeTable(tableId);
         parser.signalDropTable(tableId, ctx);
-        super.enterDrop_table(ctx);
+        super.enterDrop_table_statement(ctx);
     }
 }

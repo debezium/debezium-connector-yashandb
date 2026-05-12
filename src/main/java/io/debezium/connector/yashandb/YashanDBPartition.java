@@ -5,14 +5,14 @@
  */
 package io.debezium.connector.yashandb;
 
-import io.debezium.pipeline.spi.Partition;
-import io.debezium.relational.AbstractPartition;
-import io.debezium.util.Collect;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+
+import io.debezium.pipeline.spi.Partition;
+import io.debezium.relational.AbstractPartition;
+import io.debezium.util.Collect;
 
 public class YashanDBPartition extends AbstractPartition implements Partition {
     private static final String SERVER_PARTITION_KEY = "server";

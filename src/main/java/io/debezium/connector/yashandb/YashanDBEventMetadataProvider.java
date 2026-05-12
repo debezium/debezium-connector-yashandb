@@ -5,15 +5,16 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.time.Instant;
+import java.util.Map;
+
+import org.apache.kafka.connect.data.Struct;
+
 import io.debezium.data.Envelope;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Collect;
-import org.apache.kafka.connect.data.Struct;
-
-import java.time.Instant;
-import java.util.Map;
 
 class YashanDBEventMetadataProvider implements EventMetadataProvider {
 

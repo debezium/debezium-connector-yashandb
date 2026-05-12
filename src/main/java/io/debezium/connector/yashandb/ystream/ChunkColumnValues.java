@@ -5,19 +5,20 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.sics.ystream.exception.YstreamSqlException;
 import com.sics.ystream.metadata.TableMetadata;
 import com.sics.ystream.result.YstreamChunk;
 import com.sics.ystream.util.ChunkUtil;
 import com.yashandb.jdbc.YasSQLXML;
 import com.yashandb.jdbc.YasTypes;
-import io.debezium.DebeziumException;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import io.debezium.DebeziumException;
 
 /**
  * A simple wrapper class around a collection of {@link YstreamChunk}s.

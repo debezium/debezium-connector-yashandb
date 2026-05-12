@@ -5,7 +5,15 @@
  */
 package io.debezium.connector.yashandb.antlr;
 
+import java.sql.Types;
+import java.util.Arrays;
+
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTree;
+
 import com.yashandb.jdbc.YasTypes;
+
 import io.debezium.antlr.AntlrDdlParser;
 import io.debezium.antlr.AntlrDdlParserListener;
 import io.debezium.antlr.DataTypeResolver;
@@ -18,12 +26,6 @@ import io.debezium.relational.SystemVariables;
 import io.debezium.relational.Tables;
 import io.debezium.relational.Tables.TableFilter;
 import io.debezium.relational.ddl.DdlChanges;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.tree.ParseTree;
-
-import java.sql.Types;
-import java.util.Arrays;
 
 /**
  * This is the main YashanDB Antlr DDL parser
@@ -91,7 +93,6 @@ public class YashanDBDdlParser extends AntlrDdlParser<YashanDBLexer, YashanDBPar
     protected boolean isGrammarInUpperCase() {
         return true;
     }
-
 
     @Override
     public DataTypeResolver dataTypeResolver() {

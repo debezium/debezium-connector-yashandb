@@ -5,9 +5,17 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.sics.ystream.YstreamClientBoot;
 import com.sics.ystream.conf.StartMode;
 import com.sics.ystream.conf.YstreamConfig;
+
 import io.debezium.connector.yashandb.Scn;
 import io.debezium.connector.yashandb.SourceInfo;
 import io.debezium.connector.yashandb.YashanDBConnection;
@@ -23,12 +31,6 @@ import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.relational.TableId;
 import io.debezium.util.Clock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A {@link StreamingChangeEventSource} based on YashanDB's YStream API. The YStream event handler loop is executed in a
@@ -101,7 +103,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
                 // 1. connect
                 ystreamClientBoot = YstreamClientBoot.getClient();
                 ystreamClientBoot.open(
-                        YstreamConfig.<YStreamRecord>builder()
+                        YstreamConfig.<YStreamRecord> builder()
                                 .setHost(jdbcConnection.config().getHostname())
                                 .setPort(String.valueOf(jdbcConnection.config().getPort()))
                                 .setUser(jdbcConnection.config().getUser())
@@ -131,10 +133,12 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
                         LOGGER.info("Streaming resumed");
                     }
                 }
-            } finally {
+            }
+            finally {
                 ystreamClientBoot.close();
             }
-        } catch (Throwable e) {
+        }
+        catch (Throwable e) {
             errorHandler.setProducerThrowable(e);
         }
     }

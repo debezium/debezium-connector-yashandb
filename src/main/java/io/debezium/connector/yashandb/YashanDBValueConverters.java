@@ -5,25 +5,7 @@
  */
 package io.debezium.connector.yashandb;
 
-import com.yashandb.jdbc.YasTypes;
-import com.yashandb.json.YasonObject;
-import io.debezium.DebeziumException;
-import io.debezium.config.CommonConnectorConfig.BinaryHandlingMode;
-import io.debezium.data.Json;
-import io.debezium.data.SpecialValueDecimal;
-import io.debezium.data.VariableScaleDecimal;
-import io.debezium.jdbc.JdbcValueConverters;
-import io.debezium.jdbc.ResultReceiver;
-import io.debezium.relational.Column;
-import io.debezium.relational.ValueConverter;
-import io.debezium.time.Date;
-import io.debezium.time.Interval;
-import io.debezium.time.MicroDuration;
-import io.debezium.time.ZonedTimestamp;
-import io.debezium.util.NumberConversions;
-import io.debezium.util.Strings;
-import org.apache.kafka.connect.data.Field;
-import org.apache.kafka.connect.data.SchemaBuilder;
+import static io.debezium.util.NumberConversions.BYTE_FALSE;
 
 import java.math.BigDecimal;
 import java.sql.Blob;
@@ -42,7 +24,27 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static io.debezium.util.NumberConversions.BYTE_FALSE;
+import org.apache.kafka.connect.data.Field;
+import org.apache.kafka.connect.data.SchemaBuilder;
+
+import com.yashandb.jdbc.YasTypes;
+import com.yashandb.json.YasonObject;
+
+import io.debezium.DebeziumException;
+import io.debezium.config.CommonConnectorConfig.BinaryHandlingMode;
+import io.debezium.data.Json;
+import io.debezium.data.SpecialValueDecimal;
+import io.debezium.data.VariableScaleDecimal;
+import io.debezium.jdbc.JdbcValueConverters;
+import io.debezium.jdbc.ResultReceiver;
+import io.debezium.relational.Column;
+import io.debezium.relational.ValueConverter;
+import io.debezium.time.Date;
+import io.debezium.time.Interval;
+import io.debezium.time.MicroDuration;
+import io.debezium.time.ZonedTimestamp;
+import io.debezium.util.NumberConversions;
+import io.debezium.util.Strings;
 
 public class YashanDBValueConverters extends JdbcValueConverters {
 
@@ -160,18 +162,22 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                 int width = column.length() - scale;
                 if (width < 3) {
                     return SchemaBuilder.int8();
-                } else if (width < 5) {
+                }
+                else if (width < 5) {
                     return SchemaBuilder.int16();
-                } else if (width < 10) {
+                }
+                else if (width < 10) {
                     return SchemaBuilder.int32();
-                } else if (width < 19) {
+                }
+                else if (width < 19) {
                     return SchemaBuilder.int64();
                 }
             }
 
             // larger non-floating point types and floating point types use Decimal
             return super.schemaBuilder(column);
-        } else {
+        }
+        else {
             return variableScaleSchema(column);
         }
     }
@@ -215,14 +221,14 @@ public class YashanDBValueConverters extends JdbcValueConverters {
         return super.converter(column, fieldDefn);
     }
 
-
     @Override
     protected Object convertReal(Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, 0.0f, (r) -> {
             if (data instanceof String) {
                 r.deliver(Float.valueOf((String) data));
-            }else {
-                super.convertReal(column,fieldDefn,data);
+            }
+            else {
+                super.convertReal(column, fieldDefn, data);
             }
         });
     }
@@ -232,7 +238,8 @@ public class YashanDBValueConverters extends JdbcValueConverters {
             // The SnapshotReader sees JSON values as UTF-8 encoded strings.
             if (data instanceof YasonObject) {
                 r.deliver(data.toString());
-            } else {
+            }
+            else {
                 r.deliver(data);
             }
 
@@ -247,18 +254,22 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                 int width = column.length() - scale;
                 if (width < 3) {
                     return data -> convertNumericAsTinyInt(column, fieldDefn, data);
-                } else if (width < 5) {
+                }
+                else if (width < 5) {
                     return data -> convertNumericAsSmallInt(column, fieldDefn, data);
-                } else if (width < 10) {
+                }
+                else if (width < 10) {
                     return data -> convertNumericAsInteger(column, fieldDefn, data);
-                } else if (width < 19) {
+                }
+                else if (width < 19) {
                     return data -> convertNumericAsBigInteger(column, fieldDefn, data);
                 }
             }
 
             // larger non-floating point types and floating point types use Decimal
             return data -> convertNumeric(column, fieldDefn, data);
-        } else {
+        }
+        else {
             return data -> convertVariableScale(column, fieldDefn, data);
         }
     }
@@ -290,7 +301,8 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                 // and that length must be greater-than or equal to 0. So for an empty
                 // clob field, a call to getSubString(1, 0) is perfectly valid.
                 return clob.getSubString(1, (int) clob.length());
-            } catch (SQLException e) {
+            }
+            catch (SQLException e) {
                 throw new DebeziumException("Couldn't convert value for column " + column.name(), e);
             }
         }
@@ -319,14 +331,17 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                     }
                     data = "";
                 }
-            } else if (data instanceof Blob) {
+            }
+            else if (data instanceof Blob) {
                 if (!lobEnabled) {
                     if (column.isOptional()) {
                         return null;
-                    } else {
+                    }
+                    else {
                         data = NumberConversions.BYTE_ZERO;
                     }
-                } else {
+                }
+                else {
                     Blob blob = (Blob) data;
                     data = blob.getBytes(1, Long.valueOf(blob.length()).intValue());
                 }
@@ -337,7 +352,8 @@ public class YashanDBValueConverters extends JdbcValueConverters {
             }
 
             return super.convertBinary(column, fieldDefn, data, mode);
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             throw new DebeziumException("Couldn't convert value for column " + column.name(), e);
         }
     }
@@ -352,7 +368,8 @@ public class YashanDBValueConverters extends JdbcValueConverters {
     protected Object convertFloat(Column column, Field fieldDefn, Object data) {
         if (data instanceof Float) {
             return data;
-        } else if (data instanceof String) {
+        }
+        else if (data instanceof String) {
             return Float.parseFloat((String) data);
         }
 
@@ -432,12 +449,15 @@ public class YashanDBValueConverters extends JdbcValueConverters {
         return convertValue(column, fieldDefn, data, BYTE_FALSE, (r) -> {
             if (data instanceof Byte) {
                 r.deliver(data);
-            } else if (data instanceof Number) {
+            }
+            else if (data instanceof Number) {
                 Number value = (Number) data;
                 r.deliver(value.byteValue());
-            } else if (data instanceof Boolean) {
+            }
+            else if (data instanceof Boolean) {
                 r.deliver(NumberConversions.getByte((boolean) data));
-            } else if (data instanceof String) {
+            }
+            else if (data instanceof String) {
                 r.deliver(Byte.parseByte((String) data));
             }
         });
@@ -453,10 +473,12 @@ public class YashanDBValueConverters extends JdbcValueConverters {
         if (decimalMode == DecimalMode.PRECISE) {
             if (data instanceof SpecialValueDecimal) {
                 return VariableScaleDecimal.fromLogical(fieldDefn.schema(), (SpecialValueDecimal) data);
-            } else if (data instanceof BigDecimal) {
+            }
+            else if (data instanceof BigDecimal) {
                 return VariableScaleDecimal.fromLogical(fieldDefn.schema(), new SpecialValueDecimal((BigDecimal) data));
             }
-        } else {
+        }
+        else {
             return data;
         }
         return handleUnknownData(column, fieldDefn, data);
@@ -509,7 +531,8 @@ public class YashanDBValueConverters extends JdbcValueConverters {
             String dateText = toTimestampMatcher.group(1);
             if (dateText.indexOf(" AM") > 0 || dateText.indexOf(" PM") > 0) {
                 dateTime = LocalDateTime.from(TIMESTAMP_AM_PM_SHORT_FORMATTER.parse(dateText.trim()));
-            } else {
+            }
+            else {
                 dateTime = LocalDateTime.from(TIMESTAMP_FORMATTER.parse(dateText.trim()));
             }
             return dateTime.atZone(GMT_ZONE_ID).toInstant();
@@ -541,7 +564,8 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                 // if obtained via streaming then it is in length
                 final Integer fraction = column.scale().orElse(column.length());
                 r.deliver(ZonedTimestamp.toIsoString(javaData, defaultOffset, adjuster, fraction));
-            } catch (IllegalArgumentException e) {
+            }
+            catch (IllegalArgumentException e) {
             }
         });
     }
@@ -553,10 +577,12 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                 final long micros = ((Number) data).longValue();
                 if (intervalHandlingMode == YashanDBConnectorConfig.IntervalHandlingMode.STRING) {
                     r.deliver(Interval.toIsoString(0, 0, 0, 0, 0, new BigDecimal(micros).divide(MICROSECONDS_PER_SECOND)));
-                } else {
+                }
+                else {
                     r.deliver(micros);
                 }
-            } else if (data instanceof String) {
+            }
+            else if (data instanceof String) {
                 convertYashanDBIntervalYearMonth((String) data, r);
             }
         });
@@ -576,7 +602,8 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                 final int month = sign * Integer.parseInt(interval.substring(i + 1));
                 if (intervalHandlingMode == YashanDBConnectorConfig.IntervalHandlingMode.STRING) {
                     r.deliver(Interval.toIsoString(year, month, 0, 0, 0, BigDecimal.ZERO));
-                } else {
+                }
+                else {
                     r.deliver(MicroDuration.durationMicros(year, month, 0, 0,
                             0, 0, MicroDuration.DAYS_PER_MONTH_AVG));
                 }
@@ -591,10 +618,12 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                 final long micros = ((Number) data).longValue();
                 if (intervalHandlingMode == YashanDBConnectorConfig.IntervalHandlingMode.STRING) {
                     r.deliver(Interval.toIsoString(0, 0, 0, 0, 0, new BigDecimal(micros).divide(MICROSECONDS_PER_SECOND)));
-                } else {
+                }
+                else {
                     r.deliver(micros);
                 }
-            } else if (data instanceof String) {
+            }
+            else if (data instanceof String) {
                 convertYashanDBIntervalDaySecond((String) data, r);
             }
         });
@@ -615,7 +644,8 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                         sign * Integer.valueOf(m.group(3)),
                         sign * Integer.valueOf(m.group(4)),
                         BigDecimal.valueOf(seconds)));
-            } else {
+            }
+            else {
                 r.deliver(MicroDuration.durationMicros(
                         0,
                         0,

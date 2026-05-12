@@ -5,6 +5,8 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.util.Optional;
+
 import io.debezium.config.Configuration;
 import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
 import io.debezium.pipeline.ErrorHandler;
@@ -17,11 +19,9 @@ import io.debezium.pipeline.source.spi.SnapshotChangeEventSource;
 import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.relational.TableId;
+import io.debezium.snapshot.SnapshotterService;
 import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Clock;
-import io.debezium.util.Strings;
-
-import java.util.Optional;
 
 public class YashanDBChangeEventSourceFactory implements ChangeEventSourceFactory<YashanDBPartition, YashanDBOffsetContext> {
 
@@ -34,11 +34,12 @@ public class YashanDBChangeEventSourceFactory implements ChangeEventSourceFactor
     private final Configuration jdbcConfig;
     private final YashanDBTaskContext taskContext;
     private final YashanDBStreamingChangeEventSourceMetrics streamingMetrics;
+    private final SnapshotterService snapshotterService;
 
     public YashanDBChangeEventSourceFactory(YashanDBConnectorConfig configuration, MainConnectionProvidingConnectionFactory<YashanDBConnection> connectionFactory,
                                             ErrorHandler errorHandler, EventDispatcher<YashanDBPartition, TableId> dispatcher, Clock clock, YashanDBDatabaseSchema schema,
                                             Configuration jdbcConfig, YashanDBTaskContext taskContext,
-                                            YashanDBStreamingChangeEventSourceMetrics streamingMetrics) {
+                                            YashanDBStreamingChangeEventSourceMetrics streamingMetrics, SnapshotterService snapshotterService) {
         this.configuration = configuration;
         this.connectionFactory = connectionFactory;
         this.errorHandler = errorHandler;
@@ -48,12 +49,14 @@ public class YashanDBChangeEventSourceFactory implements ChangeEventSourceFactor
         this.jdbcConfig = jdbcConfig;
         this.taskContext = taskContext;
         this.streamingMetrics = streamingMetrics;
+        this.snapshotterService = snapshotterService;
     }
 
     @Override
     public SnapshotChangeEventSource<YashanDBPartition, YashanDBOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener<YashanDBPartition> snapshotProgressListener,
                                                                                                             NotificationService<YashanDBPartition, YashanDBOffsetContext> notificationService) {
-        return new YashanDBSnapshotChangeEventSource(configuration, connectionFactory, schema, dispatcher, clock, snapshotProgressListener, notificationService);
+        return new YashanDBSnapshotChangeEventSource(configuration, connectionFactory, schema, dispatcher, clock, snapshotProgressListener, notificationService,
+                snapshotterService);
     }
 
     @Override
@@ -77,7 +80,7 @@ public class YashanDBChangeEventSourceFactory implements ChangeEventSourceFactor
                                                                                                                                                  NotificationService<YashanDBPartition, YashanDBOffsetContext> notificationService) {
         // If no data collection id is provided, don't return an instance as the implementation requires
         // that a signal data collection id be provided to work.
-        if (Strings.isNullOrEmpty(configuration.getSignalingDataCollectionId())) {
+        if (configuration.getSignalingDataCollectionIds().isEmpty()) {
             return Optional.empty();
         }
 

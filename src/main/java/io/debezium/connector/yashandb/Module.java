@@ -5,9 +5,9 @@
  */
 package io.debezium.connector.yashandb;
 
-import io.debezium.util.IoUtil;
-
 import java.util.Properties;
+
+import io.debezium.util.IoUtil;
 
 /**
  * Information about this module.

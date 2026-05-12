@@ -5,9 +5,9 @@
  */
 package io.debezium.connector.yashandb;
 
-import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetricsMXBean;
-
 import java.util.Set;
+
+import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetricsMXBean;
 
 /**
  * The JMX exposed interface for YashanDB streaming metrics.

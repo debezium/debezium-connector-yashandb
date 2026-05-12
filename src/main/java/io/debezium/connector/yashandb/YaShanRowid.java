@@ -1,6 +1,5 @@
 package io.debezium.connector.yashandb;
 
-
 import java.math.BigInteger;
 
 public class YaShanRowid {
@@ -19,13 +18,14 @@ public class YaShanRowid {
         final BigInteger file = new BigInteger(split[2]);
         final BigInteger block = new BigInteger(split[3]);
         final BigInteger row = new BigInteger(split[4]);
-        nums = new BigInteger[] {partOid, space, file, block, row};
+        nums = new BigInteger[]{ partOid, space, file, block, row };
     }
 
     public String getRowid() {
         return nums[0] + ":" + nums[1] + ":" + nums[2] + ":" + nums[3] + ":" + nums[4];
     }
-    public BigInteger[] getNums(){
+
+    public BigInteger[] getNums() {
         return nums;
     }
 

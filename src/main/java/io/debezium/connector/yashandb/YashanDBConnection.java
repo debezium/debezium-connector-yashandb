@@ -1,15 +1,5 @@
 package io.debezium.connector.yashandb;
 
-import com.yashandb.jdbc.YasTypes;
-import io.debezium.DebeziumException;
-import io.debezium.config.Field;
-import io.debezium.jdbc.JdbcConfiguration;
-import io.debezium.jdbc.JdbcConnection;
-import io.debezium.relational.ColumnEditor;
-import io.debezium.relational.TableId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -19,6 +9,18 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.yashandb.jdbc.YasTypes;
+
+import io.debezium.DebeziumException;
+import io.debezium.config.Field;
+import io.debezium.jdbc.JdbcConfiguration;
+import io.debezium.jdbc.JdbcConnection;
+import io.debezium.relational.ColumnEditor;
+import io.debezium.relational.TableId;
+
 public class YashanDBConnection extends JdbcConnection {
     private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBConnection.class);
 
@@ -27,7 +29,6 @@ public class YashanDBConnection extends JdbcConnection {
     private static final Field URL = Field.create("url", "Raw JDBC url");
 
     private static final int YASHANDB_UNSET_SCALE = -127;
-
 
     /** Dialect query field. */
     enum DialectQueryField {
@@ -89,7 +90,8 @@ public class YashanDBConnection extends JdbcConnection {
 
     public static String connectionString(JdbcConfiguration config) {
         return config.getString(URL) != null ? config.getString(URL)
-                : String.format("jdbc:yasdb://%s:%s/%s",config.getString(JdbcConfiguration.HOSTNAME),config.getString(JdbcConfiguration.PORT),config.getString(JdbcConfiguration.DATABASE));
+                : String.format("jdbc:yasdb://%s:%s/%s", config.getString(JdbcConfiguration.HOSTNAME), config.getString(JdbcConfiguration.PORT),
+                        config.getString(JdbcConfiguration.DATABASE));
     }
 
     public String getTableMetadataDdl(TableId tableId) throws SQLException {
@@ -179,9 +181,10 @@ public class YashanDBConnection extends JdbcConnection {
             throw new DebeziumException("Unexpected error while connecting to YashanDB and looking at LOG_MODE mode: ", e);
         }
     }
+
     public boolean tableIsEmptyAsOfScn(String sql) throws SQLException {
         return queryAndMap(sql, (rs) -> {
-            LOGGER.trace("get table is empty,sql:{}",sql);
+            LOGGER.trace("get table is empty,sql:{}", sql);
             return !rs.next();
         });
     }
@@ -197,42 +200,42 @@ public class YashanDBConnection extends JdbcConnection {
                 SnapshotTableSplitInfo splitInfo = splitInfoMap.get(new TableId("", schema, tableName));
                 if (splitInfo != null) {
                     splitInfo.increaseSize(rs.getInt(DialectQueryField.DATA_SIZE.getName()));
-                } else {
+                }
+                else {
                     LOGGER.error("The table {}.{} is not in the application cache", schema, tableName);
                 }
             }
-            LOGGER.trace("get table size,sql:{}",sql);
+            LOGGER.trace("get table size,sql:{}", sql);
         });
     }
-    public void batchCheckTablesArePartitioned(String schema,String sql,ConcurrentMap<TableId, YaShanDBPartitionInfo> tablePartitionMap)
+
+    public void batchCheckTablesArePartitioned(String schema, String sql, ConcurrentMap<TableId, YaShanDBPartitionInfo> tablePartitionMap)
             throws SQLException {
         query(sql, (rs) -> {
             while (rs.next()) {
                 final String name = rs.getString(1);
                 tablePartitionMap.put(
-                        new TableId("",schema,rs.getString(1)),
-                        new YaShanDBPartitionInfo(schema,rs.getString(1),Boolean.parseBoolean(rs.getString(2))));
+                        new TableId("", schema, rs.getString(1)),
+                        new YaShanDBPartitionInfo(schema, rs.getString(1), Boolean.parseBoolean(rs.getString(2))));
             }
             LOGGER.trace("get Partitioned,sql: {}", sql);
         });
 
     }
 
-    public void queryTablesPartitionInfor(String sql,ArrayList<YaShanDBPartitionInfo.SubPartitionInfo> tablePartitionInfor)
+    public void queryTablesPartitionInfor(String sql, ArrayList<YaShanDBPartitionInfo.SubPartitionInfo> tablePartitionInfor)
             throws SQLException {
         query(sql, (rs) -> {
             while (rs.next()) {
                 tablePartitionInfor.add(
-                        new YaShanDBPartitionInfo.SubPartitionInfo(rs.getString(2),rs.getString(3),rs.getLong(4)));
+                        new YaShanDBPartitionInfo.SubPartitionInfo(rs.getString(2), rs.getString(3), rs.getLong(4)));
             }
             LOGGER.trace("get tables  partition infor,sql: {}", sql);
         });
 
     }
 
-
-
-    protected Set<TableId> getAllTableIds(String catalogName) throws SQLException {
+    public Set<TableId> getAllTableIds(String catalogName) throws SQLException {
         final String query = "select owner, table_name from all_tables ";
 
         Set<TableId> tableIds = new HashSet<>();
@@ -273,7 +276,8 @@ public class YashanDBConnection extends JdbcConnection {
         }
         return column;
     }
-    public void queryDatafileInfo(String sql,HashMap<String, Integer> datafileMap)
+
+    public void queryDatafileInfo(String sql, HashMap<String, Integer> datafileMap)
             throws SQLException {
         query(sql, (rs) -> {
             while (rs.next()) {

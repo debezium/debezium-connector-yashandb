@@ -5,14 +5,6 @@
  */
 package io.debezium.connector.yashandb.converters;
 
-import io.debezium.function.Predicates;
-import io.debezium.spi.converter.CustomConverter;
-import io.debezium.spi.converter.RelationalColumn;
-import io.debezium.util.Strings;
-import org.apache.kafka.connect.data.SchemaBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -21,6 +13,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.Properties;
 import java.util.function.Predicate;
 
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.debezium.config.Field;
+import io.debezium.function.Predicates;
+import io.debezium.metadata.ConfigDescriptor;
+import io.debezium.spi.converter.CustomConverter;
+import io.debezium.spi.converter.RelationalColumn;
+import io.debezium.util.Strings;
+
 /**
  * YashanDB reports {@code Time} as a long data type by default.  There may be some cases
  * where the consumer would prefer this to be translated to a {@code String} and this converter
@@ -28,14 +31,14 @@ import java.util.function.Predicate;
  *
  * @author Chris Cranford
  */
-public class TimeToStringConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
+public class TimeToStringConverter implements CustomConverter<SchemaBuilder, RelationalColumn>, ConfigDescriptor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TimeToStringConverter.class);
 
     public static final String SELECTOR_PROPERTY = "selector";
 
     private Predicate<RelationalColumn> selector = x -> true;
-    private DateTimeFormatter formatter;    // 存储配置参数
+    private DateTimeFormatter formatter; // 存储配置参数
 
     @Override
     public void configure(Properties props) {
@@ -57,26 +60,36 @@ public class TimeToStringConverter implements CustomConverter<SchemaBuilder, Rel
             if (x == null) {
                 if (field.isOptional()) {
                     return null;
-                } else if (field.hasDefaultValue()) {
+                }
+                else if (field.hasDefaultValue()) {
                     return field.defaultValue();
-                } else {
+                }
+                else {
                     return null;
                 }
             }
             if (x instanceof Time) {
                 return formatter.format(((Time) x).toLocalTime());
-            } else if (x instanceof Long) {
+            }
+            else if (x instanceof Long) {
                 // 假设为微秒级时间戳
                 long epochMicros = (Long) x;
                 long epochMillis = epochMicros / 1000L;
                 return formatter.format(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()));
-            } else if (x instanceof String) {
+            }
+            else if (x instanceof String) {
                 return x;
-            } else if (x instanceof Timestamp) {
+            }
+            else if (x instanceof Timestamp) {
                 return formatter.format(((Timestamp) x).toLocalDateTime());
             }
             LOGGER.warn("Cannot convert '{}' to string", x.getClass());
             return x.toString();
         });
+    }
+
+    @Override
+    public Field.Set getConfigFields() {
+        return Field.setOf(Field.create(SELECTOR_PROPERTY), Field.create("format"));
     }
 }

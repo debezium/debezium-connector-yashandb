@@ -1,5 +1,27 @@
 package io.debezium.connector.yashandb.snapshot;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+
+import org.apache.kafka.connect.errors.ConnectException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.yashandb.SnapshotTableSplitInfo;
 import io.debezium.connector.yashandb.YaShanDBPartitionInfo;
@@ -19,27 +41,6 @@ import io.debezium.util.Clock;
 import io.debezium.util.ColumnUtils;
 import io.debezium.util.Strings;
 import io.debezium.util.Threads;
-import org.apache.kafka.connect.errors.ConnectException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalLong;
-import java.util.Queue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 /**
  * One table sync task.
@@ -83,10 +84,12 @@ public class TableDataSyncTask implements Runnable {
             }
             subLatch.await();
             log.info("Table {} sync finished and has been blocked for {} (s)", tableId, blockSendTime.get() / 1000);
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             log.error("Table {} sync error", tableId.toString(), e);
             syncTaskContext.getErrorTables().add(tableId.toString());
-        } finally {
+        }
+        finally {
             syncTaskContext.getFinishedCount().incrementAndGet();
             syncTaskContext.getParentLatch().countDown();
             executor.shutdown();
@@ -101,7 +104,8 @@ public class TableDataSyncTask implements Runnable {
         // 为复用方法，数据结构保留
         Map<TableId, ArrayList<String>> querySQL = new HashMap<>();
         querySQL.put(tableId, new ArrayList<>());
-        Optional<String> selectStatement = eventSource.YaShanDetermineSnapshotOverridesSelect(snapshotContext, tableId, syncTaskContext.getSnapshotSelectOverridesByTable());
+        Optional<String> selectStatement = eventSource.YaShanDetermineSnapshotOverridesSelect(snapshotContext, tableId,
+                syncTaskContext.getSnapshotSelectOverridesByTable());
         if (null != selectStatement && selectStatement.isPresent()) {
             log.info("For table '{}' using select statement: '{}'", tableId, selectStatement.get());
             querySQL.get(tableId).add(selectStatement.get());
@@ -111,7 +115,8 @@ public class TableDataSyncTask implements Runnable {
         // 2.启用逻辑分片
         if (connectorConfig.getLogicShardEnabled()) {
             return logicShardSQL(querySQL);
-        } else {
+        }
+        else {
             // 3.未启用逻辑分片
             return noLogicShardSQL();
         }
@@ -130,8 +135,9 @@ public class TableDataSyncTask implements Runnable {
                     tableReadThreads,
                     datafileInfo,
                     querySQL);
-        } else {
-            //对非分区表进行处理
+        }
+        else {
+            // 对非分区表进行处理
             eventSource.notPartitionSplitTable(snapshotContext.offset.getScn().toString(),
                     ((YashanDBSnapshotChangeEventSource.YashanDBSnapshotContext) snapshotContext).tableSplitMap.get(tableId),
                     tableReadThreads,
@@ -155,16 +161,15 @@ public class TableDataSyncTask implements Runnable {
                         columnNames,
                         eventSource.getObjectName(tableId),
                         partitionInfo.partitionName(),
-                        snapshotContext.offset.getScn().toString())
-                );
+                        snapshotContext.offset.getScn().toString()));
             }
-        } else {
+        }
+        else {
             // 单线程读取
             querySQL.add(String.format(SnapshotSQLConstants.FLASH_BACK_SELECT_NO_PARTITION,
                     columnNames,
                     eventSource.getObjectName(tableId),
-                    snapshotContext.offset.getScn().toString()
-            ));
+                    snapshotContext.offset.getScn().toString()));
         }
         return querySQL;
     }
@@ -199,7 +204,8 @@ public class TableDataSyncTask implements Runnable {
             JdbcConnection jdbcConnection = connectionPool.poll();
             YashanDBOffsetContext offset = offsets.poll();
             YashanDBSnapshotChangeEventSource eventSource = syncTaskContext.getEventSource();
-            RelationalSnapshotChangeEventSource.RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext = syncTaskContext.getSnapshotContext();
+            RelationalSnapshotChangeEventSource.RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext = syncTaskContext
+                    .getSnapshotContext();
             ChangeEventSource.ChangeEventSourceContext sourceContext = syncTaskContext.getSourceContext();
             final Table table = snapshotContext.tables.forTable(tableId);
             final Clock clock = syncTaskContext.getClock();
@@ -208,7 +214,8 @@ public class TableDataSyncTask implements Runnable {
             try {
                 if (!sourceContext.isRunning()) {
                     throw new InterruptedException("Interrupted while snapshotting table " + table.id());
-                } else {
+                }
+                else {
                     long exportStart = clock.currentTimeInMillis();
                     log.info("Processes {} is exporting data from table '{}' (sql:{})", Thread.currentThread().getName(), table.id(), sql);
                     assert offset != null;
@@ -218,7 +225,7 @@ public class TableDataSyncTask implements Runnable {
                         assert jdbcConnection != null;
                         // table size not use
                         try (Statement statement = eventSource.readTableStatement(jdbcConnection, OptionalLong.of(-1L));
-                             ResultSet rs = CancellableResultSet.from(statement.executeQuery(sql))) {
+                                ResultSet rs = CancellableResultSet.from(statement.executeQuery(sql))) {
                             ColumnUtils.ColumnArray columnArray = ColumnUtils.toArray(rs, table);
                             long rows = 0L;
                             Threads.Timer logTimer = eventSource.YaShanGetTableScanLogTimer();
@@ -232,7 +239,8 @@ public class TableDataSyncTask implements Runnable {
                                     Object[] row = jdbcConnection.rowToArray(table, rs, columnArray);
                                     if (logTimer.expired()) {
                                         long stop = clock.currentTimeInMillis();
-                                        log.info("\t Processes {} : Exported {} records for table '{}' after {}", Thread.currentThread().getName(), rows, table.id(), Strings.duration(stop - exportStart));
+                                        log.info("\t Processes {} : Exported {} records for table '{}' after {}", Thread.currentThread().getName(), rows, table.id(),
+                                                Strings.duration(stop - exportStart));
                                         log.info("\t Processes {} : Sender has been blocked for {} (s).", Thread.currentThread().getName(), blockSendTime.get() / 1000);
                                         eventSource.snapshotProgressListener.rowsScanned(partition, table.id(), rows);
                                         logTimer = eventSource.YaShanGetTableScanLogTimer();
@@ -240,31 +248,40 @@ public class TableDataSyncTask implements Runnable {
                                     hasNext = rs.next();
                                     markState(offset, subLatch.getCount() == 1, !hasNext);
                                     long start = System.currentTimeMillis();
-                                    eventSource.dispatcher.dispatchSnapshotEvent(partition, table.id(), eventSource.getChangeRecordEmitter(partition, offset, table.id(), row, sourceTableSnapshotTimestamp), snapshotReceiver);
+                                    eventSource.dispatcher.dispatchSnapshotEvent(partition, table.id(),
+                                            eventSource.getChangeRecordEmitter(partition, offset, table.id(), row, sourceTableSnapshotTimestamp), snapshotReceiver);
                                     blockSendTime.addAndGet(System.currentTimeMillis() - start);
                                 }
-                            } else {
+                            }
+                            else {
                                 markState(offset, subLatch.getCount() == 1, true);
                             }
-                            log.info("\t Processes {} : Finished exporting {} records for table '{}' ; total duration '{}'", Thread.currentThread().getName(), rows, table.id(), Strings.duration(clock.currentTimeInMillis() - exportStart));
+                            log.info("\t Processes {} : Finished exporting {} records for table '{}' ; total duration '{}'", Thread.currentThread().getName(), rows,
+                                    table.id(), Strings.duration(clock.currentTimeInMillis() - exportStart));
                             if (snapshotProgressListener instanceof io.debezium.pipeline.metrics.DefaultSnapshotChangeEventSourceMetrics) {
                                 io.debezium.pipeline.metrics.DefaultSnapshotChangeEventSourceMetrics<YashanDBPartition> metrics = (io.debezium.pipeline.metrics.DefaultSnapshotChangeEventSourceMetrics<YashanDBPartition>) snapshotProgressListener;
                                 java.util.concurrent.ConcurrentMap<String, Long> rowsScanned = metrics.getRowsScanned();
                                 if (null != rowsScanned)
                                     rowsScanned.merge(table.id().identifier(), rows, Long::sum);
-                            } else {
-                                log.warn("Processes {} : snapshotProgressListener is not an instance of DefaultSnapshotChangeEventSourceMetrics, cannot get rowsScanned map.", Thread.currentThread().getName());
+                            }
+                            else {
+                                log.warn(
+                                        "Processes {} : snapshotProgressListener is not an instance of DefaultSnapshotChangeEventSourceMetrics, cannot get rowsScanned map.",
+                                        Thread.currentThread().getName());
                             }
                         }
 
-                    } catch (SQLException e) {
+                    }
+                    catch (SQLException e) {
                         throw new ConnectException("Snapshotting of table " + table.id() + " failed", e);
                     }
                 }
                 log.info("Table {} slice {} sync finished", tableId, sql);
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 throw new RuntimeException(e);
-            } finally {
+            }
+            finally {
                 offsets.add(offset);
                 subLatch.countDown();
                 connectionPool.add(jdbcConnection);

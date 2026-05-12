@@ -1,5 +1,19 @@
 package io.debezium.connector.yashandb.snapshot;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.debezium.connector.yashandb.YashanDBConnectorConfig;
 import io.debezium.connector.yashandb.YashanDBOffsetContext;
 import io.debezium.connector.yashandb.YashanDBPartition;
@@ -12,19 +26,6 @@ import io.debezium.relational.TableId;
 import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Clock;
 import io.debezium.util.Strings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Snapshot data sync task.
@@ -44,7 +45,8 @@ public class SnapshotDataSyncTask {
 
     public void run() throws Exception {
         try {
-            RelationalSnapshotChangeEventSource.RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext = syncTaskContext.getSnapshotContext();
+            RelationalSnapshotChangeEventSource.RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext = syncTaskContext
+                    .getSnapshotContext();
             syncTaskContext.getEventSource().tryStartingSnapshot(snapshotContext);
             int tableCount = syncTaskContext.getSnapshotContext().capturedTables.size();
             int snapshotMaxThreads = syncTaskContext.getConnectorConfig().getSnapshotMaxThreads();
@@ -76,7 +78,8 @@ public class SnapshotDataSyncTask {
             }
             log.info("All table data sync finished,plan table count: {},finished table count: {}, time:{}",
                     tableCount, syncTaskContext.getFinishedCount().get(), Strings.duration(clock.currentTimeInMillis() - exportStart));
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             log.error("Snapshot sync error: ", e);
             throw e;
         }
@@ -96,7 +99,8 @@ public class SnapshotDataSyncTask {
                         eventSource.snapshotProgressListener.dataCollectionSnapshotCompleted(snapshotContext.partition, tableId, rowCount);
                 }
             }
-        } else {
+        }
+        else {
             log.warn("snapshotProgressListener is not an instance of DefaultSnapshotChangeEventSourceMetrics,no set snapshot completed");
         }
 

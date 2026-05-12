@@ -5,14 +5,14 @@
  */
 package io.debezium.connector.yashandb.outbox;
 
+import java.util.Map;
+
 import io.debezium.DebeziumException;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.yashandb.Module;
 import io.debezium.transforms.outbox.EventRouterConfigDefinition;
 import io.debezium.transforms.outbox.EventRouterConfigurationProvider;
-
-import java.util.Map;
 
 /**
  * An implementation of the {@link EventRouterConfigurationProvider} for the YashanDB connector.

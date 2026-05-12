@@ -5,14 +5,14 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.io.IOException;
+import java.sql.SQLRecoverableException;
+import java.util.Set;
+
 import io.debezium.annotation.Immutable;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.util.Collect;
-
-import java.io.IOException;
-import java.sql.SQLRecoverableException;
-import java.util.Set;
 
 /**
  * Error handle for YashanDB.

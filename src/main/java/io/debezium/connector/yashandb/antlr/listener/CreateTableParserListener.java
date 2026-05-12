@@ -5,6 +5,13 @@
  */
 package io.debezium.connector.yashandb.antlr.listener;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.antlr.v4.runtime.tree.ParseTreeListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
 import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
 import io.debezium.relational.Column;
@@ -13,12 +20,6 @@ import io.debezium.relational.Table;
 import io.debezium.relational.TableEditor;
 import io.debezium.relational.TableId;
 import io.debezium.text.ParsingException;
-import org.antlr.v4.runtime.tree.ParseTreeListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class CreateTableParserListener extends BaseParserListener {
 
@@ -41,23 +42,24 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterCreate_table(YashanDBParser.Create_tableContext ctx) {
-        if (ctx.relational_table() == null) {
+    public void enterCreate_table_statement(YashanDBParser.Create_table_statementContext ctx) {
+        if (ctx.relation_properties() == null) {
             throw new ParsingException(null, "Only relational tables are supported");
         }
-        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name()));
+        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.table_name()));
         if (parser.getTableFilter().isIncluded(tableId)) {
             if (parser.databaseTables().forTable(tableId) == null) {
                 tableEditor = parser.databaseTables().editOrCreateTable(tableId);
-                super.enterCreate_table(ctx);
+                super.enterCreate_table_statement(ctx);
             }
-        } else {
+        }
+        else {
             LOGGER.debug("Ignoring CREATE TABLE statement for non-captured table {}", tableId);
         }
     }
 
     @Override
-    public void exitCreate_table(YashanDBParser.Create_tableContext ctx) {
+    public void exitCreate_table_statement(YashanDBParser.Create_table_statementContext ctx) {
         parser.runIfNotNull(() -> {
             if (inlinePrimaryKey != null) {
                 if (!tableEditor.primaryKeyColumnNames().isEmpty()) {
@@ -76,7 +78,7 @@ public class CreateTableParserListener extends BaseParserListener {
             }, table);
         }, tableEditor);
 
-        super.exitCreate_table(ctx);
+        super.exitCreate_table_statement(ctx);
     }
 
     @Override
@@ -88,7 +90,8 @@ public class CreateTableParserListener extends BaseParserListener {
                 columnDefinitionParserListener = new ColumnDefinitionParserListener(tableEditor, columnEditor, parser, listeners);
                 columnDefinitionParserListener.enterColumn_definition(ctx);
                 listeners.add(columnDefinitionParserListener);
-            } else {
+            }
+            else {
                 columnDefinitionParserListener.setColumnEditor(columnEditor);
             }
         }, tableEditor);
@@ -114,7 +117,7 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitOut_of_line_constraint(YashanDBParser.Out_of_line_constraintContext ctx) {
+    public void exitIndex_definition(YashanDBParser.Index_definitionContext ctx) {
         parser.runIfNotNull(() -> {
             if (ctx.PRIMARY() != null) {
                 if (inlinePrimaryKey != null) {
@@ -127,7 +130,7 @@ public class CreateTableParserListener extends BaseParserListener {
                 tableEditor.setPrimaryKeyNames(pkColumnNames);
             }
         }, tableEditor);
-        super.exitOut_of_line_constraint(ctx);
+        super.exitIndex_definition(ctx);
     }
 
     private Table getTable() {

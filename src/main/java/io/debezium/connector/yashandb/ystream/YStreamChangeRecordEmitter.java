@@ -5,9 +5,18 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.sics.ystream.exception.YstreamSqlException;
 import com.sics.ystream.result.YstreamColumn;
 import com.sics.ystream.result.YstreamColumns;
+
 import io.debezium.connector.yashandb.BaseChangeRecordEmitter;
 import io.debezium.connector.yashandb.YashanDBConnectorConfig;
 import io.debezium.connector.yashandb.YashanDBDatabaseSchema;
@@ -17,13 +26,6 @@ import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.util.Clock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Emits change data based on a single {@link YStreamDataChangeRecord} event.
@@ -47,7 +49,8 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
     public Operation getOperation() {
         if (record.isTruncateTable()) {
             return Operation.TRUNCATE;
-        } else {
+        }
+        else {
             switch (record.getYstreamDml().getDmlType()) {
                 case INSERT:
                     return Operation.CREATE;
@@ -61,15 +64,17 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
             }
         }
     }
+
     /*
-    public static void calculateColumnValues(Object[] oldValues, Object[] newValues) {
-        // calculate values
-        for (int i = 0; i < oldValues.length; i++) {
-            if (oldValues[i] != null && newValues[i] == null) {
-                newValues[i] = oldValues[i];
-            }
-        }
-    }*/
+     * public static void calculateColumnValues(Object[] oldValues, Object[] newValues) {
+     * // calculate values
+     * for (int i = 0; i < oldValues.length; i++) {
+     * if (oldValues[i] != null && newValues[i] == null) {
+     * newValues[i] = oldValues[i];
+     * }
+     * }
+     * }
+     */
     /**
      * For UPDATE: YStream sends only changed columns in after (new values). Unchanged columns are absent (null in array).
      * Columns explicitly set to NULL are present in after with value null. We must only fill from old when the column
@@ -95,7 +100,7 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
             if (index < 0 || index >= oldValues.length) {
                 continue;
             }
-            //针对被修改的字段，如果原有的值不为null，修改之后的值为null的时候，新的值不在赋值为原有的值。
+            // 针对被修改的字段，如果原有的值不为null，修改之后的值为null的时候，新的值不在赋值为原有的值。
             if (columnNamesPresentInAfter.contains(column.name())) {
                 continue;
             }
@@ -116,10 +121,12 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
                     if (column != null) {
                         int index = column.position() - 1;
                         values[index] = columnValue.getData();
-                    }else {
+                    }
+                    else {
                         throw new IllegalStateException("The schema metadata is different from event,maybe NPE");
                     }
-                } catch (YstreamSqlException e) {
+                }
+                catch (YstreamSqlException e) {
                     LOGGER.error("convert data error", e);
                     throw new RuntimeException("convert data error", e);
                 }

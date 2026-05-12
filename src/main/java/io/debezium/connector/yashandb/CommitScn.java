@@ -5,13 +5,6 @@
  */
 package io.debezium.connector.yashandb;
 
-import io.debezium.DebeziumException;
-import io.debezium.annotation.VisibleForTesting;
-import io.debezium.util.Strings;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.SchemaBuilder;
-import org.apache.kafka.connect.data.Struct;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,6 +13,14 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.data.Struct;
+
+import io.debezium.DebeziumException;
+import io.debezium.annotation.VisibleForTesting;
+import io.debezium.util.Strings;
 
 /**
  * Represents either a single or a collection of commit {@link Scn} positions that collectively

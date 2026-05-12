@@ -5,7 +5,18 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.yashandb.jdbc.YasTypes;
+
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.common.CdcSourceTaskContext;
 import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
@@ -17,19 +28,9 @@ import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.relational.TableSchemaBuilder;
 import io.debezium.relational.Tables;
-import io.debezium.relational.ddl.DdlParser;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.spi.topic.TopicNamingStrategy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * The schema of an YashanDB database.
@@ -62,7 +63,7 @@ public class YashanDBDatabaseSchema extends HistorizedRelationalDatabaseSchema {
                         false,
                         connectorConfig.getEventConvertingFailureHandlingMode()),
                 StreamingAdapter.TableNameCaseSensitivity.INSENSITIVE.equals(tableNameCaseSensitivity),
-                connectorConfig.getKeyMapper(),taskContext);
+                connectorConfig.getKeyMapper(), taskContext);
 
         this.valueConverters = valueConverters;
         this.ddlParser = new YashanDBDdlParser(

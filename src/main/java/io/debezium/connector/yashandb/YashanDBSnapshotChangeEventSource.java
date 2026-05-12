@@ -5,41 +5,6 @@
  */
 package io.debezium.connector.yashandb;
 
-import com.google.common.collect.Lists;
-import com.sics.ystream.result.Position;
-import io.debezium.connector.SnapshotRecord;
-import io.debezium.connector.yashandb.snapshot.SnapshotDataSyncTask;
-import io.debezium.connector.yashandb.snapshot.SnapshotSQLConstants;
-import io.debezium.jdbc.CancellableResultSet;
-import io.debezium.jdbc.JdbcConnection;
-import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
-import io.debezium.pipeline.EventDispatcher;
-import io.debezium.pipeline.notification.NotificationService;
-import io.debezium.pipeline.source.SnapshottingTask;
-import io.debezium.pipeline.source.snapshot.incremental.SignalBasedIncrementalSnapshotContext;
-import io.debezium.pipeline.source.spi.SnapshotProgressListener;
-import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
-import io.debezium.pipeline.spi.ChangeRecordEmitter;
-import io.debezium.pipeline.spi.OffsetContext;
-import io.debezium.pipeline.spi.SnapshotResult;
-import io.debezium.pipeline.txmetadata.TransactionContext;
-import io.debezium.relational.Column;
-import io.debezium.relational.RelationalDatabaseConnectorConfig;
-import io.debezium.relational.RelationalSnapshotChangeEventSource;
-import io.debezium.relational.SnapshotChangeRecordEmitter;
-import io.debezium.relational.Table;
-import io.debezium.relational.TableId;
-import io.debezium.relational.Tables;
-import io.debezium.schema.SchemaChangeEvent;
-import io.debezium.spi.schema.DataCollectionId;
-import io.debezium.util.Clock;
-import io.debezium.util.ColumnUtils;
-import io.debezium.util.Strings;
-import io.debezium.util.Threads;
-import org.apache.kafka.connect.errors.ConnectException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -72,6 +37,44 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.kafka.connect.errors.ConnectException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
+import com.sics.ystream.result.Position;
+
+import io.debezium.connector.SnapshotRecord;
+import io.debezium.connector.yashandb.snapshot.SnapshotDataSyncTask;
+import io.debezium.connector.yashandb.snapshot.SnapshotSQLConstants;
+import io.debezium.jdbc.CancellableResultSet;
+import io.debezium.jdbc.JdbcConnection;
+import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
+import io.debezium.pipeline.EventDispatcher;
+import io.debezium.pipeline.notification.NotificationService;
+import io.debezium.pipeline.source.SnapshottingTask;
+import io.debezium.pipeline.source.snapshot.incremental.SignalBasedIncrementalSnapshotContext;
+import io.debezium.pipeline.source.spi.SnapshotProgressListener;
+import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
+import io.debezium.pipeline.spi.ChangeRecordEmitter;
+import io.debezium.pipeline.spi.OffsetContext;
+import io.debezium.pipeline.spi.SnapshotResult;
+import io.debezium.pipeline.txmetadata.TransactionContext;
+import io.debezium.relational.Column;
+import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.relational.RelationalSnapshotChangeEventSource;
+import io.debezium.relational.SnapshotChangeRecordEmitter;
+import io.debezium.relational.Table;
+import io.debezium.relational.TableId;
+import io.debezium.relational.Tables;
+import io.debezium.schema.SchemaChangeEvent;
+import io.debezium.snapshot.SnapshotterService;
+import io.debezium.spi.schema.DataCollectionId;
+import io.debezium.util.Clock;
+import io.debezium.util.ColumnUtils;
+import io.debezium.util.Strings;
+import io.debezium.util.Threads;
+
 /**
  * A {@link StreamingChangeEventSource} for YashanDB.
  *
@@ -93,9 +96,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     private static String identifierQuote = "\"";
     private static final int SPLIT_SIZE_KB = 64 * 1024;
     private static final int DEFAULT_THREAD_COUNT = 1;
-    private static final int MAX_THREAD_COUNT = 64;  //最大64个并发线程处理数据迁移
-    private static final String CONDITION_CLAUSE_FORMAT =
-            " OR (t.OWNER = %s AND t.SEGMENT_NAME IN (%s))";
+    private static final int MAX_THREAD_COUNT = 64; // 最大64个并发线程处理数据迁移
+    private static final String CONDITION_CLAUSE_FORMAT = " OR (t.OWNER = %s AND t.SEGMENT_NAME IN (%s))";
     private final String escapeCharacter;
     private final String stringQuote;
     private final List<Character> escapeList;
@@ -128,8 +130,10 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
         @Override
         public boolean equals(Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
+            if (obj == this)
+                return true;
+            if (obj == null || obj.getClass() != this.getClass())
+                return false;
             var that = (TmpRowids) obj;
             return Objects.equals(this.partitionName, that.partitionName) &&
                     Objects.equals(this.minRowidSql, that.minRowidSql) &&
@@ -149,18 +153,18 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                     "maxRowidSql=" + maxRowidSql + ']';
         }
     }
-    //private ConcurrentMap<TableId, Long> tablesCount;
-
+    // private ConcurrentMap<TableId, Long> tablesCount;
 
     public YashanDBSnapshotChangeEventSource(YashanDBConnectorConfig connectorConfig, MainConnectionProvidingConnectionFactory<YashanDBConnection> connectionFactory,
                                              YashanDBDatabaseSchema schema, EventDispatcher<YashanDBPartition, TableId> dispatcher, Clock clock,
                                              SnapshotProgressListener<YashanDBPartition> snapshotProgressListener,
-                                             NotificationService<YashanDBPartition, YashanDBOffsetContext> notificationService) {
-        super(connectorConfig, connectionFactory, schema, dispatcher, clock, snapshotProgressListener, notificationService);
+                                             NotificationService<YashanDBPartition, YashanDBOffsetContext> notificationService,
+                                             SnapshotterService snapshotterService) {
+        super(connectorConfig, connectionFactory, schema, dispatcher, clock, snapshotProgressListener, notificationService, snapshotterService);
         this.connectorConfig = connectorConfig;
         this.jdbcConnection = connectionFactory.mainConnection();
         this.databaseSchema = schema;
-        //this.tablesCount =  new ConcurrentHashMap();
+        // this.tablesCount = new ConcurrentHashMap();
         this.snapshotProgressListener = snapshotProgressListener;
         this.jdbcConnectionFactory = connectionFactory;
         this.dispatcher = dispatcher;
@@ -174,26 +178,26 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     public SnapshottingTask getSnapshottingTask(YashanDBPartition yashanDBPartition, YashanDBOffsetContext previousOffset) {
         boolean snapshotSchema = true;
         List<String> dataCollectionsToBeSnapshotted = this.connectorConfig.getDataCollectionsToBeSnapshotted();
-        Map<String, String> snapshotSelectOverridesByTable = (Map) this.connectorConfig.getSnapshotSelectOverridesByTable().entrySet().stream()
-                .collect(Collectors.toMap((e) -> {
-                    return ((DataCollectionId) e.getKey()).identifier();
-                }, Map.Entry::getValue));
+        Map<DataCollectionId, String> snapshotSelectOverridesByTable = this.connectorConfig.getSnapshotSelectOverridesByTable();
         boolean snapshotData;
         if (YashanDBConnectorConfig.SnapshotMode.ALWAYS == this.connectorConfig.getSnapshotMode()) {
             LOGGER.info("Snapshot mode is set to ALWAYS, not checking exiting offset.");
             snapshotData = this.connectorConfig.getSnapshotMode().includeData();
-        } else if (previousOffset != null && !previousOffset.isSnapshotRunning()) {
+        }
+        else if (previousOffset != null && !previousOffset.isInitialSnapshotRunning()) {
             LOGGER.info("The previous offset has been found.");
             snapshotSchema = this.databaseSchema.isStorageInitializationExecuted();
             snapshotData = false;
-        } else {
+        }
+        else {
             LOGGER.info("No previous offset has been found.");
             snapshotData = this.connectorConfig.getSnapshotMode().includeData();
         }
 
         if (snapshotData && snapshotSchema) {
             LOGGER.info("According to the connector configuration both schema and data will be snapshot.");
-        } else if (snapshotSchema) {
+        }
+        else if (snapshotSchema) {
             LOGGER.info("According to the connector configuration only schema will be snapshot.");
         }
 
@@ -201,9 +205,9 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
-    protected SnapshotContext<YashanDBPartition, YashanDBOffsetContext> prepare(YashanDBPartition partition)
+    protected SnapshotContext<YashanDBPartition, YashanDBOffsetContext> prepare(YashanDBPartition partition, boolean onDemand)
             throws Exception {
-        return new YashanDBSnapshotContext(partition, connectorConfig.getDatabaseName());
+        return new YashanDBSnapshotContext(partition, connectorConfig.getDatabaseName(), onDemand);
     }
 
     @Override
@@ -218,7 +222,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     protected void lockTablesForSchemaSnapshot(ChangeEventSourceContext sourceContext,
                                                RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext)
             throws SQLException, InterruptedException {
-        if (connectorConfig.getSnapshotLockingMode().usesLocking()) {
+        if (connectorConfig.getSnapshotLockingMode().orElse(YashanDBConnectorConfig.SnapshotLockingMode.NONE).usesLocking()) {
             LOGGER.info("Enable snapshot lock captured tables");
             ((YashanDBSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint = jdbcConnection.connection().setSavepoint("dbz_schema_snapshot");
 
@@ -232,7 +236,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                     statement.execute("LOCK TABLE " + quote(tableId) + " IN SHARE MODE");
                 }
             }
-        } else {
+        }
+        else {
             LOGGER.info("Schema locking was disabled in connector configuration");
         }
     }
@@ -240,7 +245,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     @Override
     public void releaseSchemaSnapshotLocks(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext)
             throws SQLException {
-        if (connectorConfig.getSnapshotLockingMode().usesLocking()) {
+        if (connectorConfig.getSnapshotLockingMode().orElse(YashanDBConnectorConfig.SnapshotLockingMode.NONE).usesLocking()) {
             // release table lock
             jdbcConnection.connection().rollback(((YashanDBSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint);
         }
@@ -270,7 +275,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         if (databaseSchema.storeOnlyCapturedTables()) {
             capturedSchemaTables = snapshotContext.capturedTables;
             LOGGER.info("Only captured tables schema should be captured, capturing: {}", capturedSchemaTables);
-        } else {
+        }
+        else {
             capturedSchemaTables = snapshotContext.capturedSchemaTables;
             LOGGER.info("All eligible tables schema should be captured, capturing: {}", capturedSchemaTables);
         }
@@ -295,10 +301,10 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                     false);
         }
 
-        //读取所有表的数据大小
+        // 读取所有表的数据大小
         queryTablesSize(ctx.tables, ctx.tableSplitMap, snapshotContext.offset.getScn().toString());
 
-        //读取分区信息
+        // 读取分区信息
         queryTablesPartion(ctx.tableSplitMap, snapshotContext.offset.getScn().toString());
     }
 
@@ -313,27 +319,25 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public String getMinRowidSql(
-            final SnapshotTableSplitInfo table, final String snapshotOffset) {
+                                 final SnapshotTableSplitInfo table, final String snapshotOffset) {
         return String.format(
                 "SELECT MIN(ROWID) AS %s FROM %s %s",
                 YashanDBConnection.DialectQueryField.MIN_ROWID.getName(),
                 getObjectName(table.getTableId()),
-                AS_OF_SCN + snapshotOffset
-        );
+                AS_OF_SCN + snapshotOffset);
     }
 
     public String getMaxRowidSql(
-            final SnapshotTableSplitInfo table, final String snapshotOffset) {
+                                 final SnapshotTableSplitInfo table, final String snapshotOffset) {
         return String.format(
                 "SELECT MAX(ROWID) AS %s FROM %s %s",
                 YashanDBConnection.DialectQueryField.MAX_ROWID.getName(),
                 getObjectName(table.getTableId()),
-                AS_OF_SCN + snapshotOffset
-        );
+                AS_OF_SCN + snapshotOffset);
     }
 
     private String getRowid(
-            final Statement statement, final String sql, final YashanDBConnection.DialectQueryField queryField)
+                            final Statement statement, final String sql, final YashanDBConnection.DialectQueryField queryField)
             throws SQLException {
         try (final ResultSet rs = statement.executeQuery(sql)) {
             if (rs.next()) {
@@ -344,54 +348,58 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public void processSplitColumnQuery(
-            String snapshotOffset, final SnapshotTableSplitInfo table) throws SQLException {
+                                        String snapshotOffset, final SnapshotTableSplitInfo table)
+            throws SQLException {
         if (Thread.currentThread().isInterrupted()) {
             return;
         }
-       /* // 临时修改成两个语句查询，合在一起查询，会导致数据库有不可预期的bug.
-        final String minRowidSql = getMinRowidSql(table, snapshotOffset);
-        final String maxRowidSql = getMaxRowidSql(table, snapshotOffset);
-
-        //final LazyConnection conn2 = lazyConnection.copy();
-        JdbcConnection conn2 = (JdbcConnection) connectionPool.poll();*/
+        /*
+         * // 临时修改成两个语句查询，合在一起查询，会导致数据库有不可预期的bug.
+         * final String minRowidSql = getMinRowidSql(table, snapshotOffset);
+         * final String maxRowidSql = getMaxRowidSql(table, snapshotOffset);
+         *
+         * //final LazyConnection conn2 = lazyConnection.copy();
+         * JdbcConnection conn2 = (JdbcConnection) connectionPool.poll();
+         */
         try {
-            /*// 使用 CompletableFuture 并发查询最小值和最大值
-            final CompletableFuture<String> minRowidFuture =
-                    CompletableFuture.supplyAsync(
-                            () -> {
-                                try {
-                                    return getRowid(
-                                            this.readTableStatement(this.jdbcConnection, OptionalLong.empty()),
-                                            minRowidSql,
-                                            YashanDBConnection.DialectQueryField.MIN_ROWID);
-                                } catch (final SQLException e) {
-                                    throw new CompletionException(e);
-                                }
-                            });
-            final CompletableFuture<String> maxRowidFuture =
-                    CompletableFuture.supplyAsync(
-                            () -> {
-                                try {
-                                    return getRowid(
-                                            this.readTableStatement(conn2, OptionalLong.empty()),
-                                            maxRowidSql,
-                                            YashanDBConnection.DialectQueryField.MAX_ROWID);
-                                } catch (final SQLException e) {
-                                    throw new CompletionException(e);
-                                }
-                            });
-
-            // 使用 CompletableFuture.allOf 等待两个查询完成，任何一个失败立即抛出异常
-            CompletableFuture.allOf(minRowidFuture, maxRowidFuture).join();
-
-            // 获取查询结果
-            final String minRowid = minRowidFuture.getNow(null);
-            final String maxRowid = maxRowidFuture.getNow(null);*/
+            /*
+             * // 使用 CompletableFuture 并发查询最小值和最大值
+             * final CompletableFuture<String> minRowidFuture =
+             * CompletableFuture.supplyAsync(
+             * () -> {
+             * try {
+             * return getRowid(
+             * this.readTableStatement(this.jdbcConnection, OptionalLong.empty()),
+             * minRowidSql,
+             * YashanDBConnection.DialectQueryField.MIN_ROWID);
+             * } catch (final SQLException e) {
+             * throw new CompletionException(e);
+             * }
+             * });
+             * final CompletableFuture<String> maxRowidFuture =
+             * CompletableFuture.supplyAsync(
+             * () -> {
+             * try {
+             * return getRowid(
+             * this.readTableStatement(conn2, OptionalLong.empty()),
+             * maxRowidSql,
+             * YashanDBConnection.DialectQueryField.MAX_ROWID);
+             * } catch (final SQLException e) {
+             * throw new CompletionException(e);
+             * }
+             * });
+             *
+             * // 使用 CompletableFuture.allOf 等待两个查询完成，任何一个失败立即抛出异常
+             * CompletableFuture.allOf(minRowidFuture, maxRowidFuture).join();
+             *
+             * // 获取查询结果
+             * final String minRowid = minRowidFuture.getNow(null);
+             * final String maxRowid = maxRowidFuture.getNow(null);
+             */
 
             RowIds rowIdsByView = getRowIdsByView(String.format(SnapshotSQLConstants.QUERY_NO_PARTITION_ROW_ID_SQL,
                     table.getTableId().table(),
-                    table.getTableId().schema()
-            ));
+                    table.getTableId().schema()));
             if (rowIdsByView != null) {
                 String minRowid = rowIdsByView.minRowId;
                 String maxRowid = rowIdsByView.maxRowId;
@@ -404,14 +412,18 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 LOGGER.info("query rowid: table: {}, min rowid:{}, max rowid:{}", table.getTableId().table(), minRowid, maxRowid);
             }
 
-        } /* finally {
-            if (conn2 != null) {
-                connectionPool.add(conn2); //回收
-            }
-        }*/ catch (SQLException e) {
+        }
+        /*
+         * finally {
+         * if (conn2 != null) {
+         * connectionPool.add(conn2); //回收
+         * }
+         * }
+         */ catch (SQLException e) {
             LOGGER.error("Error during get minRowid and maxRowid");
             throw e;
-        } catch (NumberFormatException e) {
+        }
+        catch (NumberFormatException e) {
             LOGGER.warn("Rowid set null continue:{}", e.getMessage());
             table.setMinValue(null);
             table.setMaxValue(null);
@@ -423,8 +435,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 "select TS# AS %s, RELATIVE_FNO AS %s, BLOCKS AS %s FROM SYS.V_$DATAFILE",
                 YashanDBConnection.DialectQueryField.TS_ID.getName(),
                 YashanDBConnection.DialectQueryField.DATAFILE_NO.getName(),
-                YashanDBConnection.DialectQueryField.BLOCKS.getName()
-        );
+                YashanDBConnection.DialectQueryField.BLOCKS.getName());
     }
 
     public Map<String, Integer> queryDatafileInfo() throws Exception {
@@ -435,76 +446,74 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public String getPartitionTableMinRowidSql(
-            final TableId tableInfo,
-            final String partitionName,
-            String snapshotOffset) {
+                                               final TableId tableInfo,
+                                               final String partitionName,
+                                               String snapshotOffset) {
         return String.format(
                 "SELECT MIN(ROWID) AS %s FROM %s partition (%s) %s",
                 YashanDBConnection.DialectQueryField.MIN_ROWID.getName(),
                 getObjectName(tableInfo),
                 quoteIdentifier(partitionName),
-                AS_OF_SCN + snapshotOffset
-        );
+                AS_OF_SCN + snapshotOffset);
     }
 
     public String getPartitionTableMaxRowidSql(
-            final TableId tableInfo,
-            final String partitionName,
-            String snapshotOffset) {
+                                               final TableId tableInfo,
+                                               final String partitionName,
+                                               String snapshotOffset) {
         return String.format(
                 "SELECT MAX(ROWID) AS %s FROM %s partition (%s) %s",
                 YashanDBConnection.DialectQueryField.MAX_ROWID.getName(),
                 getObjectName(tableInfo),
                 quoteIdentifier(partitionName),
-                AS_OF_SCN + snapshotOffset
-        );
+                AS_OF_SCN + snapshotOffset);
     }
 
-
     private void queryRowid(
-            final TableId objectInfo,
-            final TmpRowids rowid,
-            final ArrayList<YaShanPartitionSplitRecord> res) {
-//        final JdbcConnection conn2 = connectionPool.poll();
+                            final TableId objectInfo,
+                            final TmpRowids rowid,
+                            final ArrayList<YaShanPartitionSplitRecord> res) {
+        // final JdbcConnection conn2 = connectionPool.poll();
         try {
-/*            // 使用 CompletableFuture 并发查询最小值和最大值
-            final CompletableFuture<String> minRowidFuture =
-                    CompletableFuture.supplyAsync(
-                            () -> {
-                                try {
-                                    return getRowid(
-                                            this.readTableStatement(this.jdbcConnection, OptionalLong.empty()),
-                                            rowid.minRowidSql(),
-                                            YashanDBConnection.DialectQueryField.MIN_ROWID);
-                                } catch (final SQLException e) {
-                                    throw new CompletionException(e);
-                                }
-                            });
-            final CompletableFuture<String> maxRowidFuture =
-                    CompletableFuture.supplyAsync(
-                            () -> {
-                                try {
-                                    return getRowid(
-                                            this.readTableStatement(conn2, OptionalLong.empty()),
-                                            rowid.maxRowidSql(),
-                                            YashanDBConnection.DialectQueryField.MAX_ROWID);
-                                } catch (final SQLException e) {
-                                    throw new CompletionException(e);
-                                }
-                            });
-
-            // 使用 CompletableFuture.allOf 等待两个查询完成，任何一个失败立即抛出异常
-            CompletableFuture.allOf(minRowidFuture, maxRowidFuture).join();
-
-            // 获取查询结果
-            final String minRowid = minRowidFuture.getNow(null);
-            final String maxRowid = maxRowidFuture.getNow(null);*/
+            /*
+             * // 使用 CompletableFuture 并发查询最小值和最大值
+             * final CompletableFuture<String> minRowidFuture =
+             * CompletableFuture.supplyAsync(
+             * () -> {
+             * try {
+             * return getRowid(
+             * this.readTableStatement(this.jdbcConnection, OptionalLong.empty()),
+             * rowid.minRowidSql(),
+             * YashanDBConnection.DialectQueryField.MIN_ROWID);
+             * } catch (final SQLException e) {
+             * throw new CompletionException(e);
+             * }
+             * });
+             * final CompletableFuture<String> maxRowidFuture =
+             * CompletableFuture.supplyAsync(
+             * () -> {
+             * try {
+             * return getRowid(
+             * this.readTableStatement(conn2, OptionalLong.empty()),
+             * rowid.maxRowidSql(),
+             * YashanDBConnection.DialectQueryField.MAX_ROWID);
+             * } catch (final SQLException e) {
+             * throw new CompletionException(e);
+             * }
+             * });
+             *
+             * // 使用 CompletableFuture.allOf 等待两个查询完成，任何一个失败立即抛出异常
+             * CompletableFuture.allOf(minRowidFuture, maxRowidFuture).join();
+             *
+             * // 获取查询结果
+             * final String minRowid = minRowidFuture.getNow(null);
+             * final String maxRowid = maxRowidFuture.getNow(null);
+             */
 
             RowIds rowIdsByView = getRowIdsByView(String.format(SnapshotSQLConstants.QUERY_PARTITION_ROW_ID_SQL,
                     objectInfo.schema(),
                     objectInfo.table(),
-                    rowid.partitionName
-            ));
+                    rowid.partitionName));
 
             if (rowIdsByView != null) {
                 String minRowid = rowIdsByView.minRowId;
@@ -513,28 +522,33 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 if ((minRowid == null || maxRowid == null)) {
                     // 查询数据量时，虽然有很大数据量，但是该分区可能为空。
                     res.add(new YaShanPartitionSplitRecord(objectInfo, rowid.partitionName(), null, null));
-                } else {
+                }
+                else {
                     res.add(
                             new YaShanPartitionSplitRecord(
                                     objectInfo, rowid.partitionName(), new YaShanRowid(minRowid), new YaShanRowid(maxRowid)));
                 }
             }
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             throw new RuntimeException("Failed to query partition rowid for " + objectInfo, e);
-        } catch (NumberFormatException e) {
+        }
+        catch (NumberFormatException e) {
             LOGGER.warn("Rowid set null continue:{}", e.getMessage());
             res.add(new YaShanPartitionSplitRecord(objectInfo, rowid.partitionName(), null, null));
-        } /*finally {
-            if (conn2 != null) {
-                connectionPool.add(conn2); //回收
-            }
-        }*/
+        } /*
+           * finally {
+           * if (conn2 != null) {
+           * connectionPool.add(conn2); //回收
+           * }
+           * }
+           */
     }
 
     public List<YaShanPartitionSplitRecord> processPartitionSplitColumnQuery(
-            final TableId tableInfo,
-            final YaShanDBPartitionInfo partitionInfo,
-            final String snapshotOffset) {
+                                                                             final TableId tableInfo,
+                                                                             final YaShanDBPartitionInfo partitionInfo,
+                                                                             final String snapshotOffset) {
         // 临时修改成两个语句查询，合在一起查询，会导致数据库有不可预期的bug.
         final ArrayList<TmpRowids> rowids = new ArrayList<>();
         final ArrayList<YaShanPartitionSplitRecord> res = new ArrayList<>();
@@ -548,12 +562,10 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 res.add(new YaShanPartitionSplitRecord(tableInfo, subPartitionInfo.partitionName(), null, null));
                 continue;
             }
-            final String minRowidSql =
-                    getPartitionTableMinRowidSql(
-                            tableInfo, subPartitionInfo.partitionName(), snapshotOffset);
-            final String maxRowidSql =
-                    getPartitionTableMaxRowidSql(
-                            tableInfo, subPartitionInfo.partitionName(), snapshotOffset);
+            final String minRowidSql = getPartitionTableMinRowidSql(
+                    tableInfo, subPartitionInfo.partitionName(), snapshotOffset);
+            final String maxRowidSql = getPartitionTableMaxRowidSql(
+                    tableInfo, subPartitionInfo.partitionName(), snapshotOffset);
             rowids.add(new TmpRowids(subPartitionInfo.partitionName(), minRowidSql, maxRowidSql));
         }
 
@@ -566,9 +578,9 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public String getSnapshotQuerySql(
-            final TableId table,
-            final List<String> columnsName,
-            final String snapshotOffset) {
+                                      final TableId table,
+                                      final List<String> columnsName,
+                                      final String snapshotOffset) {
 
         final String sql = "SELECT %s FROM %s" + AS_OF_SCN + snapshotOffset;
         return String.format(
@@ -577,33 +589,30 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 getObjectName(table));
     }
 
-
     public String getSnapshotPartitionTableQuerySql(
-            final TableId table,
-            final String partitionName,
-            final List<String> columnNames,
-            final String snapshotOffset) {
-        final String sql =
-                String.format(
-                        "SELECT %s FROM %s",
-                        columnNames.stream().map(this::quoteIdentifier).collect(Collectors.joining(",")),
-                        getObjectName(table));
+                                                    final TableId table,
+                                                    final String partitionName,
+                                                    final List<String> columnNames,
+                                                    final String snapshotOffset) {
+        final String sql = String.format(
+                "SELECT %s FROM %s",
+                columnNames.stream().map(this::quoteIdentifier).collect(Collectors.joining(",")),
+                getObjectName(table));
         final String ofScn = AS_OF_SCN + snapshotOffset;
         return String.format(
                 "%s PARTITION (%s) %s",
                 sql,
                 quoteIdentifier(partitionName),
-                ofScn
-        );
+                ofScn);
     }
 
     public String getSnapshotSplitSql(
-            final TableId table,
-            final List<String> columnsName,
-            final String snapshotOffset,
-            final String minRowid,
-            final String maxRowid,
-            final Column splitColumn) {
+                                      final TableId table,
+                                      final List<String> columnsName,
+                                      final String snapshotOffset,
+                                      final String minRowid,
+                                      final String maxRowid,
+                                      final Column splitColumn) {
         String whereClause = " WHERE 1=1";
         if (minRowid != null) {
             whereClause += " AND ROWID >= " + quoteStringClause(minRowid);
@@ -615,13 +624,13 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public String getPartitionSnapshotSplitSql(
-            final TableId table,
-            final List<String> columnsName,
-            final String snapshotOffset,
-            final String minRowid,
-            final String maxRowid,
-            final Column splitColumn,
-            final String partitionName) {
+                                               final TableId table,
+                                               final List<String> columnsName,
+                                               final String snapshotOffset,
+                                               final String minRowid,
+                                               final String maxRowid,
+                                               final Column splitColumn,
+                                               final String partitionName) {
         String whereClause = " WHERE 1=1";
         if (minRowid != null) {
             whereClause += " AND ROWID >= " + quoteStringClause(minRowid);
@@ -634,39 +643,39 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     private String getFirstSplitSql(
-            final SnapshotTableSplitInfo table,
-            final String snapshotOffset,
-            final String data,
-            final String partitionName) {
+                                    final SnapshotTableSplitInfo table,
+                                    final String snapshotOffset,
+                                    final String data,
+                                    final String partitionName) {
         return partitionName == null
                 ? getSnapshotSplitSql(
-                table.getTableId(), table.getColumnNames(), snapshotOffset, null, data, null)
+                        table.getTableId(), table.getColumnNames(), snapshotOffset, null, data, null)
                 : getPartitionSnapshotSplitSql(
-                table.getTableId(),
-                table.getColumnNames(),
-                snapshotOffset,
-                null,
-                data,
-                null,
-                partitionName);
+                        table.getTableId(),
+                        table.getColumnNames(),
+                        snapshotOffset,
+                        null,
+                        data,
+                        null,
+                        partitionName);
     }
 
     private String getLastSplitSql(
-            final SnapshotTableSplitInfo table,
-            final String snapshotOffset,
-            final String data,
-            final String partitionName) {
+                                   final SnapshotTableSplitInfo table,
+                                   final String snapshotOffset,
+                                   final String data,
+                                   final String partitionName) {
         return partitionName == null
                 ? getSnapshotSplitSql(
-                table.getTableId(), table.getColumnNames(), snapshotOffset, data, null, null)
+                        table.getTableId(), table.getColumnNames(), snapshotOffset, data, null, null)
                 : getPartitionSnapshotSplitSql(
-                table.getTableId(),
-                table.getColumnNames(),
-                snapshotOffset,
-                data,
-                null,
-                null,
-                partitionName);
+                        table.getTableId(),
+                        table.getColumnNames(),
+                        snapshotOffset,
+                        data,
+                        null,
+                        null,
+                        partitionName);
     }
 
     public void splitTableSqlNoRowid(final SnapshotTableSplitInfo tableInfor,
@@ -675,20 +684,19 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                                      ArrayList<String> list) {
 
         if (partitionName == null) {
-            final String sql =
-                    getSnapshotQuerySql(
-                            tableInfor.getTableId(),
-                            tableInfor.getColumnNames(),
-                            snapshotOffset);
+            final String sql = getSnapshotQuerySql(
+                    tableInfor.getTableId(),
+                    tableInfor.getColumnNames(),
+                    snapshotOffset);
             LOGGER.warn("partition table:{} ,but the partition name is null", tableInfor.getTableId());
             list.add(sql);
-        } else {
-            final String sql =
-                    getSnapshotPartitionTableQuerySql(
-                            tableInfor.getTableId(),
-                            partitionName,
-                            tableInfor.getColumnNames(),
-                            snapshotOffset);
+        }
+        else {
+            final String sql = getSnapshotPartitionTableQuerySql(
+                    tableInfor.getTableId(),
+                    partitionName,
+                    tableInfor.getColumnNames(),
+                    snapshotOffset);
             list.add(sql);
         }
 
@@ -702,24 +710,25 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
         if (tableInfor.isEmptyTable()) {
             return;
-        } else if (splitData.isEmpty()) {
+        }
+        else if (splitData.isEmpty()) {
             if (partitionName == null) {
-                final String sql =
-                        getSnapshotQuerySql(
-                                tableInfor.getTableId(),
-                                tableInfor.getColumnNames(),
-                                snapshotOffset);
-                list.add(sql);
-            } else {
-                final String sql =
-                        getSnapshotPartitionTableQuerySql(
-                                tableInfor.getTableId(),
-                                partitionName,
-                                tableInfor.getColumnNames(),
-                                snapshotOffset);
+                final String sql = getSnapshotQuerySql(
+                        tableInfor.getTableId(),
+                        tableInfor.getColumnNames(),
+                        snapshotOffset);
                 list.add(sql);
             }
-        } else {
+            else {
+                final String sql = getSnapshotPartitionTableQuerySql(
+                        tableInfor.getTableId(),
+                        partitionName,
+                        tableInfor.getColumnNames(),
+                        snapshotOffset);
+                list.add(sql);
+            }
+        }
+        else {
             list.add(
                     getFirstSplitSql(
                             tableInfor,
@@ -736,51 +745,48 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 list.add(
                         partitionName == null
                                 ? getSnapshotSplitSql(
-                                tableInfor.getTableId(),
-                                tableInfor.getColumnNames(),
-                                snapshotOffset,
-                                splitData.get(i).getRowid(),
-                                splitData.get(i + 1).getRowid(),
-                                null)
+                                        tableInfor.getTableId(),
+                                        tableInfor.getColumnNames(),
+                                        snapshotOffset,
+                                        splitData.get(i).getRowid(),
+                                        splitData.get(i + 1).getRowid(),
+                                        null)
                                 : getPartitionSnapshotSplitSql(
-                                tableInfor.getTableId(),
-                                tableInfor.getColumnNames(),
-                                snapshotOffset,
-                                splitData.get(i).getRowid(),
-                                splitData.get(i + 1).getRowid(),
-                                null,
-                                partitionName));
+                                        tableInfor.getTableId(),
+                                        tableInfor.getColumnNames(),
+                                        snapshotOffset,
+                                        splitData.get(i).getRowid(),
+                                        splitData.get(i + 1).getRowid(),
+                                        null,
+                                        partitionName));
             }
         }
     }
 
-
     public void partitionSplitTable(
-            String snapshotOffset,
-            final SnapshotTableSplitInfo table,
-            final int parallelism,
-            final Map<String, Integer> datafileInfo,
-            Map<TableId, ArrayList<String>> queryTablesSql)
+                                    String snapshotOffset,
+                                    final SnapshotTableSplitInfo table,
+                                    final int parallelism,
+                                    final Map<String, Integer> datafileInfo,
+                                    Map<TableId, ArrayList<String>> queryTablesSql)
             throws Exception {
-        //获取每个分区的minRowid和MaxRowid
-        final List<YaShanPartitionSplitRecord> rowids =
-                processPartitionSplitColumnQuery(
-                        table.getTableId(),
-                        table.getPartitionInfo(),
-                        snapshotOffset);
+        // 获取每个分区的minRowid和MaxRowid
+        final List<YaShanPartitionSplitRecord> rowids = processPartitionSplitColumnQuery(
+                table.getTableId(),
+                table.getPartitionInfo(),
+                snapshotOffset);
         int partCount = 0;
         for (final YaShanPartitionSplitRecord rowid : rowids) {
             if (rowid.minrowid() == null || rowid.maxrowid() == null) {
-                //此种情况不代表没有数据，可能是数据量比较小，无需再划分,通过分区名直接获取数据
+                // 此种情况不代表没有数据，可能是数据量比较小，无需再划分,通过分区名直接获取数据
                 splitTableSqlNoRowid(table, rowid.partitionName(), snapshotOffset, queryTablesSql.get(table.getTableId()));
                 partCount++;
-                //LOGGER.warn("The min rowid or max rowid for partitioned tables are null,Table:{} data will not be migrated", table.getTableId());
+                // LOGGER.warn("The min rowid or max rowid for partitioned tables are null,Table:{} data will not be migrated", table.getTableId());
                 continue;
             }
-            //对分区再根据rowid进行划分
-            List<YaShanRowid> splitRowids =
-                    YaShanRowidSplitUtil.getYashanDBSplitRowid(
-                            rowid.minrowid(), rowid.maxrowid(), parallelism, datafileInfo);
+            // 对分区再根据rowid进行划分
+            List<YaShanRowid> splitRowids = YaShanRowidSplitUtil.getYashanDBSplitRowid(
+                    rowid.minrowid(), rowid.maxrowid(), parallelism, datafileInfo);
 
             LOGGER.info(
                     "Partition Table: {}, partitionName: {}, split rowids : {}",
@@ -788,7 +794,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                     rowid.partitionName(),
                     splitRowids.stream().map(YaShanRowid::getRowid).collect(Collectors.toList()));
             partCount += splitRowids.size() + 1;
-            //每
+            // 每
             splitTableSql(table, rowid.partitionName(), splitRowids, snapshotOffset, queryTablesSql.get(table.getTableId()));
         }
         table.setPartCount(partCount);
@@ -799,24 +805,21 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                                        final SnapshotTableSplitInfo table,
                                        final int parallelism,
                                        final Map<String, Integer> datafileInfo,
-                                       Map<TableId, ArrayList<String>> queryTablesSql) throws Exception {
+                                       Map<TableId, ArrayList<String>> queryTablesSql)
+            throws Exception {
         processSplitColumnQuery(snapshotOffset, table);
 
-
         if (null == table.getMinValue() || null == table.getMaxValue()) {
-            //空表不进行处理
+            // 空表不进行处理
             LOGGER.warn("The min rowid and max rowid for non-partitioned tables are null,Table:{} data will not be migrated", table.getTableId());
             return;
         }
-        final int expectSplitCount =
-                (int)
-                        Math.ceil((float) table.getKiloByteSize() / SPLIT_SIZE_KB);
-        final List<YaShanRowid> splitRowids =
-                YaShanRowidSplitUtil.getYashanDBSplitRowid(
-                        (YaShanRowid) table.getMinValue(),
-                        (YaShanRowid) table.getMaxValue(),
-                        Math.min(expectSplitCount, parallelism),
-                        datafileInfo);
+        final int expectSplitCount = (int) Math.ceil((float) table.getKiloByteSize() / SPLIT_SIZE_KB);
+        final List<YaShanRowid> splitRowids = YaShanRowidSplitUtil.getYashanDBSplitRowid(
+                (YaShanRowid) table.getMinValue(),
+                (YaShanRowid) table.getMaxValue(),
+                Math.min(expectSplitCount, parallelism),
+                datafileInfo);
         if (splitRowids.isEmpty()) {
             if (parallelism > 1) {
                 LOGGER.warn(
@@ -825,7 +828,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             }
             table.setPartCount(1);
             table.setInitialized(true);
-        } else {
+        }
+        else {
             table.setPartCount(splitRowids.size() + 1);
             table.setInitialized(true);
         }
@@ -833,7 +837,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public String getOneRecordSql(
-            final TableId table, String snapshotOffset) {
+                                  final TableId table, String snapshotOffset) {
         return "SELECT 1 FROM "
                 + getObjectName(table)
                 + AS_OF_SCN + snapshotOffset
@@ -842,20 +846,20 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
     public boolean tableIsEmptyAsOfScn(TableId tableId, String snapshotOffset) throws SQLException {
 
-        //String sql = String.format("SELECT 1 FROM %s AS OF SCN %s  WHERE ROWNUM = 1", tableName, scn);
+        // String sql = String.format("SELECT 1 FROM %s AS OF SCN %s WHERE ROWNUM = 1", tableName, scn);
         String sql = getOneRecordSql(tableId, snapshotOffset);
         return this.jdbcConnection.tableIsEmptyAsOfScn(sql);
     }
 
     protected void queryEmptyTableAsOfScn(
-            Tables tablesInfor,
-            Set<TableId> tableIds,
-            ConcurrentMap<TableId, SnapshotTableSplitInfo> map,
-            String snapshotOffset)
+                                          Tables tablesInfor,
+                                          Set<TableId> tableIds,
+                                          ConcurrentMap<TableId, SnapshotTableSplitInfo> map,
+                                          String snapshotOffset)
             throws Exception {
         for (TableId table : tableIds) {
             SnapshotTableSplitInfo tableInfo = new SnapshotTableSplitInfo(table);
-            //初始化tableInfo表的列名字信息，后续生成对应的查询sql语句需要使用到
+            // 初始化tableInfo表的列名字信息，后续生成对应的查询sql语句需要使用到
             for (Column column : tablesInfor.forTable(table).columns()) {
                 tableInfo.getColumnNames().add(column.name());
             }
@@ -864,7 +868,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             if (tableIds.size() > 5000) {
                 continue;
             }
-            //boolean tableEmpty =this.jdbcConnection.tableIsEmptyAsOfScn(table.toString(),snapshotOffset);
+            // boolean tableEmpty =this.jdbcConnection.tableIsEmptyAsOfScn(table.toString(),snapshotOffset);
             boolean tableEmpty = tableIsEmptyAsOfScn(table, snapshotOffset);
             map.get(table).setEmptyTable(tableEmpty);
         }
@@ -886,30 +890,25 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     private String whereConditionJoiner(final Map<String, List<String>> schemaTables) {
         final StringBuilder whereCondition = new StringBuilder();
         schemaTables.forEach(
-                (key, value) ->
-                        whereCondition.append(
-                                String.format(
-                                        CONDITION_CLAUSE_FORMAT,
-                                        key,
-                                        String.join(",", value)
-                                )
-                        )
-        );
+                (key, value) -> whereCondition.append(
+                        String.format(
+                                CONDITION_CLAUSE_FORMAT,
+                                key,
+                                String.join(",", value))));
         return whereCondition.toString();
     }
 
     // 生成一组where条件
     protected List<String> processWhereCondition(
-            final Map<String, List<SnapshotTableSplitInfo>> tableMap, final int maxLength) {
+                                                 final Map<String, List<SnapshotTableSplitInfo>> tableMap, final int maxLength) {
         final List<String> conditionSqlList = new ArrayList<>();
         final AtomicInteger availableLength = new AtomicInteger(maxLength);
         final HashMap<String, List<String>> schemaTableMap = new HashMap<>();
         for (final Map.Entry<String, List<SnapshotTableSplitInfo>> entry : tableMap.entrySet()) {
 
-            final List<SnapshotTableSplitInfo> notEmptyTables =
-                    entry.getValue().stream()
-                            .filter(t -> !t.isEmptyTable())
-                            .collect(Collectors.toList());
+            final List<SnapshotTableSplitInfo> notEmptyTables = entry.getValue().stream()
+                    .filter(t -> !t.isEmptyTable())
+                    .collect(Collectors.toList());
             if (null == notEmptyTables || notEmptyTables.isEmpty()) {
                 continue;
             }
@@ -927,7 +926,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                         // 剩余容量能够容纳此表
                         if (availableLength.get() > 0) {
                             tables.add(tableName);
-                        } else { // 剩余容量无法容纳此表，则此where子句拼接完成，存入conditionList，availableLength重置
+                        }
+                        else { // 剩余容量无法容纳此表，则此where子句拼接完成，存入conditionList，availableLength重置
                             if (schemaTableMap.get(schema).isEmpty()) {
                                 schemaTableMap.remove(schema);
                             }
@@ -955,8 +955,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     protected List<String> getTableSizeAsOfScnSqls(
-            Map<String, List<SnapshotTableSplitInfo>> tablesBySchema,
-            final String snapshotOffset) {
+                                                   Map<String, List<SnapshotTableSplitInfo>> tablesBySchema,
+                                                   final String snapshotOffset) {
 
         final String sql = String.format(
                 "SELECT\n" +
@@ -969,9 +969,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                         "  GROUP BY t.OWNER, t.SEGMENT_NAME",
                 YashanDBConnection.DialectQueryField.SCHEMA_NAME.getName(),
                 YashanDBConnection.DialectQueryField.TABLE_NAME.getName(),
-                YashanDBConnection.DialectQueryField.DATA_SIZE.getName()
-        );
-
+                YashanDBConnection.DialectQueryField.DATA_SIZE.getName());
 
         final int scnLength = 18;
         final int availableLength = MAX_OBJECT_JOINER_LENGTH - sql.getBytes().length + 4 - scnLength;
@@ -984,8 +982,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public List<String> getTableLobSizeSqls(
-            final Map<String, List<SnapshotTableSplitInfo>> tableMap,
-            final String snapshotOffset) {
+                                            final Map<String, List<SnapshotTableSplitInfo>> tableMap,
+                                            final String snapshotOffset) {
 
         final String sql = String.format(
                 "SELECT\n" +
@@ -1001,9 +999,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                         "GROUP BY t.OWNER, t.TABLE_NAME",
                 YashanDBConnection.DialectQueryField.SCHEMA_NAME.getName(),
                 YashanDBConnection.DialectQueryField.TABLE_NAME.getName(),
-                YashanDBConnection.DialectQueryField.DATA_SIZE.getName()
-        );
-
+                YashanDBConnection.DialectQueryField.DATA_SIZE.getName());
 
         final int scnLength = 18;
         final int availableLength = MAX_OBJECT_JOINER_LENGTH - sql.getBytes().length + 6 - scnLength;
@@ -1018,13 +1014,13 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public void queryTablesSize(
-            Tables tables,
-            ConcurrentMap<TableId, SnapshotTableSplitInfo> tableSplitMap,
-            String snapshotOffset) throws Exception {
+                                Tables tables,
+                                ConcurrentMap<TableId, SnapshotTableSplitInfo> tableSplitMap,
+                                String snapshotOffset)
+            throws Exception {
         int count = 0;
         // 获取所有表ID
         Set<TableId> tableIds = tables.tableIds();
-
 
         LOGGER.info("Begin table size query");
         if (tableIds.isEmpty()) {
@@ -1032,7 +1028,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             return;
         }
         try {
-            //查询表是否为空表
+            // 查询表是否为空表
             queryEmptyTableAsOfScn(tables, tableIds, tableSplitMap, snapshotOffset);
 
             // 按schema分组表
@@ -1041,31 +1037,30 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                             entry -> entry.getKey().schema(), // 按 schemaName 分组
                             Collectors.mapping(
                                     Map.Entry::getValue, // 提取 SnapshotTableSplitInfo
-                                    Collectors.toList()  // 收集到 List 中
-                            )
-                    ));
+                                    Collectors.toList() // 收集到 List 中
+                            )));
 
-            //查询非空表的数据量大小
+            // 查询非空表的数据量大小
             for (String sql : getTableSizeAsOfScnSqls(tablesBySchema, snapshotOffset)) {
                 count++;
                 this.jdbcConnection.processTableSizeQuery(sql, tableSplitMap);
             }
-            //再获取Lob字段的数据量大小
+            // 再获取Lob字段的数据量大小
             for (String sql : getTableLobSizeSqls(tablesBySchema, snapshotOffset)) {
                 count++;
                 this.jdbcConnection.processTableSizeQuery(sql, tableSplitMap);
             }
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw new RuntimeException(e);
         }
         LOGGER.info("Finish table size query,table count :{} ", count);
     }
 
-
     public String queryTableIsPartitionSql(
-            final String schema,
-            final List<String> tables,
-            final String snapshotOffset) {
+                                           final String schema,
+                                           final List<String> tables,
+                                           final String snapshotOffset) {
 
         return String.format(
                 "SELECT TABLE_NAME as TABLE_NAME,\n" +
@@ -1075,14 +1070,13 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                         "  AND TABLE_NAME in (%s)",
                 AS_OF_SCN + snapshotOffset,
                 quoteStringClause(schema),
-                String.join(",", tables.stream().map(this::quoteStringClause).collect(Collectors.toList()))
-        );
+                String.join(",", tables.stream().map(this::quoteStringClause).collect(Collectors.toList())));
     }
 
     public String queryPartitionInforSql(
-            final String schema,
-            final List<String> tables,
-            final String snapshotOffset) {
+                                         final String schema,
+                                         final List<String> tables,
+                                         final String snapshotOffset) {
 
         return String.format(
                 "SELECT C.TABLE_OWNER,\n" +
@@ -1121,10 +1115,10 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public void queryTablesIsPartitioned(
-            String schema,
-            List<String> tables,
-            String snapshotOffset,
-            ConcurrentMap<TableId, YaShanDBPartitionInfo> tablePartitionMap)
+                                         String schema,
+                                         List<String> tables,
+                                         String snapshotOffset,
+                                         ConcurrentMap<TableId, YaShanDBPartitionInfo> tablePartitionMap)
             throws Exception {
         for (final List<String> infos : Lists.partition(tables, PARTITION_TABLE_SQL_LEN)) {
             final String sql = queryTableIsPartitionSql(schema, infos, snapshotOffset);
@@ -1133,10 +1127,10 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public void queryTablesPartitionInfor(
-            String schema,
-            List<String> tables,
-            String snapshotOffset,
-            ArrayList<YaShanDBPartitionInfo.SubPartitionInfo> tablePartitionInfor)
+                                          String schema,
+                                          List<String> tables,
+                                          String snapshotOffset,
+                                          ArrayList<YaShanDBPartitionInfo.SubPartitionInfo> tablePartitionInfor)
             throws Exception {
 
         for (final List<String> infos : Lists.partition(tables, PARTITION_TABLE_SQL_LEN)) {
@@ -1146,8 +1140,9 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public void queryTablesPartion(
-            ConcurrentMap<TableId, SnapshotTableSplitInfo> tableSplitMap,
-            String snapshotOffset) throws Exception {
+                                   ConcurrentMap<TableId, SnapshotTableSplitInfo> tableSplitMap,
+                                   String snapshotOffset)
+            throws Exception {
 
         // 按schema分组表
         Map<String, List<SnapshotTableSplitInfo>> tablesBySchema = tableSplitMap.entrySet().stream()
@@ -1155,24 +1150,22 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                         entry -> entry.getKey().schema(), // 按 schemaName 分组
                         Collectors.mapping(
                                 Map.Entry::getValue, // 提取 SnapshotTableSplitInfo
-                                Collectors.toList()  // 收集到 List 中
-                        )
-                ));
-        //查询表是否被分区了，一个schma获取一次
+                                Collectors.toList() // 收集到 List 中
+                        )));
+        // 查询表是否被分区了，一个schma获取一次
         ConcurrentMap<TableId, YaShanDBPartitionInfo> tablePartitionMap = new ConcurrentHashMap();
         for (Map.Entry<String, List<SnapshotTableSplitInfo>> entry : tablesBySchema.entrySet()) {
             String schema = entry.getKey(); // 获取键
             List<SnapshotTableSplitInfo> tableList = entry.getValue(); // 获取值（列表）
 
-            //queryTablesIsPartitioned(schema, tableList.stream().map(o -> o.getTableId().table()).toList(),snapshotOffset,tablePartitionMap);
+            // queryTablesIsPartitioned(schema, tableList.stream().map(o -> o.getTableId().table()).toList(),snapshotOffset,tablePartitionMap);
             queryTablesIsPartitioned(
                     schema,
                     tableList.stream()
                             .map(o -> o.getTableId().table())
                             .collect(Collectors.toList()),
                     snapshotOffset,
-                    tablePartitionMap
-            );
+                    tablePartitionMap);
         }
         if (null != tablePartitionMap) {
             for (Map.Entry<TableId, SnapshotTableSplitInfo> entry : tableSplitMap.entrySet()) {
@@ -1184,27 +1177,25 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 }
             }
         }
-        //获取表的分区信息，一个schma获取一次
+        // 获取表的分区信息，一个schma获取一次
         for (Map.Entry<String, List<SnapshotTableSplitInfo>> entry : tablesBySchema.entrySet()) {
             String schema = entry.getKey();
             ArrayList<YaShanDBPartitionInfo.SubPartitionInfo> tablePartitionInfor = new ArrayList<>();
             List<SnapshotTableSplitInfo> tableList = entry.getValue(); // 获取值（列表）
-            //queryTablesPartitionInfor(schema, tableList.stream().map(o -> o.getTableId().table()).toList(),snapshotOffset,tablePartitionInfor);
+            // queryTablesPartitionInfor(schema, tableList.stream().map(o -> o.getTableId().table()).toList(),snapshotOffset,tablePartitionInfor);
             queryTablesPartitionInfor(
                     schema,
                     tableList.stream()
                             .map(o -> o.getTableId().table())
-                            .collect(Collectors.toList()),  // 修复这里
+                            .collect(Collectors.toList()), // 修复这里
                     snapshotOffset,
-                    tablePartitionInfor
-            );
+                    tablePartitionInfor);
             for (YaShanDBPartitionInfo.SubPartitionInfo subPartition : tablePartitionInfor) {
                 SnapshotTableSplitInfo splitInfo = tableSplitMap.get(new TableId(YASHAN_DB_CATALOG_NAME, schema, subPartition.tableName()));
                 splitInfo.getPartitionInfo().getSubPartitionInfo().add(subPartition);
             }
         }
     }
-
 
     @Override
     protected String enhanceOverriddenSelect(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext,
@@ -1245,7 +1236,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             }
 
             return snapshotTs.get();
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             throw new ConnectException("Failed reading SCN timestamp from source database", e);
         }
     }
@@ -1292,8 +1284,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         private Savepoint preSchemaSnapshotSavepoint;
         public ConcurrentMap<TableId, SnapshotTableSplitInfo> tableSplitMap;
 
-        YashanDBSnapshotContext(YashanDBPartition partition, String catalogName) throws SQLException {
-            super(partition, catalogName);
+        YashanDBSnapshotContext(YashanDBPartition partition, String catalogName, boolean onDemand) throws SQLException {
+            super(partition, catalogName, onDemand);
             this.tableSplitMap = new ConcurrentHashMap();
         }
     }
@@ -1325,11 +1317,13 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
     private Set<TableId> YaShanAddSignalingCollectionAndSort(Set<TableId> capturedTables) {
         String tableIncludeList = this.connectorConfig.tableIncludeList();
-        String signalingDataCollection = this.connectorConfig.getSignalingDataCollectionId();
+        String signalingDataCollection = this.connectorConfig.getSignalingDataCollectionIds().isEmpty() ? null
+                : this.connectorConfig.getSignalingDataCollectionIds().get(0);
         List<Pattern> captureTablePatterns = new ArrayList();
         if (!Strings.isNullOrBlank(tableIncludeList)) {
             captureTablePatterns.addAll(Strings.listOfRegex(tableIncludeList, 2));
-        } else {
+        }
+        else {
             captureTablePatterns.add(MATCH_ALL_PATTERN);
         }
 
@@ -1337,18 +1331,20 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             captureTablePatterns.addAll(this.getSignalDataCollectionPattern(signalingDataCollection));
         }
 
-        return (Set) captureTablePatterns.stream().flatMap((pattern) -> this.YaShanToTableIds(capturedTables, pattern)).collect(Collectors.toCollection(LinkedHashSet::new));
+        return (Set) captureTablePatterns.stream().flatMap((pattern) -> this.YaShanToTableIds(capturedTables, pattern))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private void YaShanDetermineCapturedTables(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> ctx,
-                                               Set<Pattern> dataCollectionsToBeSnapshotted, SnapshottingTask snapshottingTask) throws Exception {
+                                               Set<Pattern> dataCollectionsToBeSnapshotted, SnapshottingTask snapshottingTask)
+            throws Exception {
         Set<TableId> allTableIds = this.getAllTableIds(ctx);
         Set<TableId> snapshottedTableIds = (Set) this.determineDataCollectionsToBeSnapshotted(allTableIds, dataCollectionsToBeSnapshotted).collect(Collectors.toSet());
         Set<TableId> capturedTables = new HashSet();
         Set<TableId> capturedSchemaTables = new HashSet();
 
         for (TableId tableId : allTableIds) {
-            if (this.connectorConfig.getTableFilters().eligibleForSchemaDataCollectionFilter().isIncluded(tableId) && !snapshottingTask.isBlocking()) {
+            if (this.connectorConfig.getTableFilters().eligibleForSchemaDataCollectionFilter().isIncluded(tableId) && !snapshottingTask.isOnDemand()) {
                 LOGGER.info("Adding table {} to the list of capture schema tables", tableId);
                 capturedSchemaTables.add(tableId);
             }
@@ -1358,22 +1354,25 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             if (this.connectorConfig.getTableFilters().dataCollectionFilter().isIncluded(tableId)) {
                 LOGGER.info("Adding table {} to the list of captured tables for which the data will be snapshotted", tableId);
                 capturedTables.add(tableId);
-            } else {
+            }
+            else {
                 LOGGER.trace("Ignoring table {} for data snapshotting as it's not included in the filter configuration", tableId);
             }
         }
 
         ctx.capturedTables = this.YaShanAddSignalingCollectionAndSort(capturedTables);
-        ctx.capturedSchemaTables = snapshottingTask.isBlocking() ? ctx.capturedTables : (Set) capturedSchemaTables.stream().sorted().collect(Collectors.toCollection(LinkedHashSet::new));
+        ctx.capturedSchemaTables = snapshottingTask.isOnDemand() ? ctx.capturedTables
+                : (Set) capturedSchemaTables.stream().sorted().collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private Queue<JdbcConnection> YaShanCreateConnectionPool(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> ctx) throws SQLException {
         Queue<JdbcConnection> connectionPool = new ConcurrentLinkedQueue();
         connectionPool.add(this.jdbcConnection);
-        //int snapshotMaxThreads = Math.max(1, Math.min(this.connectorConfig.getSnapshotMaxThreads(), ctx.capturedTables.size()));
-        //--此处代码做了修改
+        // int snapshotMaxThreads = Math.max(1, Math.min(this.connectorConfig.getSnapshotMaxThreads(), ctx.capturedTables.size()));
+        // --此处代码做了修改
         // 修改主线程*读线程
-        int snapshotMaxThreads = Math.max(DEFAULT_THREAD_COUNT, Math.min(MAX_THREAD_COUNT, this.connectorConfig.getSnapshotMaxThreads() * this.connectorConfig.getTableReadThreads()));
+        int snapshotMaxThreads = Math.max(DEFAULT_THREAD_COUNT,
+                Math.min(MAX_THREAD_COUNT, this.connectorConfig.getSnapshotMaxThreads() * this.connectorConfig.getTableReadThreads()));
         if (snapshotMaxThreads > 1) {
             Optional<String> firstQuery = this.getSnapshotConnectionFirstSelect(ctx, (TableId) ctx.capturedTables.iterator().next());
 
@@ -1383,7 +1382,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 this.connectionPoolConnectionCreated(ctx, conn);
                 connectionPool.add(conn);
                 if (firstQuery.isPresent()) {
-                    conn.execute(new String[]{(String) firstQuery.get()});
+                    conn.execute(new String[]{ (String) firstQuery.get() });
                 }
             }
         }
@@ -1396,7 +1395,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         if (connection != null) {
             try {
                 connection.rollback();
-            } catch (SQLException e) {
+            }
+            catch (SQLException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -1419,7 +1419,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         String overriddenSelect = this.getSnapshotSelectOverridesByTable(tableId, snapshotSelectOverridesByTable);
         if (overriddenSelect != null) {
             return Optional.of(this.enhanceOverriddenSelect(snapshotContext, overriddenSelect, tableId));
-        } else {
+        }
+        else {
             List<String> columns = this.getPreparedColumnNames(snapshotContext.partition, this.databaseSchema.tableFor(tableId));
             return this.getSnapshotSelect(snapshotContext, tableId, columns);
         }
@@ -1436,13 +1437,17 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                                          boolean lastRecordInTable) {
         if (lastRecordInTable && lastTable) {
             offset.markSnapshotRecord(SnapshotRecord.LAST);
-        } else if (firstRecordInTable && firstTable) {
+        }
+        else if (firstRecordInTable && firstTable) {
             offset.markSnapshotRecord(SnapshotRecord.FIRST);
-        } else if (lastRecordInTable) {
+        }
+        else if (lastRecordInTable) {
             offset.markSnapshotRecord(SnapshotRecord.LAST_IN_DATA_COLLECTION);
-        } else if (firstRecordInTable) {
+        }
+        else if (firstRecordInTable) {
             offset.markSnapshotRecord(SnapshotRecord.FIRST_IN_DATA_COLLECTION);
-        } else {
+        }
+        else {
             offset.markSnapshotRecord(SnapshotRecord.TRUE);
         }
 
@@ -1499,19 +1504,21 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                                                  JdbcConnection jdbcConnection,
                                                  boolean isFirstChunk,
                                                  boolean isLastChunk,
-                                                 int ProcessesNumber) throws InterruptedException {
+                                                 int ProcessesNumber)
+            throws InterruptedException {
         if (!sourceContext.isRunning()) {
             throw new InterruptedException("Interrupted while snapshotting table " + table.id());
-        } else {
+        }
+        else {
             long exportStart = this.clock.currentTimeInMillis();
-            LOGGER.info("Processes {} is exporting data from table '{}' ({} of {} tables  sql:{})", new Object[]{ProcessesNumber, table.id(), tableOrder, tableCount, selectStatement});
+            LOGGER.info("Processes {} is exporting data from table '{}' ({} of {} tables  sql:{})",
+                    new Object[]{ ProcessesNumber, table.id(), tableOrder, tableCount, selectStatement });
             Instant sourceTableSnapshotTimestamp = this.getSnapshotSourceTimestamp(jdbcConnection, offset, table.id());
 
             try {
                 try (
                         Statement statement = this.readTableStatement(jdbcConnection, rowCount);
-                        ResultSet rs = CancellableResultSet.from(statement.executeQuery(selectStatement));
-                ) {
+                        ResultSet rs = CancellableResultSet.from(statement.executeQuery(selectStatement));) {
                     ColumnUtils.ColumnArray columnArray = ColumnUtils.toArray(rs, table);
                     long rows = 0L;
                     Threads.Timer logTimer = this.YaShanGetTableScanLogTimer();
@@ -1526,32 +1533,41 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                             if (logTimer.expired()) {
                                 long stop = this.clock.currentTimeInMillis();
                                 if (rowCount.isPresent()) {
-                                    LOGGER.info("\t Processes {} : Exported {} of {} records for table '{}' after {}", new Object[]{ProcessesNumber, rows, rowCount.getAsLong(), table.id(), Strings.duration(stop - exportStart)});
-                                } else {
-                                    LOGGER.info("\t Processes {} : Exported {} records for table '{}' after {}", new Object[]{ProcessesNumber, rows, table.id(), Strings.duration(stop - exportStart)});
+                                    LOGGER.info("\t Processes {} : Exported {} of {} records for table '{}' after {}",
+                                            new Object[]{ ProcessesNumber, rows, rowCount.getAsLong(), table.id(), Strings.duration(stop - exportStart) });
+                                }
+                                else {
+                                    LOGGER.info("\t Processes {} : Exported {} records for table '{}' after {}",
+                                            new Object[]{ ProcessesNumber, rows, table.id(), Strings.duration(stop - exportStart) });
                                 }
                                 this.snapshotProgressListener.rowsScanned(partition, table.id(), rows);
                                 logTimer = this.YaShanGetTableScanLogTimer();
                             }
                             hasNext = rs.next();
                             this.setSnapshotMarkerForChunk(offset, firstTable, lastTable, rows == 1L, !hasNext, isFirstChunk, isLastChunk);
-                            this.dispatcher.dispatchSnapshotEvent(partition, table.id(), this.getChangeRecordEmitter(partition, offset, table.id(), row, sourceTableSnapshotTimestamp), snapshotReceiver);
+                            this.dispatcher.dispatchSnapshotEvent(partition, table.id(),
+                                    this.getChangeRecordEmitter(partition, offset, table.id(), row, sourceTableSnapshotTimestamp), snapshotReceiver);
                         }
-                    } else {
+                    }
+                    else {
                         this.setSnapshotMarkerForChunk(offset, firstTable, lastTable, false, true, isFirstChunk, isLastChunk);
                     }
-                    LOGGER.info("\t Processes {} : Finished exporting {} records for table '{}' ({} of {} tables); total duration '{}'", new Object[]{ProcessesNumber, rows, table.id(), tableOrder, tableCount, Strings.duration(this.clock.currentTimeInMillis() - exportStart)});
+                    LOGGER.info("\t Processes {} : Finished exporting {} records for table '{}' ({} of {} tables); total duration '{}'",
+                            new Object[]{ ProcessesNumber, rows, table.id(), tableOrder, tableCount, Strings.duration(this.clock.currentTimeInMillis() - exportStart) });
                     if (snapshotProgressListener instanceof io.debezium.pipeline.metrics.DefaultSnapshotChangeEventSourceMetrics) {
                         io.debezium.pipeline.metrics.DefaultSnapshotChangeEventSourceMetrics<YashanDBPartition> metrics = (io.debezium.pipeline.metrics.DefaultSnapshotChangeEventSourceMetrics<YashanDBPartition>) snapshotProgressListener;
                         ConcurrentMap<String, Long> rowsScanned = metrics.getRowsScanned();
                         if (null != rowsScanned)
                             rowsScanned.merge(table.id().identifier(), rows, Long::sum);
-                    } else {
-                        LOGGER.warn("Processes {} : snapshotProgressListener is not an instance of DefaultSnapshotChangeEventSourceMetrics, cannot get rowsScanned map.", ProcessesNumber);
+                    }
+                    else {
+                        LOGGER.warn("Processes {} : snapshotProgressListener is not an instance of DefaultSnapshotChangeEventSourceMetrics, cannot get rowsScanned map.",
+                                ProcessesNumber);
                     }
                 }
 
-            } catch (SQLException e) {
+            }
+            catch (SQLException e) {
                 throw new ConnectException("Snapshotting of table " + table.id() + " failed", e);
             }
         }
@@ -1577,8 +1593,10 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             YashanDBOffsetContext offset = (YashanDBOffsetContext) (offsets.poll());
 
             try {
-                this.YaShanDoCreateDataEventsForTable(sourceContext, snapshotContext.partition, offset, snapshotReceiver, table, firstTable, lastTable, tableOrder, tableCount, selectStatement, rowCount, connection, isFirstChunk, isLastChunk, ProcessesNumber);
-            } finally {
+                this.YaShanDoCreateDataEventsForTable(sourceContext, snapshotContext.partition, offset, snapshotReceiver, table, firstTable, lastTable, tableOrder,
+                        tableCount, selectStatement, rowCount, connection, isFirstChunk, isLastChunk, ProcessesNumber);
+            }
+            finally {
                 offsets.add(offset);
                 connectionPool.add(connection);
             }
@@ -1590,7 +1608,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     private void YaShanCreateDataEvents(ChangeEventSourceContext sourceContext,
                                         RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext,
                                         Queue<JdbcConnection> connectionPool,
-                                        Map<DataCollectionId, String> snapshotSelectOverridesByTable) throws Exception {
+                                        Map<DataCollectionId, String> snapshotSelectOverridesByTable)
+            throws Exception {
         this.tryStartingSnapshot(snapshotContext);
         EventDispatcher.SnapshotReceiver<YashanDBPartition> snapshotReceiver = this.dispatcher.getSnapshotChangeEventReceiver();
         int snapshotMaxThreads = connectionPool.size();
@@ -1605,21 +1624,23 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             final Map<String, Integer> datafileInfo = queryDatafileInfo();
             queryTablesSql.put(tableId, new ArrayList<>());
             final SnapshotTableSplitInfo tableInfo = ((YashanDBSnapshotContext) snapshotContext).tableSplitMap.get(tableId);
-            //优先处理用户指定的数据迁移sql，用户一旦进行了配置，那么就不对表进行分片迁移
+            // 优先处理用户指定的数据迁移sql，用户一旦进行了配置，那么就不对表进行分片迁移
             Optional<String> selectStatement = this.YaShanDetermineSnapshotOverridesSelect(snapshotContext, tableId, snapshotSelectOverridesByTable);
             if (null != selectStatement && selectStatement.isPresent()) {
                 LOGGER.info("For table '{}' using select statement: '{}'", tableId, selectStatement.get());
                 queryTablesSql.get(tableId).add(selectStatement.get());
-            } else {
-                //先对分区表进行处理
+            }
+            else {
+                // 先对分区表进行处理
                 if (tableInfo.getPartitionInfo().getIsPartition()) {
                     partitionSplitTable(snapshotContext.offset.getScn().toString(),
                             ((YashanDBSnapshotContext) snapshotContext).tableSplitMap.get(tableId),
                             snapshotMaxThreads,
                             datafileInfo,
                             queryTablesSql);
-                } else {
-                    //对非分区表进行处理
+                }
+                else {
+                    // 对非分区表进行处理
                     notPartitionSplitTable(snapshotContext.offset.getScn().toString(),
                             ((YashanDBSnapshotContext) snapshotContext).tableSplitMap.get(tableId),
                             snapshotMaxThreads,
@@ -1635,7 +1656,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         if (this.connectorConfig.snapshotOrderByRowCount() != RelationalDatabaseConnectorConfig.SnapshotTablesRowCountOrder.DISABLED) {
             LOGGER.info("Sort tables by row count '{}'", this.connectorConfig.snapshotOrderByRowCount());
             int orderFactor = this.connectorConfig.snapshotOrderByRowCount() == RelationalDatabaseConnectorConfig.SnapshotTablesRowCountOrder.ASCENDING ? 1 : -1;
-            rowCountTables = (Map) rowCountTables.entrySet().stream().sorted(Map.Entry.comparingByValue((a, b) -> orderFactor * Long.compare(a.orElse(0L), b.orElse(0L)))).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+            rowCountTables = (Map) rowCountTables.entrySet().stream().sorted(Map.Entry.comparingByValue((a, b) -> orderFactor * Long.compare(a.orElse(0L), b.orElse(0L))))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
         }
 
         Queue<YashanDBOffsetContext> offsets = new ConcurrentLinkedQueue<>();
@@ -1648,12 +1670,12 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         try {
             int tableCount = rowCountTables.size();
             int tableOrder = 1;
-            int asyProcessCount = 0;   //异步处理过程个数
+            int asyProcessCount = 0; // 异步处理过程个数
 
             long exportStart = this.clock.currentTimeInMillis();
 
             for (TableId tableId : rowCountTables.keySet()) {
-                //新处理方式
+                // 新处理方式
                 boolean firstTable = tableOrder == 1 && snapshotMaxThreads == 1;
                 boolean lastTable = tableOrder == tableCount && snapshotMaxThreads == 1;
                 OptionalLong rowCount = (OptionalLong) rowCountTables.get(tableId);
@@ -1669,7 +1691,9 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                     boolean isFirstChunk = (currentChunkIndex == 1);
                     // 判断是否是最后一个Chunk
                     boolean isLastChunk = (currentChunkIndex == chunkCount);
-                    Callable<Void> callable = this.YaShanCreateDataEventsForTableCallable(sourceContext, snapshotContext, snapshotReceiver, snapshotContext.tables.forTable(tableId), firstTable, lastTable, tableOrder, tableCount, selectStatement, rowCount, connectionPool, offsets, isFirstChunk, isLastChunk, asyProcessCount + 1);
+                    Callable<Void> callable = this.YaShanCreateDataEventsForTableCallable(sourceContext, snapshotContext, snapshotReceiver,
+                            snapshotContext.tables.forTable(tableId), firstTable, lastTable, tableOrder, tableCount, selectStatement, rowCount, connectionPool, offsets,
+                            isFirstChunk, isLastChunk, asyProcessCount + 1);
                     completionService.submit(callable);
                     asyProcessCount++;
                 }
@@ -1679,8 +1703,9 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             for (int i = 0; i < asyProcessCount; ++i) {
                 completionService.take().get();
             }
-            LOGGER.info("finish all table data,table count: {},thread count:{},number of Processes:{},time:{}", tableCount, snapshotMaxThreads, asyProcessCount, Strings.duration(this.clock.currentTimeInMillis() - exportStart));
-            //所有线程处理完成了，数据也同步完成了，设置统计主题
+            LOGGER.info("finish all table data,table count: {},thread count:{},number of Processes:{},time:{}", tableCount, snapshotMaxThreads, asyProcessCount,
+                    Strings.duration(this.clock.currentTimeInMillis() - exportStart));
+            // 所有线程处理完成了，数据也同步完成了，设置统计主题
             if (snapshotProgressListener instanceof io.debezium.pipeline.metrics.DefaultSnapshotChangeEventSourceMetrics) {
                 io.debezium.pipeline.metrics.DefaultSnapshotChangeEventSourceMetrics<YashanDBPartition> metrics = (io.debezium.pipeline.metrics.DefaultSnapshotChangeEventSourceMetrics<YashanDBPartition>) snapshotProgressListener;
                 ConcurrentMap<String, Long> rowsScanned = metrics.getRowsScanned();
@@ -1691,10 +1716,12 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                             this.snapshotProgressListener.dataCollectionSnapshotCompleted(snapshotContext.partition, tableId, rowCount);
                     }
                 }
-            } else {
+            }
+            else {
                 LOGGER.warn("snapshotProgressListener is not an instance of DefaultSnapshotChangeEventSourceMetrics,no set snapshot completed");
             }
-        } finally {
+        }
+        finally {
             executorService.shutdownNow();
         }
 
@@ -1726,15 +1753,16 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public void tryStartingSnapshot(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext) {
-        if (!snapshotContext.offset.isSnapshotRunning()) {
-            snapshotContext.offset.preSnapshotStart();
+        if (!snapshotContext.offset.isInitialSnapshotRunning()) {
+            snapshotContext.offset.preSnapshotStart(false);
         }
     }
 
     public SnapshotResult<YashanDBOffsetContext> doExecute(ChangeEventSourceContext context,
                                                            YashanDBOffsetContext previousOffset,
                                                            SnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext,
-                                                           SnapshottingTask snapshottingTask) throws Exception {
+                                                           SnapshottingTask snapshottingTask)
+            throws Exception {
         YashanDBSnapshotContext ctx = (YashanDBSnapshotContext) snapshotContext;
         Connection connection = null;
         Throwable exceptionWhileSnapshot = null;
@@ -1742,10 +1770,10 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         SnapshotResult var10;
         try {
             Set<Pattern> dataCollectionsToBeSnapshotted = this.getDataCollectionPattern(snapshottingTask.getDataCollections());
-            Map<DataCollectionId, String> snapshotSelectOverridesByTable = (Map) snapshottingTask.getFilterQueries().entrySet().stream().collect(Collectors.toMap((ex) -> TableId.parse((String) ex.getKey()), Map.Entry::getValue));
+            Map<DataCollectionId, String> snapshotSelectOverridesByTable = snapshottingTask.getFilterQueries();
             this.preSnapshot();
             LOGGER.info("Snapshot step 1 - Preparing");
-            if (previousOffset != null && previousOffset.isSnapshotRunning()) {
+            if (previousOffset != null && previousOffset.isInitialSnapshotRunning()) {
                 LOGGER.info("Previous snapshot was cancelled before completion; a new snapshot will be taken.");
             }
 
@@ -1768,21 +1796,22 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 LOGGER.info("Snapshot step 6 - Persisting schema history");
                 this.createSchemaChangeEventsForTables(context, ctx, snapshottingTask);
                 this.releaseSchemaSnapshotLocks(ctx);
-            } else {
+            }
+            else {
                 LOGGER.info("Snapshot step 6 - Skipping persisting of schema history");
             }
 
             if (snapshottingTask.snapshotData()) {
                 LOGGER.info("Snapshot step 7 - Snapshotting data");
-//                this.YaShanCreateDataEvents(context, ctx, this.connectionPool, snapshotSelectOverridesByTable);
+                // this.YaShanCreateDataEvents(context, ctx, this.connectionPool, snapshotSelectOverridesByTable);
                 SnapshotDataSyncTask.SyncTaskContext syncTaskContext = new SnapshotDataSyncTask.SyncTaskContext(
                         (YashanDBSnapshotContext) snapshotContext, context,
                         connectionPool, snapshotSelectOverridesByTable,
-                        connectorConfig, this, clock
-                );
+                        connectorConfig, this, clock);
                 SnapshotDataSyncTask snapshotDataSyncTask = new SnapshotDataSyncTask(syncTaskContext);
                 snapshotDataSyncTask.run();
-            } else {
+            }
+            else {
                 LOGGER.info("Snapshot step 7 - Skipping snapshotting of data");
                 this.releaseDataSnapshotLocks(ctx);
                 ctx.offset.preSnapshotCompletion();
@@ -1792,11 +1821,13 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             this.postSnapshot();
             this.dispatcher.alwaysDispatchHeartbeatEvent(ctx.partition, ctx.offset);
             var10 = SnapshotResult.completed(ctx.offset);
-        } catch (AssertionError | Exception e) {
+        }
+        catch (AssertionError | Exception e) {
             LOGGER.error("Error during snapshot", e);
             exceptionWhileSnapshot = e;
             throw e;
-        } finally {
+        }
+        finally {
             try {
                 if (this.connectionPool != null) {
                     for (JdbcConnection conn : this.connectionPool) {
@@ -1807,7 +1838,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 }
 
                 this.YaShanRollbackTransaction(connection);
-            } catch (Exception var20) {
+            }
+            catch (Exception var20) {
                 LOGGER.error("Error in finally block", var20);
                 if (exceptionWhileSnapshot != null) {
                     var20.addSuppressed(exceptionWhileSnapshot);
@@ -1825,7 +1857,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         try {
             JdbcConnection validConnection = connection == null ? this.jdbcConnection : connection;
             try (Statement statement = this.readTableStatement(validConnection, OptionalLong.empty());
-                 ResultSet rs = statement.executeQuery(sql)) {
+                    ResultSet rs = statement.executeQuery(sql)) {
                 if (rs.next()) {
                     String min = rs.getString("MIN_ROWID");
                     String max = rs.getString("MAX_ROWID");
@@ -1833,7 +1865,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 }
             }
             return null;
-        } finally {
+        }
+        finally {
             if (connection != null) {
                 this.connectionPool.add(connection);
             }

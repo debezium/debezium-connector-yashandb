@@ -5,7 +5,13 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.sics.ystream.result.Position;
+
 import io.debezium.connector.yashandb.Scn;
 import io.debezium.connector.yashandb.SourceInfo;
 import io.debezium.connector.yashandb.YashanDBConnectorConfig;
@@ -13,10 +19,6 @@ import io.debezium.connector.yashandb.YashanDBOffsetContext;
 import io.debezium.pipeline.source.snapshot.incremental.SignalBasedIncrementalSnapshotContext;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.txmetadata.TransactionContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Map;
 
 /**
  * The {@link OffsetContext} loader implementation for the YashanDB YStream adapter

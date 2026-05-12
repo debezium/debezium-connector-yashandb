@@ -5,6 +5,8 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.sql.SQLException;
+
 import io.debezium.DebeziumException;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.pipeline.EventDispatcher;
@@ -17,8 +19,6 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.schema.DatabaseSchema;
 import io.debezium.util.Clock;
-
-import java.sql.SQLException;
 
 /**
  * @author Chris Cranford

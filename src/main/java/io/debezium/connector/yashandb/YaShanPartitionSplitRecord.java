@@ -1,8 +1,8 @@
 package io.debezium.connector.yashandb;
 
-import io.debezium.relational.TableId;
-
 import java.util.Objects;
+
+import io.debezium.relational.TableId;
 
 public final class YaShanPartitionSplitRecord {
     private final TableId info;
@@ -11,7 +11,7 @@ public final class YaShanPartitionSplitRecord {
     private final YaShanRowid maxrowid;
 
     public YaShanPartitionSplitRecord(
-            TableId info, String partitionName, YaShanRowid minrowid, YaShanRowid maxrowid) {
+                                      TableId info, String partitionName, YaShanRowid minrowid, YaShanRowid maxrowid) {
         this.info = info;
         this.partitionName = partitionName;
         this.minrowid = minrowid;
@@ -36,8 +36,10 @@ public final class YaShanPartitionSplitRecord {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj == this) return true;
-        if (obj == null || obj.getClass() != this.getClass()) return false;
+        if (obj == this)
+            return true;
+        if (obj == null || obj.getClass() != this.getClass())
+            return false;
         var that = (YaShanPartitionSplitRecord) obj;
         return Objects.equals(this.info, that.info) &&
                 Objects.equals(this.partitionName, that.partitionName) &&

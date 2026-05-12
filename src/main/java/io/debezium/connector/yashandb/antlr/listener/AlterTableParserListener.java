@@ -5,6 +5,15 @@
  */
 package io.debezium.connector.yashandb.antlr.listener;
 
+import static io.debezium.antlr.AntlrDdlParser.getText;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.antlr.v4.runtime.tree.ParseTreeListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
 import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
 import io.debezium.relational.Column;
@@ -12,17 +21,9 @@ import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.TableEditor;
 import io.debezium.relational.TableId;
 import io.debezium.text.ParsingException;
-import org.antlr.v4.runtime.tree.ParseTreeListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static io.debezium.antlr.AntlrDdlParser.getText;
 
 /**
- * Parser listener that is parsing Oracle ALTER TABLE statements
+ * Parser listener that is parsing YashanDB ALTER TABLE statements
  */
 public class AlterTableParserListener extends BaseParserListener {
 
@@ -44,7 +45,7 @@ public class AlterTableParserListener extends BaseParserListener {
      *
      * @param catalogName Represents database name. If null, points to the current database
      * @param schemaName Schema/user name. If null, points to the current schema
-     * @param parser Oracle Antlr parser
+     * @param parser YashanDB Antlr parser
      * @param listeners registered listeners
      */
     AlterTableParserListener(final String catalogName, final String schemaName, final YashanDBDdlParser parser,
@@ -56,9 +57,10 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterAlter_table(YashanDBParser.Alter_tableContext ctx) {
+    public void enterAlter_table_statement(YashanDBParser.Alter_table_statementContext ctx) {
         previousTableId = null;
-        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name()));
+
+        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.table_name()));
         if (parser.databaseTables().forTable(tableId) == null) {
             LOGGER.debug("Ignoring ALTER TABLE statement for non-captured table {}", tableId);
             return;
@@ -68,101 +70,104 @@ public class AlterTableParserListener extends BaseParserListener {
             throw new ParsingException(null, "Trying to alter table " + tableId.toString()
                     + ", which does not exist. Query: " + getText(ctx));
         }
-        super.enterAlter_table(ctx);
+        super.enterAlter_table_statement(ctx);
     }
 
     @Override
-    public void exitAlter_table(YashanDBParser.Alter_tableContext ctx) {
+    public void exitAlter_table_statement(YashanDBParser.Alter_table_statementContext ctx) {
         parser.runIfNotNull(() -> {
             listeners.remove(columnDefinitionParserListener);
             parser.databaseTables().overwriteTable(tableEditor.create());
             parser.signalAlterTable(tableEditor.tableId(), previousTableId, ctx.getParent());
         }, tableEditor);
-        super.exitAlter_table(ctx);
+        super.exitAlter_table_statement(ctx);
     }
 
     @Override
-    public void enterAlter_table_properties(YashanDBParser.Alter_table_propertiesContext ctx) {
+    public void enterRename_clause(YashanDBParser.Rename_clauseContext ctx) {
         parser.runIfNotNull(() -> {
-            if (ctx.RENAME() != null && ctx.TO() != null) {
-                previousTableId = tableEditor.tableId();
-                String tableName = getTableName(ctx.tableview_name());
-                final TableId newTableId = new TableId(tableEditor.tableId().catalog(), tableEditor.tableId().schema(), tableName);
-                if (parser.getTableFilter().isIncluded(previousTableId) && !parser.getTableFilter().isIncluded(newTableId)) {
-                    LOGGER.warn("Renaming included table {} to non-included table {}, this can lead to schema inconsistency", previousTableId, newTableId);
-                }
-                else if (!parser.getTableFilter().isIncluded(previousTableId) && parser.getTableFilter().isIncluded(newTableId)) {
-                    LOGGER.warn("Renaming non-included table {} to included table {}, this can lead to schema inconsistency", previousTableId, newTableId);
-                }
-                parser.databaseTables().overwriteTable(tableEditor.create());
-                parser.databaseTables().renameTable(tableEditor.tableId(), newTableId);
-                tableEditor = parser.databaseTables().editTable(newTableId);
+            previousTableId = tableEditor.tableId();
+            String tableName = getTableName(ctx.table_name());
+            final TableId newTableId = new TableId(tableEditor.tableId().catalog(), tableEditor.tableId().schema(), tableName);
+            if (parser.getTableFilter().isIncluded(previousTableId) && !parser.getTableFilter().isIncluded(newTableId)) {
+                LOGGER.warn("Renaming included table {} to non-included table {}, this can lead to schema inconsistency", previousTableId, newTableId);
             }
-        }, tableEditor);
-        super.exitAlter_table_properties(ctx);
-    }
-
-    @Override
-    public void enterAdd_column_clause(YashanDBParser.Add_column_clauseContext ctx) {
-        parser.runIfNotNull(() -> {
-            List<YashanDBParser.Column_definitionContext> columns = ctx.column_definition();
-            columnEditors = new ArrayList<>(columns.size());
-            for (YashanDBParser.Column_definitionContext column : columns) {
-                String columnName = getColumnName(column.column_name());
-                ColumnEditor editor = Column.editor().name(columnName);
-                columnEditors.add(editor);
+            else if (!parser.getTableFilter().isIncluded(previousTableId) && parser.getTableFilter().isIncluded(newTableId)) {
+                LOGGER.warn("Renaming non-included table {} to included table {}, this can lead to schema inconsistency", previousTableId, newTableId);
             }
-            columnDefinitionParserListener = new ColumnDefinitionParserListener(tableEditor, columnEditors.get(0), parser, listeners);
-            listeners.add(columnDefinitionParserListener);
+            parser.databaseTables().overwriteTable(tableEditor.create());
+            parser.databaseTables().renameTable(tableEditor.tableId(), newTableId);
+            tableEditor = parser.databaseTables().editTable(newTableId);
         }, tableEditor);
-        super.enterAdd_column_clause(ctx);
+        super.enterRename_clause(ctx);
     }
 
     @Override
-    public void enterModify_column_clauses(YashanDBParser.Modify_column_clausesContext ctx) {
+    public void enterAlter_column_clause(YashanDBParser.Alter_column_clauseContext ctx) {
         parser.runIfNotNull(() -> {
-            List<YashanDBParser.Modify_col_propertiesContext> columns = ctx.modify_col_properties();
-            // This check is necessary because the DDL may have supplied modify_col_visibility clause or
-            // a modify_col_substitutable clause which won't affect the state of the relational model.
-            if (!columns.isEmpty()) {
-                columnEditors = new ArrayList<>(columns.size());
-                for (YashanDBParser.Modify_col_propertiesContext column : columns) {
-                    String columnName = getColumnName(column.column_name());
+            // Handle ADD COLUMN
+            if (ctx.ADD() != null) {
+                YashanDBParser.Column_definitionContext columnDef = ctx.column_definition();
+                if (columnDef != null) {
+                    String columnName = getColumnName(columnDef.column_name());
+                    ColumnEditor editor = Column.editor().name(columnName);
+                    columnEditors = new ArrayList<>(1);
+                    columnEditors.add(editor);
+                    columnDefinitionParserListener = new ColumnDefinitionParserListener(tableEditor, editor, parser, listeners);
+                    listeners.add(columnDefinitionParserListener);
+                }
+            }
+            // Handle MODIFY COLUMN
+            else if (ctx.MODIFY() != null) {
+                YashanDBParser.Column_definitionContext columnDef = ctx.column_definition();
+                if (columnDef != null) {
+                    String columnName = getColumnName(columnDef.column_name());
                     Column existingColumn = tableEditor.columnWithName(columnName);
                     if (existingColumn != null) {
                         ColumnEditor columnEditor = existingColumn.edit();
+                        columnEditors = new ArrayList<>(1);
                         columnEditors.add(columnEditor);
+                        columnDefinitionParserListener = new ColumnDefinitionParserListener(tableEditor, columnEditor, parser, listeners);
+                        listeners.add(columnDefinitionParserListener);
                     }
                     else {
                         throw new ParsingException(null, "trying to change column " + columnName + " in " +
                                 tableEditor.tableId().toString() + " table, which does not exist.  Query: " + getText(ctx));
                     }
                 }
-                columnDefinitionParserListener = new ColumnDefinitionParserListener(tableEditor, columnEditors.get(0), parser, listeners);
-                listeners.add(columnDefinitionParserListener);
+            }
+            // Handle RENAME COLUMN
+            else if (ctx.RENAME() != null && ctx.COLUMN() != null) {
+                List<YashanDBParser.Column_nameContext> columnNames = ctx.column_name();
+                if (columnNames.size() >= 2) {
+                    String oldColumnName = getColumnName(columnNames.get(0));
+                    String newColumnName = getColumnName(columnNames.get(1));
+                    tableEditor.renameColumn(oldColumnName, newColumnName);
+                }
+            }
+            // Handle DROP COLUMN
+            else if (ctx.DROP() != null) {
+                List<YashanDBParser.Column_nameContext> columnNames = ctx.column_name();
+                for (YashanDBParser.Column_nameContext columnNameContext : columnNames) {
+                    String columnName = getColumnName(columnNameContext);
+                    tableEditor.removeColumn(columnName);
+                }
             }
         }, tableEditor);
-        super.enterModify_column_clauses(ctx);
+        super.enterAlter_column_clause(ctx);
     }
 
     @Override
-    public void exitAdd_column_clause(YashanDBParser.Add_column_clauseContext ctx) {
+    public void exitAlter_column_clause(YashanDBParser.Alter_column_clauseContext ctx) {
         parser.runIfNotNull(() -> {
-            columnEditors.forEach(columnEditor -> tableEditor.addColumn(columnEditor.create()));
-            listeners.remove(columnDefinitionParserListener);
-            columnDefinitionParserListener = null;
-        }, tableEditor, columnEditors);
-        super.exitAdd_column_clause(ctx);
-    }
-
-    @Override
-    public void exitModify_column_clauses(YashanDBParser.Modify_column_clausesContext ctx) {
-        parser.runIfNotNull(() -> {
-            columnEditors.forEach(columnEditor -> tableEditor.addColumn(columnEditor.create()));
-            listeners.remove(columnDefinitionParserListener);
-            columnDefinitionParserListener = null;
-        }, tableEditor, columnEditors);
-        super.exitModify_column_clauses(ctx);
+            if (columnEditors != null && (ctx.ADD() != null || ctx.MODIFY() != null)) {
+                columnEditors.forEach(columnEditor -> tableEditor.addColumn(columnEditor.create()));
+                listeners.remove(columnDefinitionParserListener);
+                columnDefinitionParserListener = null;
+                columnEditors = null;
+            }
+        }, tableEditor);
+        super.exitAlter_column_clause(ctx);
     }
 
     @Override
@@ -187,75 +192,25 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitModify_col_properties(YashanDBParser.Modify_col_propertiesContext ctx) {
-        parser.runIfNotNull(() -> {
-            if (columnEditors != null) {
-                // column editor list is not null when multiple columns are paresd in one statement
-                if (columnEditors.size() > parsingColumnIndex) {
-                    // assign next column editor to parse another column definition
-                    columnDefinitionParserListener.setColumnEditor(columnEditors.get(parsingColumnIndex++));
-                }
-                else {
-                    // all columns parsed
-                    // reset global variables for next parsed statement
-                    columnEditors.forEach(columnEditor -> tableEditor.addColumn(columnEditor.create()));
-                    columnEditors = null;
-                    parsingColumnIndex = STARTING_INDEX;
-                }
-            }
-        }, tableEditor, columnEditors);
-        super.exitModify_col_properties(ctx);
-    }
-
-    @Override
-    public void enterDrop_column_clause(YashanDBParser.Drop_column_clauseContext ctx) {
-        parser.runIfNotNull(() -> {
-            List<YashanDBParser.Column_nameContext> columnNameContexts = ctx.column_name();
-            columnEditors = new ArrayList<>(columnNameContexts.size());
-            for (YashanDBParser.Column_nameContext columnNameContext : columnNameContexts) {
-                String columnName = getColumnName(columnNameContext);
-                tableEditor.removeColumn(columnName);
-            }
-        }, tableEditor);
-        super.enterDrop_column_clause(ctx);
-    }
-
-    @Override
-    public void exitRename_column_clause(YashanDBParser.Rename_column_clauseContext ctx) {
-        parser.runIfNotNull(() -> {
-            tableEditor.renameColumn(getColumnName(ctx.old_column_name()), getColumnName(ctx.new_column_name()));
-        }, tableEditor);
-        super.exitRename_column_clause(ctx);
-    }
-
-    @Override
-    public void enterConstraint_clauses(YashanDBParser.Constraint_clausesContext ctx) {
+    public void enterAlter_constraint_clause(YashanDBParser.Alter_constraint_clauseContext ctx) {
         parser.runIfNotNull(() -> {
             if (ctx.ADD() != null) {
                 // ALTER TABLE ADD PRIMARY KEY
-                List<String> primaryKeyColumns = new ArrayList<>();
-                for (YashanDBParser.Out_of_line_constraintContext constraint : ctx.out_of_line_constraint()) {
-                    if (constraint.PRIMARY() != null && constraint.KEY() != null) {
-                        for (YashanDBParser.Column_nameContext columnNameContext : constraint.column_name()) {
-                            primaryKeyColumns.add(getColumnName(columnNameContext));
-                        }
+                if (ctx.PRIMARY() != null && ctx.KEY() != null) {
+                    List<String> primaryKeyColumns = new ArrayList<>();
+                    for (YashanDBParser.Column_nameContext columnNameContext : ctx.column_name()) {
+                        primaryKeyColumns.add(getColumnName(columnNameContext));
+                    }
+                    if (!primaryKeyColumns.isEmpty()) {
+                        tableEditor.setPrimaryKeyNames(primaryKeyColumns);
                     }
                 }
-                if (!primaryKeyColumns.isEmpty()) {
-                    tableEditor.setPrimaryKeyNames(primaryKeyColumns);
-                }
             }
-            else if (ctx.MODIFY() != null && ctx.PRIMARY() != null && ctx.KEY() != null) {
-                // ALTER TABLE MODIFY PRIMARY KEY columns
-                List<String> primaryKeyColumns = new ArrayList<>();
-                for (YashanDBParser.Column_nameContext columnNameContext : ctx.column_name()) {
-                    primaryKeyColumns.add(getColumnName(columnNameContext));
-                }
-                if (!primaryKeyColumns.isEmpty()) {
-                    tableEditor.setPrimaryKeyNames(primaryKeyColumns);
-                }
+            else if (ctx.DROP() != null && ctx.PRIMARY() != null && ctx.KEY() != null) {
+                // ALTER TABLE DROP PRIMARY KEY
+                tableEditor.setPrimaryKeyNames(new ArrayList<>());
             }
         }, tableEditor);
-        super.enterConstraint_clauses(ctx);
+        super.enterAlter_constraint_clause(ctx);
     }
 }

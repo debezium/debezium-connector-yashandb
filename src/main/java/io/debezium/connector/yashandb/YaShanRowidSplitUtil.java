@@ -5,12 +5,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-
 /** 分片算法. */
-public final class YaShanRowidSplitUtil
-{
+public final class YaShanRowidSplitUtil {
 
-    private YaShanRowidSplitUtil() {}
+    private YaShanRowidSplitUtil() {
+    }
 
     /**
      * 计算分表rowid，升序.
@@ -22,10 +21,10 @@ public final class YaShanRowidSplitUtil
      * @return rowid list
      */
     public static List<YaShanRowid> getYashanDBSplitRowid(
-            final YaShanRowid rowMin,
-            final YaShanRowid rowMax,
-            long expectedSplitCount,
-            final Map<String, Integer> blocksMap) {
+                                                          final YaShanRowid rowMin,
+                                                          final YaShanRowid rowMax,
+                                                          long expectedSplitCount,
+                                                          final Map<String, Integer> blocksMap) {
         int diffIdx = -1;
         final List<YaShanRowid> rowidRange = new ArrayList<>();
         // 如果rowMin==rowMax，则不分表
@@ -52,21 +51,19 @@ public final class YaShanRowidSplitUtil
             }
             for (int i = 1; i < expectedSplitCount; i++) {
                 final YaShanRowid r = new YaShanRowid(rowMin.getRowid());
-                r.getNums()[diffIdx] =
-                        r.getNums()[diffIdx].add(
-                                diffRange
-                                        .multiply(BigInteger.valueOf(i))
-                                        .divide(BigInteger.valueOf(expectedSplitCount)));
+                r.getNums()[diffIdx] = r.getNums()[diffIdx].add(
+                        diffRange
+                                .multiply(BigInteger.valueOf(i))
+                                .divide(BigInteger.valueOf(expectedSplitCount)));
                 rowidRange.add(r);
             }
             return rowidRange;
-        } else {
+        }
+        else {
             final long spaceId = rowMin.getNums()[diffIdx - 1].longValue();
 
             long totalBlocks = 0L;
-            for (var i = rowMin.getNums()[diffIdx];
-                 i.compareTo(rowMax.getNums()[diffIdx]) < 0;
-                 i = i.add(BigInteger.ONE)) {
+            for (var i = rowMin.getNums()[diffIdx]; i.compareTo(rowMax.getNums()[diffIdx]) < 0; i = i.add(BigInteger.ONE)) {
                 totalBlocks += blocksMap.get(spaceId + "-" + i);
             }
             totalBlocks -= rowMin.getNums()[diffIdx + 1].longValue();
