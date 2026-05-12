@@ -144,7 +144,6 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withValidation(Field::isNonNegativeInteger)
             .withDescription("The number of attempts to retry database errors during snapshots before failing.");
 
-
     @Deprecated
     public static final Field LOG_MINING_TRANSACTION_RETENTION = Field.create("log.mining.transaction.retention.hours")
             .withDisplayName("Log Mining long running transaction retention")
@@ -805,7 +804,6 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
     public int getSnapshotRetryDatabaseErrorsMaxRetries() {
         return snapshotRetryDatabaseErrorsMaxRetries;
     }
-
 
     /**
      * @return {@code true} if the legacy decimal handling behavior is used, {@code false} otherwise

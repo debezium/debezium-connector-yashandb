@@ -2,19 +2,13 @@ package io.debezium.connector.yashandb;
 
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 
-import io.debezium.pipeline.source.snapshot.incremental.ChunkQueryBuilder;
-import io.debezium.relational.RelationalDatabaseConnectorConfig;
-import io.debezium.spi.schema.DataCollectionId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,8 +18,11 @@ import io.debezium.DebeziumException;
 import io.debezium.config.Field;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.JdbcConnection;
+import io.debezium.pipeline.source.snapshot.incremental.ChunkQueryBuilder;
 import io.debezium.relational.ColumnEditor;
+import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
+import io.debezium.spi.schema.DataCollectionId;
 
 public class YashanDBConnection extends JdbcConnection {
     private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBConnection.class);

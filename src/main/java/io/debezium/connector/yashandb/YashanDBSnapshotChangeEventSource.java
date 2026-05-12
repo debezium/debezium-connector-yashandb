@@ -5,52 +5,29 @@
  */
 package io.debezium.connector.yashandb;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import io.debezium.util.Metronome;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
 import com.sics.ystream.result.Position;
 
-import io.debezium.connector.SnapshotRecord;
-import io.debezium.connector.yashandb.snapshot.SnapshotDataSyncTask;
-import io.debezium.connector.yashandb.snapshot.SnapshotSQLConstants;
-import io.debezium.jdbc.CancellableResultSet;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
 import io.debezium.pipeline.EventDispatcher;
@@ -59,24 +36,16 @@ import io.debezium.pipeline.source.SnapshottingTask;
 import io.debezium.pipeline.source.snapshot.incremental.SignalBasedIncrementalSnapshotContext;
 import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
-import io.debezium.pipeline.spi.ChangeRecordEmitter;
-import io.debezium.pipeline.spi.OffsetContext;
-import io.debezium.pipeline.spi.SnapshotResult;
 import io.debezium.pipeline.txmetadata.TransactionContext;
-import io.debezium.relational.Column;
-import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.RelationalSnapshotChangeEventSource;
-import io.debezium.relational.SnapshotChangeRecordEmitter;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.relational.Tables;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.snapshot.SnapshotterService;
-import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Clock;
-import io.debezium.util.ColumnUtils;
+import io.debezium.util.Metronome;
 import io.debezium.util.Strings;
-import io.debezium.util.Threads;
 
 /**
  * A {@link StreamingChangeEventSource} for YashanDB.
@@ -91,8 +60,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
     public YashanDBSnapshotChangeEventSource(YashanDBConnectorConfig connectorConfig, MainConnectionProvidingConnectionFactory connectionFactory,
                                              YashanDBDatabaseSchema schema, EventDispatcher<YashanDBPartition, TableId> dispatcher, Clock clock,
-                                           SnapshotProgressListener<YashanDBPartition> snapshotProgressListener,
-                                           NotificationService<YashanDBPartition, YashanDBOffsetContext> notificationService, SnapshotterService snapshotterService) {
+                                             SnapshotProgressListener<YashanDBPartition> snapshotProgressListener,
+                                             NotificationService<YashanDBPartition, YashanDBOffsetContext> notificationService, SnapshotterService snapshotterService) {
         super(connectorConfig, connectionFactory, schema, dispatcher, clock, snapshotProgressListener, notificationService, snapshotterService);
         this.connectorConfig = connectorConfig;
         this.jdbcConnection = (YashanDBConnection) connectionFactory.mainConnection();

@@ -9,12 +9,9 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import io.debezium.relational.Attribute;
-import io.debezium.util.LRUCacheMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
