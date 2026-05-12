@@ -362,7 +362,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("OracleOffsetContext [scn=").append(getScn());
+        StringBuilder sb = new StringBuilder("YashanDBOffsetContext [scn=").append(getScn());
 
         if (sourceInfo.isSnapshot()) {
             sb.append(", snapshot=").append(sourceInfo.isSnapshot());

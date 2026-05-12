@@ -19,8 +19,6 @@ import io.debezium.relational.TableId;
 
 /**
  * Abstract implementation of the {@link StreamingAdapter} for which all streaming adapters are derived.
- *
- * @author Chris Cranford
  */
 public abstract class AbstractStreamingAdapter implements StreamingAdapter {
 

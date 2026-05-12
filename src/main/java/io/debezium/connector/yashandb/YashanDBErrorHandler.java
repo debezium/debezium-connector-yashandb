@@ -16,41 +16,22 @@ import io.debezium.util.Collect;
 
 /**
  * Error handle for YashanDB.
- *
- * @author Chris Cranford
  */
 public class YashanDBErrorHandler extends ErrorHandler {
 
     /**
-     * Contents of this set should only be ORA-xxxxx errors;
+     * Contents of this set should only be YAS-xxxxx errors;
      * The error check uses starts-with semantics
      */
     @Immutable
-    private static final Set<String> RETRIABLE_ERROR_CODES = Collect.unmodifiableSet(
-            "ORA-03135", // connection lost
-            "ORA-12543", // TNS:destination host unreachable
-            "ORA-00604", // error occurred at recursive SQL level 1
-            "ORA-01089", // Oracle immediate shutdown in progress
-            "ORA-01333", // Failed to establish LogMiner dictionary
-            "ORA-01284", // Redo/Archive log cannot be opened, likely locked
-            "ORA-26653", // Apply DBZXOUT did not start properly and is currently in state INITIALI
-            "ORA-01291", // missing logfile
-            "ORA-01327", // failed to exclusively lock system dictionary as required BUILD
-            "ORA-04030", // out of process memory
-            "ORA-00310", // archived log contains sequence *; sequence * required
-            "ORA-01343", // LogMiner encountered corruption in the logstream
-            "ORA-01371"); // Complete LogMiner dictionary not found
+    private static final Set<String> RETRIABLE_ERROR_CODES = Collect.unmodifiableSet();
 
     /**
      * Contents of this set should be any type of error message text;
      * The error check uses case-insensitive contains semantics
      */
     @Immutable
-    private static final Set<String> RETRIABLE_ERROR_MESSAGES = Collect.unmodifiableSet(
-            "No more data to read from socket",
-            "immediate shutdown or close in progress", // nested ORA-01089
-            "failed to exclusively lock system dictionary" // nested ORA-01327
-    );
+    private static final Set<String> RETRIABLE_ERROR_MESSAGES = Collect.unmodifiableSet();
 
     public YashanDBErrorHandler(YashanDBConnectorConfig connectorConfig, ChangeEventQueue<?> queue, ErrorHandler replacedErrorHandler) {
         super(YashanDBConnector.class, connectorConfig, queue, replacedErrorHandler);
@@ -67,13 +48,13 @@ public class YashanDBErrorHandler extends ErrorHandler {
             // If message is provided, run checks against it
             final String message = throwable.getMessage();
             if (message != null && message.length() > 0) {
-                // Check Oracle error codes
+                // Check YashanDB error codes
                 for (String errorCode : RETRIABLE_ERROR_CODES) {
                     if (message.startsWith(errorCode)) {
                         return true;
                     }
                 }
-                // Check Oracle error message texts
+                // Check YashanDB error message texts
                 for (String messageText : RETRIABLE_ERROR_MESSAGES) {
                     if (message.toUpperCase().contains(messageText.toUpperCase())) {
                         return true;

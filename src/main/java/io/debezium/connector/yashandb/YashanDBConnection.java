@@ -3,12 +3,18 @@ package io.debezium.connector.yashandb;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
+import io.debezium.pipeline.source.snapshot.incremental.ChunkQueryBuilder;
+import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.spi.schema.DataCollectionId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,28 +35,6 @@ public class YashanDBConnection extends JdbcConnection {
     private static final Field URL = Field.create("url", "Raw JDBC url");
 
     private static final int YASHANDB_UNSET_SCALE = -127;
-
-    /** Dialect query field. */
-    enum DialectQueryField {
-        TABLE_NAME("tableName"),
-        SCHEMA_NAME("schemaName"),
-        DATA_SIZE("dataSize"),
-        MIN_ROWID("minRowid"),
-        MAX_ROWID("maxRowid"),
-        TS_ID("tsId"),
-        DATAFILE_NO("datafileNo"),
-        BLOCKS("blocks");
-
-        private final String name;
-
-        DialectQueryField(final String name) {
-            this.name = name;
-        }
-
-        public final String getName() {
-            return this.name;
-        }
-    }
 
     public YashanDBConnection(JdbcConfiguration config) {
         super(config, resolveConnectionFactory(config), QUOTED_CHARACTER, QUOTED_CHARACTER);
@@ -112,29 +96,6 @@ public class YashanDBConnection extends JdbcConnection {
         }
     }
 
-    public boolean isTableExists(String tableName) throws SQLException {
-        return queryAndMap("SELECT COUNT(1) FROM USER_TABLES WHERE TABLE_NAME = '" + tableName + "'",
-                rs -> rs.next() && rs.getLong(1) > 0);
-    }
-
-    public boolean isTableExists(TableId tableId) throws SQLException {
-        return queryAndMap("SELECT COUNT(1) FROM ALL_TABLES WHERE OWNER = '" + tableId.schema() + "' AND TABLE_NAME = '" + tableId.table() + "'",
-                rs -> rs.next() && rs.getLong(1) > 0);
-    }
-
-    public boolean isTableEmpty(String tableName) throws SQLException {
-        return getRowCount(tableName) == 0L;
-    }
-
-    public long getRowCount(String tableName) throws SQLException {
-        return queryAndMap("SELECT COUNT(1) FROM " + tableName, rs -> {
-            if (rs.next()) {
-                return rs.getLong(1);
-            }
-            return 0L;
-        });
-    }
-
     @Override
     public String buildSelectWithRowLimits(TableId tableId,
                                            int limit,
@@ -182,59 +143,6 @@ public class YashanDBConnection extends JdbcConnection {
         }
     }
 
-    public boolean tableIsEmptyAsOfScn(String sql) throws SQLException {
-        return queryAndMap(sql, (rs) -> {
-            LOGGER.trace("get table is empty,sql:{}", sql);
-            return !rs.next();
-        });
-    }
-
-    public void processTableSizeQuery(String sql, ConcurrentMap<TableId, SnapshotTableSplitInfo> splitInfoMap)
-            throws SQLException {
-
-        query(sql, (rs) -> {
-            while (rs.next()) {
-                String schema = rs.getString(DialectQueryField.SCHEMA_NAME.getName());
-                String tableName = rs.getString(DialectQueryField.TABLE_NAME.getName());
-
-                SnapshotTableSplitInfo splitInfo = splitInfoMap.get(new TableId("", schema, tableName));
-                if (splitInfo != null) {
-                    splitInfo.increaseSize(rs.getInt(DialectQueryField.DATA_SIZE.getName()));
-                }
-                else {
-                    LOGGER.error("The table {}.{} is not in the application cache", schema, tableName);
-                }
-            }
-            LOGGER.trace("get table size,sql:{}", sql);
-        });
-    }
-
-    public void batchCheckTablesArePartitioned(String schema, String sql, ConcurrentMap<TableId, YaShanDBPartitionInfo> tablePartitionMap)
-            throws SQLException {
-        query(sql, (rs) -> {
-            while (rs.next()) {
-                final String name = rs.getString(1);
-                tablePartitionMap.put(
-                        new TableId("", schema, rs.getString(1)),
-                        new YaShanDBPartitionInfo(schema, rs.getString(1), Boolean.parseBoolean(rs.getString(2))));
-            }
-            LOGGER.trace("get Partitioned,sql: {}", sql);
-        });
-
-    }
-
-    public void queryTablesPartitionInfor(String sql, ArrayList<YaShanDBPartitionInfo.SubPartitionInfo> tablePartitionInfor)
-            throws SQLException {
-        query(sql, (rs) -> {
-            while (rs.next()) {
-                tablePartitionInfor.add(
-                        new YaShanDBPartitionInfo.SubPartitionInfo(rs.getString(2), rs.getString(3), rs.getLong(4)));
-            }
-            LOGGER.trace("get tables  partition infor,sql: {}", sql);
-        });
-
-    }
-
     public Set<TableId> getAllTableIds(String catalogName) throws SQLException {
         final String query = "select owner, table_name from all_tables ";
 
@@ -277,19 +185,18 @@ public class YashanDBConnection extends JdbcConnection {
         return column;
     }
 
-    public void queryDatafileInfo(String sql, HashMap<String, Integer> datafileMap)
-            throws SQLException {
-        query(sql, (rs) -> {
-            while (rs.next()) {
-                final String name = rs.getString(1);
-                datafileMap.put(
-                        rs.getString(DialectQueryField.TS_ID.getName())
-                                + "-"
-                                + rs.getString(DialectQueryField.DATAFILE_NO.getName()),
-                        rs.getInt(DialectQueryField.BLOCKS.getName()));
-            }
-            LOGGER.trace("query datafile Info,sql: {}", sql);
-        });
+    public List<String> getSQLKeywords() {
+        try {
+            return Arrays.asList(connection().getMetaData().getSQLKeywords().split(","));
+        }
+        catch (SQLException e) {
+            LOGGER.debug("Failed to acquire SQL keywords from JDBC driver.", e);
+            return Collections.emptyList();
+        }
+    }
 
+    @Override
+    public <T extends DataCollectionId> ChunkQueryBuilder<T> chunkQueryBuilder(RelationalDatabaseConnectorConfig connectorConfig) {
+        return new YashanDBPhysicalRowIdentifierChunkQueryBuilder<>(connectorConfig, this);
     }
 }

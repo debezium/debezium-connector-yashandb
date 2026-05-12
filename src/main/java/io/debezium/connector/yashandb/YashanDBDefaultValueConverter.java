@@ -45,9 +45,6 @@ import io.debezium.relational.ValueConverter;
 import io.debezium.util.Collect;
 import io.debezium.util.Strings;
 
-/**
- * @author Chris Cranford
- */
 @ThreadSafe
 @Immutable
 public class YashanDBDefaultValueConverter implements DefaultValueConverter {
@@ -56,39 +53,9 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
 
     private final YashanDBValueConverters valueConverters;
     private final Map<Integer, DefaultValueMapper> defaultValueMappers;
-    private static final Pattern EPOCH_EQUIVALENT_TIMESTAMP = Pattern.compile("(\\d{4}-\\d{2}-00|\\d{4}-00-\\d{2}|0000-\\d{2}-\\d{2}) (00:00:00(\\.\\d{1,6})?)");
-    private static final Pattern EPOCH_EQUIVALENT_DATE = Pattern.compile("\\d{4}-\\d{2}-00|\\d{4}-00-\\d{2}|0000-\\d{2}-\\d{2}");
-    private static final String EPOCH_TIMESTAMP = "1970-01-01 00:00:00";
-    private static final String EPOCH_DATE = "1970-01-01";
     private static final Pattern TIME_FIELD_PATTERN = Pattern.compile("(\\-?[0-9]*):([0-9]*)(:([0-9]*))?(\\.([0-9]*))?");
-    private static final Pattern CHARSET_INTRODUCER_PATTERN = Pattern.compile("^_[A-Za-z0-9]+'(.*)'$");
     private static final Pattern TIMESTAMP_PATTERN = Pattern.compile("([0-9]*-[0-9]*-[0-9]*) ([0-9]*:[0-9]*:[0-9]*(\\.([0-9]*))?)");
-    private static final DateTimeFormatter TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
-            .parseCaseInsensitive()
-            .appendPattern("y-M-d HH:mm:ss")
-            .optionalStart()
-            .appendPattern(".")
-            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, false)
-            .optionalEnd()
-            .toFormatter();
     private static final Pattern DATE_PATTERN = Pattern.compile("([0-9]*-[0-9]*-[0-9]*)");
-    // Default values of these data types and number data types need to be trimmed.
-    @Immutable
-    private static final Set<Integer> TRIM_DATA_TYPES_BESIDES_NUMBER = Collect.unmodifiableSet(Types.DATE,
-            Types.TIMESTAMP, Types.TIMESTAMP_WITH_TIMEZONE, Types.TIME, Types.BOOLEAN);
-
-    @Immutable
-    private static final Set<Integer> NUMBER_DATA_TYPES = Collect.unmodifiableSet(Types.BIT, Types.TINYINT,
-            Types.SMALLINT, Types.INTEGER, Types.BIGINT, Types.FLOAT, Types.REAL, Types.DOUBLE, Types.NUMERIC,
-            Types.DECIMAL);
-
-    private static final DateTimeFormatter ISO_LOCAL_DATE_WITH_OPTIONAL_TIME = new DateTimeFormatterBuilder()
-            .append(DateTimeFormatter.ISO_LOCAL_DATE)
-            .optionalStart()
-            .appendLiteral(" ")
-            .append(DateTimeFormatter.ISO_LOCAL_TIME)
-            .optionalEnd()
-            .toFormatter();
 
     public YashanDBDefaultValueConverter(YashanDBValueConverters valueConverters, YashanDBConnection jdbcConnection) {
         this.valueConverters = valueConverters;
@@ -203,14 +170,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
     }
 
     private static Map<Integer, DefaultValueMapper> createDefaultValueMappers(YashanDBConnection jdbcConnection) {
-        // Data types that are supported should be registered in the map. Many of the data types
-        // have String-based conversions defined in OracleValueConverters since LogMiner provides
-        // column values as strings. The only special handling that is needed here is if a type
-        // is formatted with unique characteristics such as single/double quotes for strings.
-        //
-        // Additionally, we use the OracleTypes numeric representation for data types rather than
-        // the type name like we do for SQL Server since the type names can include precision
-        // and scale, i.e. TIMESTAMP(6) or INTERVAL YEAR(2) TO MONTH.
+        // Data types that are supported should be registered in the map.
         final Map<Integer, DefaultValueMapper> result = new HashMap<>();
 
         // Numeric types
@@ -316,7 +276,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
                 }
                 else {
                     // For all other temporal types, return "0".
-                    // The return is a string-value as the OracleValueConverters know how to explicitly infer
+                    // The return is a string-value as the YashanDBValueConverters know how to explicitly infer
                     // whether to emit the final converted value as either a string or numeric value based on
                     // the column's data type.
                     return "0";
@@ -354,7 +314,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
                 }
                 else {
                     // For all other temporal types, return "0".
-                    // The return is a string-value as the OracleValueConverters know how to explicitly infer
+                    // The return is a string-value as the YashanDBValueConverters know how to explicitly infer
                     // whether to emit the final converted value as either a string or numeric value based on
                     // the column's data type.
                     return "0";
@@ -444,7 +404,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
                 }
                 else {
                     // For all other temporal types, return "0".
-                    // The return is a string-value as the OracleValueConverters know how to explicitly infer
+                    // The return is a string-value as the YashanDBValueConverters know how to explicitly infer
                     // whether to emit the final converted value as either a string or numeric value based on
                     // the column's data type.
                     return "0";
@@ -490,7 +450,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
                 }
                 else {
                     // For all other temporal types, return "0".
-                    // The return is a string-value as the OracleValueConverters know how to explicitly infer
+                    // The return is a string-value as the YashanDBValueConverters know how to explicitly infer
                     // whether to emit the final converted value as either a string or numeric value based on
                     // the column's data type.
                     return "0";

@@ -51,7 +51,7 @@ public class YStreamOffsetContextLoader implements OffsetContext.Loader<YashanDB
         final Scn snapshotScn = YashanDBOffsetContext.loadSnapshotScn(offset);
         final Scn ystreamStartScn = YashanDBOffsetContext.loadYstreamStartScn(offset);
         final Position recoverPosition = YashanDBOffsetContext.loadRecoverPosition(offset);
-        LOGGER.info("loader offset context isCreateServer:{}, position:{}", isCreateServer, recoverPosition);
+        LOGGER.debug("loader offset context isCreateServer:{}, position:{}", isCreateServer, recoverPosition);
         return new YashanDBOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions,
                 snapshot, snapshotCompleted, TransactionContext.load(offset), SignalBasedIncrementalSnapshotContext.load(offset), isCreateServer);
     }

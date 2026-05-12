@@ -46,8 +46,6 @@ import io.debezium.util.Clock;
 
 /**
  * Handler for YashanDB DDL and DML events. Just forwards events to the {@link EventDispatcher}.
- *
- * @author Gunnar Morling
  */
 class YStreamEventHandler {
 
@@ -159,7 +157,6 @@ class YStreamEventHandler {
             Thread.interrupted();
             LOGGER.info("Received signal to stop, event loop will halt");
         }
-        // XStream's receiveLCRCallback() doesn't reliably propagate exceptions, so we do that ourselves here
         catch (Exception e) {
             LOGGER.error("Process record: {},{}",
                     Objects.toString(record.getYstreamLcrInterface(), "null"),
@@ -172,9 +169,6 @@ class YStreamEventHandler {
     private void processDml(YStreamDataChangeRecord record, YstreamDml dml) throws InterruptedException {
 
         if (dml.hasChunkData()) {
-            // If the row has chunk data, the RowLCR cannot be immediately dispatched.
-            // The handler needs to cache the current row and wait for the chunks to be delivered before
-            // the event can be safely dispatched. See processChunk below.
             currentRecord = record;
             YstreamColumns newValues = record.getYstreamDml().getNewValues();
             newValues.getColumns().forEach(ystreamColumn -> {
@@ -202,12 +196,11 @@ class YStreamEventHandler {
         }
 
         try {
-            // Xstream does not provide any before state for LOB columns and so this map will be
-            // populated here by column name with the OracleValueConverters.UNAVAILABLE_VALUE.
+            // YStream does not provide any before state for LOB columns and so this map will be
+            // populated here by column name with the YashanDBValueConverters.UNAVAILABLE_VALUE.
             Map<String, Object> oldChunkValues = new HashMap<>(0);
 
             if (chunkValues == null) {
-                // Happens when dispatching an LCR without any chunk data.
                 chunkValues = new HashMap<>(0);
             }
 
@@ -222,7 +215,6 @@ class YStreamEventHandler {
             // marker object so its transformed correctly by the value converters.
 
             for (Column column : schema.getLobColumnsForTable(table.id())) {
-                // again Xstream doesn't supply before state for LOB values; explicitly use unavailable value
                 oldChunkValues.put(column.name(), YashanDBValueConverters.UNAVAILABLE_VALUE);
                 if (!chunkValues.containsKey(column.name())) {
                     // Column not supplied, initialize with unavailable value marker
@@ -247,13 +239,11 @@ class YStreamEventHandler {
                 oldValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
             }
             if (!truncateTable) {
-                // 获取被修改的字段名称
                 Set<String> columnNamesPresentInAfter = record.getYstreamDml().getNewValues().getColumns().stream()
                         .filter(ystreamColumn -> !ystreamColumn.getColumn().isDeleted())
                         .map(ystreamColumn -> ystreamColumn.getColumn().getColumnName())
                         .collect(Collectors.toSet());
                 YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues, columnNamesPresentInAfter, tableFor);
-                // YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
             }
             dispatcher.dispatchDataChangeEvent(
                     partition,

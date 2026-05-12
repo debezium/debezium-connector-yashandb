@@ -8,6 +8,7 @@ package io.debezium.connector.yashandb;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -158,7 +159,7 @@ public class SourceInfo extends BaseSourceInfo {
     public String tableSchema() {
         return (tableIds == null || tableIds.isEmpty()) ? null
                 : tableIds.stream()
-                        .filter(x -> x != null)
+                        .filter(Objects::nonNull)
                         .map(TableId::schema)
                         .distinct()
                         .collect(Collectors.joining(","));
@@ -167,7 +168,7 @@ public class SourceInfo extends BaseSourceInfo {
     public String table() {
         return (tableIds == null || tableIds.isEmpty()) ? null
                 : tableIds.stream()
-                        .filter(x -> x != null)
+                        .filter(Objects::nonNull)
                         .map(TableId::table)
                         .collect(Collectors.joining(","));
     }
