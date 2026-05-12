@@ -152,10 +152,13 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- TODO: Revert to Maven repository dependency loading in the future -->
         <dependency>
             <groupId>com.sics.ystream</groupId>
             <artifactId>Ystream</artifactId>
             <version>1.9.24-5-ga1d21dc-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/Ystream-1.9.24-5-ga1d21dc-SNAPSHOT.jar</systemPath>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
