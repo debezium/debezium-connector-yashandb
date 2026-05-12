@@ -6,33 +6,21 @@ An incubating Debezium CDC (Change Data Capture) connector for [YashanDB](https:
 
 ## Overview
 
-YashanDB is a distributed database system developed by Yashan Technologies. This connector captures row-level changes that insert, update, and delete records in a YashanDB database, and delivers those change events to Kafka topics.
+YashanDB is a distributed database system developed by Yashan Technologies. This connector captures row-level changes (insert, update, delete) from a YashanDB database and delivers those change events to Kafka topics.
 
-The connector is based on Debezium 3.6.0 and leverages YashanDB's YStream technology for efficient change data capture.
-
-## Features
-
-- **Real-time CDC**: Captures insert, update, and delete operations from YashanDB tables
-- **Snapshot Support**: Performs initial snapshots of table data before streaming changes
-- **Schema Evolution**: Tracks and records schema changes in a dedicated history topic
-- **Exactly-Once Delivery**: Supports exactly-once semantics for reliable data delivery
-- **Partitioned Table Support**: Handles both regular and partitioned tables
-- **Incremental Snapshots**: Supports signal-based incremental snapshot functionality
+Built on Debezium 3.6.0, the connector leverages YashanDB's YStream technology for efficient change data capture.
 
 ## Prerequisites
 
-- Java 21 or higher (required by Debezium 3.6.0)
-- Apache Kafka 3.6.x with Kafka Connect
-- YashanDB database with YStream enabled
-- YashanDB JDBC driver (version 1.9.24 or compatible)
+- **JDK 21+** (required by Debezium 3.6.0)
+- **Apache Kafka 3.6.x** with Kafka Connect
+- **YashanDB** with YStream enabled
+- **YashanDB JDBC driver** (version 1.9.24 or compatible)
+- **YStream library** (`com.sics.ystream:Ystream`)
 
 ## Building
 
 ```bash
-# Clone the repository
-git clone https://github.com/debezium/debezium-connector-yashandb.git
-cd debezium-connector-yashandb
-
 # Build connector JAR only
 mvn clean package -DskipTests
 
@@ -48,75 +36,62 @@ mvn clean package -Passembly -DskipTests
 | `debezium-connector-yashandb-3.6.0-SNAPSHOT-plugin.tar.gz` | Distribution package with all dependencies |
 | `debezium-connector-yashandb-3.6.0-SNAPSHOT-plugin.zip` | Distribution package with all dependencies |
 
-The `-Passembly` profile generates a distribution package containing the connector JAR and all required dependencies, ready for deployment to Kafka Connect.
+### Local Dependency Note
+
+The YStream library is currently loaded from the local `lib/` directory via `systemPath`. To revert to Maven repository loading:
+
+1. Remove `<scope>system</scope>` and `<systemPath>` from the YStream dependency in `pom.xml`
+2. Ensure the YStream artifact is available in a configured Maven repository
 
 ## Deployment
 
-### Kafka Connect Deployment
-
-1. Extract the distribution package to your Kafka Connect plugin directory:
+Extract the distribution package to your Kafka Connect plugin directory:
 
 ```bash
-# Using the distribution package (recommended)
+# Using tar.gz
 tar -xzf target/debezium-connector-yashandb-3.6.0-SNAPSHOT-plugin.tar.gz \
     -C $KAFKA_CONNECT_PLUGINS_DIR/
 
-# Or using zip package
+# Or using zip
 unzip target/debezium-connector-yashandb-3.6.0-SNAPSHOT-plugin.zip \
     -d $KAFKA_CONNECT_PLUGINS_DIR/
 ```
 
-The distribution package includes:
-- Connector JAR
-- YashanDB JDBC driver
-- YStream library
-- All required Debezium and Kafka dependencies
-
-2. Restart Kafka Connect to load the new connector.
+Then restart Kafka Connect to load the new connector.
 
 ## Configuration
 
-### Required Configuration Properties
+### Required Properties
 
 | Property | Description | Default |
 |----------|-------------|---------|
-| `name` | Unique name for the connector instance | - |
-| `connector.class` | Connector class name | `io.debezium.connector.yashandb.YashanDbConnector` |
+| `name` | Unique connector instance name | - |
+| `connector.class` | Connector class | `io.debezium.connector.yashandb.YashanDbConnector` |
 | `database.hostname` | YashanDB server hostname | - |
 | `database.port` | YashanDB server port | `1688` |
-| `database.user` | Database user name | - |
+| `database.user` | Database user | - |
 | `database.password` | Database password | - |
-| `database.dbname` | Database name to capture changes from | - |
+| `database.dbname` | Database name | - |
 | `database.ystream.server.name` | YStream server name | - |
-| `topic.prefix` | Topic name prefix for all events | - |
+| `topic.prefix` | Topic name prefix | - |
 
-### Optional Configuration Properties
+### Optional Properties
 
-#### Snapshot Configuration
+#### Snapshot
 
 | Property | Description | Default |
 |----------|-------------|---------|
-| `snapshot.mode` | Snapshot mode: `initial`, `initial_only`, `schema_only`, `schema_only_recovery`, `always` | `initial` |
-| `snapshot.locking.mode` | Locking mode during snapshot: `shared`, `none` | `shared` |
+| `snapshot.mode` | `initial`, `initial_only`, `schema_only`, `schema_only_recovery`, `always` | `initial` |
+| `snapshot.locking.mode` | `shared`, `none` | `shared` |
 | `snapshot.enhance.predicate.scn` | Token for snapshot predicate enhancement | - |
 | `snapshot.database.errors.max.retries` | Max retries for snapshot database errors | `0` |
 
-#### Log Mining Configuration
+#### Data Types
 
 | Property | Description | Default |
 |----------|-------------|---------|
-| `log.mining.batch.size.default` | Default batch size for reading redo/archive logs | `20000` |
-| `log.mining.batch.size.min` | Minimum batch size | `1000` |
-| `log.mining.batch.size.max` | Maximum batch size | `100000` |
-| `log.mining.transaction.retention.ms` | Transaction retention duration in milliseconds | `0` |
-| `log.mining.archive.log.hours` | Hours of archive logs to mine | `0` |
-
-#### Data Type Handling
-
-| Property | Description | Default |
-|----------|-------------|---------|
-| `interval.handling.mode` | How to represent INTERVAL columns: `string`, `numeric` | `numeric` |
-| `decimal.handling.mode` | How to represent DECIMAL columns: `precise`, `double`, `string` | `precise` |
+| `interval.handling.mode` | INTERVAL column representation: `string`, `numeric` | `numeric` |
+| `decimal.handling.mode` | DECIMAL column representation: `precise`, `double`, `string` | `precise` |
 | `legacy.decimal.handling.strategy` | Legacy decimal handling strategy | - |
 
 ### Example Configuration
@@ -139,11 +114,9 @@ The distribution package includes:
 }
 ```
 
-## Output Format
+## Output
 
-Each change event is structured as follows:
-
-### Key Structure
+### Event Key
 
 ```json
 {
@@ -156,14 +129,14 @@ Each change event is structured as follows:
 }
 ```
 
-### Value Structure
+### Event Value
 
 ```json
 {
   "schema": { ... },
   "payload": {
-    "before": { ... },  // Previous state (null for inserts)
-    "after": { ... },   // Current state (null for deletes)
+    "before": { ... },
+    "after": { ... },
     "source": {
       "version": "3.6.0",
       "connector": "yashandb",
@@ -174,70 +147,82 @@ Each change event is structured as follows:
       "table": "TABLE1",
       "scn": "123456"
     },
-    "op": "c",  // c=create, u=update, d=delete, r=read (snapshot)
+    "op": "c",
     "ts_ms": 1234567890
   }
 }
 ```
 
-## Topic Naming
+Operation codes: `c` = create, `u` = update, `d` = delete, `r` = read (snapshot).
 
-The connector produces events to Kafka topics with the following naming pattern:
+### Topic Naming
+
+Events are published to topics following this pattern:
 
 ```
 <topic.prefix>.<schema_name>.<table_name>
 ```
 
-For example, with `topic.prefix=yashandb`, changes to `SCHEMA1.TABLE1` would be published to:
-
-```
-yashandb.SCHEMA1.TABLE1
-```
+Example: `yashandb.SCHEMA1.TABLE1`
 
 ## Monitoring
 
-The connector provides JMX metrics for monitoring:
-
-- **Snapshot Metrics**: Track snapshot progress, table counts, and row counts
-- **Streaming Metrics**: Monitor SCN positions, transaction counts, and lag
-
-Access metrics via JMX at:
+JMX metrics are available at:
 
 ```
 io.debezium.connector.yashandb:type=connector-metrics,context=snapshot,server=<connector_name>
 io.debezium.connector.yashandb:type=connector-metrics,context=streaming,server=<connector_name>
 ```
 
-## Known Limitations
+- **Snapshot Metrics**: Snapshot progress, table counts, row counts
+- **Streaming Metrics**: SCN positions, transaction counts, replication lag
 
-- This connector is in **incubating** status and may have limitations
-- Only a single connector task is supported per connector instance
-- Requires YStream to be properly configured on the YashanDB server
+## Features
 
-## Development
+- **Real-time CDC**: Captures insert, update, and delete operations
+- **Snapshot Support**: Initial table data snapshots before streaming
+- **Schema Evolution**: Tracks schema changes in a dedicated history topic
+- **Exactly-Once Delivery**: Supports exactly-once semantics
+- **Partitioned Table Support**: Handles regular and partitioned tables
+- **Incremental Snapshots**: Signal-based incremental snapshot support
 
-### Project Structure
+## Project Structure
 
 ```
 src/main/java/io/debezium/connector/yashandb/
-├── YashanDbConnector.java           # Main connector class
-├── YashanDbConnectorConfig.java     # Configuration definitions
-├── YashanDbConnectorTask.java       # Task implementation
-├── YashanDBConnection.java          # Database connection handling
-├── YashanDBSnapshotChangeEventSource.java  # Snapshot processing
-├── YashanDBOffsetContext.java       # Offset management
-├── YashanDBDatabaseSchema.java      # Schema management
-├── ystream/                         # YStream integration
+├── YashanDbConnector.java              # Main connector class
+├── YashanDbConnectorConfig.java        # Configuration definitions
+├── YashanDbConnectorTask.java          # Task implementation
+├── YashanDbConnection.java             # Database connection handling
+├── YashanDbSnapshotChangeEventSource.java  # Snapshot processing
+├── YashanDbOffsetContext.java          # Offset management
+├── YashanDbDatabaseSchema.java         # Schema management
+├── YashanDbValueConverters.java        # Data type conversion
+├── ystream/                            # YStream integration
 │   ├── YStreamAdapter.java
-│   └── YStreamEventHandler.java
-└── ddl/parser/                      # DDL parsing
+│   ├── YStreamEventHandler.java
+│   └── ...
+├── antlr/listener/                     # DDL parsing listeners
+├── converters/                         # Data converters
+├── metadata/                           # Metadata providers
+└── outbox/                             # Outbox support
 ```
 
-### Running Tests
+## Development
 
 ```bash
+# Run unit tests
 mvn test
+
+# Run tests with coverage report
+mvn verify
 ```
+
+## Known Limitations
+
+- Connector is in **incubating** status
+- Only a single connector task is supported per instance
+- YStream must be properly configured on the YashanDB server
 
 ## Contributing
 
@@ -245,11 +230,11 @@ Please submit issues and pull requests through the [Debezium GitHub repository](
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0. See [LICENSE](http://www.apache.org/licenses/LICENSE-2.0) for details.
+Apache License, Version 2.0. See [LICENSE](http://www.apache.org/licenses/LICENSE-2.0) for details.
 
 ## Resources
 
 - [Debezium Documentation](https://debezium.io/documentation/)
-- [YashanDB Documentation](https://www.yasdb.com/docs/)
+- [YashanDB Documentation](https://doc.yashandb.com/)
 - [Debezium Community](https://debezium.io/community/)
 - [GitHub Issues](https://github.com/debezium/dbz/issues)
