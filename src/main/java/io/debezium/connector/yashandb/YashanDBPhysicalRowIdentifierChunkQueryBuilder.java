@@ -5,11 +5,12 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.sql.Types;
+
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.pipeline.source.snapshot.incremental.PhysicalRowIdentifierChunkQueryBuilder;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.spi.schema.DataCollectionId;
-import java.sql.Types;
 
 /**
  * YashanDB implementation that exposes {@code ROWID} as a physical row identifier for incremental snapshots.

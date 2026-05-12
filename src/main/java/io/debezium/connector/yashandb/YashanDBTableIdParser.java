@@ -5,10 +5,10 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.util.List;
+
 import io.debezium.relational.TableId;
 import io.debezium.util.Strings;
-
-import java.util.List;
 
 /**
  * Specialized parser implementation for YashanDB {@link TableId} instances.
