@@ -1,0 +1,104 @@
+#
+# Copyright Debezium Authors
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Release workflow triggered on tag push (v*)
+# Creates GitHub release with connector artifacts
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout core repository
+        uses: actions/checkout@v4
+        with:
+          repository: debezium/debezium
+          ref: main
+          path: core
+
+      - name: Checkout YashanDB connector
+        uses: actions/checkout@v4
+        with:
+          path: yashandb
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 11
+          cache: 'maven'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-release-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Maven build core
+        run: |
+          cd core
+          mvn clean install \
+            -pl debezium-bom,debezium-connector-common,debezium-config,debezium-util,debezium-embedded,debezium-storage,debezium-connect-plugins -am \
+            -DskipTests -DskipITs \
+            -Dhttp.keepAlive=false \
+            -Dmaven.wagon.http.pool=false \
+            -Dmaven.wagon.httpconnectionManager.ttlSeconds=120
+
+      - name: Maven build YashanDB connector (assembly)
+        run: |
+          cd yashandb
+          mvn clean install -Passembly \
+            -DskipTests -DskipITs \
+            -Dhttp.keepAlive=false \
+            -Dmaven.wagon.http.pool=false \
+            -Dmaven.wagon.httpconnectionManager.ttlSeconds=120
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: List artifacts
+        run: |
+          echo "=== Generated artifacts ==="
+          ls -la yashandb/target/*.tar.gz || echo "No tar.gz files found"
+          ls -la yashandb/target/*.jar || echo "No jar files found"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Debezium YashanDB Connector v${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## Debezium YashanDB Connector Release v${{ steps.get_version.outputs.VERSION }}
+
+            ### What's Changed
+            See commit history for changes in this release.
+
+            ### Installation
+            1. Download the connector archive below
+            2. Extract to your Kafka Connect plugins directory
+            3. Restart Kafka Connect
+
+            ### Connector Configuration
+            Refer to [README](https://github.com/${{ github.repository }}/blob/main/README.md) for configuration details.
+
+          files: |
+            yashandb/target/*.tar.gz
+            yashandb/target/debezium-connector-yashandb-*.jar
+          draft: false
+          prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'SNAPSHOT') }}
+
+      - name: Summary
+        run: |
+          echo "✅ Release created successfully!"
+          echo "Version: ${{ steps.get_version.outputs.VERSION }}"
+          echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.get_version.outputs.VERSION }}"
