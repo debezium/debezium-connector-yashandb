@@ -219,17 +219,9 @@ public class CommitScn implements Comparable<Scn> {
         if (value instanceof String) {
             return CommitScn.valueOf((String) value);
         }
-        // todo:
-        // Much like the parsing handler in the RedOThreadCommitScn class, the same question applies here.
-        // When we do consider removing this behavior? The migration of Long to String occurred in the
-        // 1.5.0.Final release, can we drop this in 2.0?
         else if (value != null) {
-            // This might be a legacy offset being read when the values were Long data types.
-            // In this case, we can assume that the redo thread is 1 and explicitly create a
-            // redo thread entry for it.
             return CommitScn.valueOf((Long) value);
         }
-        // return a commit scn instance with no redo thread data.
         return new CommitScn(Collections.emptySet());
     }
 

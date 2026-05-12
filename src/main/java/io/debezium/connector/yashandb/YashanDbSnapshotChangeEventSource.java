@@ -337,7 +337,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
                                 snapshotContext.offset,
                                 table.id().identifier());
 
-                        if (maxRetries > 0 && isTableSnapshotErrorRetriable(e)) {
+                        if (maxRetries > 0) {
                             if ((i + 1) <= maxRetries) {
                                 LOGGER.warn("Table {} snapshot failed: {}, attempting to retry ({} of {})",
                                         table.id(), e.getMessage(), i, getTableSnapshotMaxRetries());
@@ -365,18 +365,6 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
      */
     private int getTableSnapshotMaxRetries() {
         return connectorConfig.getSnapshotRetryDatabaseErrorsMaxRetries();
-    }
-
-    /**
-     * Returns whether the specified table snapshot exception is retriable.
-     *
-     * @param exception the exception that was thrown
-     * @return true if the exception should trigger a retry, false if the exception should fail
-     */
-    protected boolean isTableSnapshotErrorRetriable(SQLException exception) {
-        // ORA-01466 - the table's metadata changed during the flashback query.
-        // Attempt to recover by having the caller restart the table's snapshot from the beginning.
-        return exception.getErrorCode() == 1466;
     }
 
 }
