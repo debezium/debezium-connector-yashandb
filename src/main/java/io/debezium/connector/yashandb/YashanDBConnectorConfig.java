@@ -1,0 +1,1523 @@
+/*
+ * Copyright Debezium Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.debezium.connector.yashandb;
+
+import io.debezium.config.CommonConnectorConfig;
+import io.debezium.config.ConfigDefinition;
+import io.debezium.config.Configuration;
+import io.debezium.config.EnumeratedValue;
+import io.debezium.config.Field;
+import io.debezium.config.Field.ValidationOutput;
+import io.debezium.connector.AbstractSourceInfo;
+import io.debezium.connector.SourceInfoStructMaker;
+import io.debezium.connector.yashandb.ystream.YStreamAdapter;
+import io.debezium.relational.ColumnFilterMode;
+import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
+import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.relational.TableId;
+import io.debezium.relational.Tables.TableFilter;
+import io.debezium.relational.history.HistoryRecordComparator;
+import io.debezium.util.Strings;
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigDef.Importance;
+import org.apache.kafka.common.config.ConfigDef.Type;
+import org.apache.kafka.common.config.ConfigDef.Width;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Connector configuration for YashanDB.
+ */
+public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnectorConfig {
+
+    protected static final int DEFAULT_PORT = 1688;
+
+    protected final static int DEFAULT_BATCH_SIZE = 20_000;
+    protected final static int MIN_BATCH_SIZE = 1_000;
+    protected final static int MAX_BATCH_SIZE = 100_000;
+
+    protected final static int DEFAULT_SCN_GAP_SIZE = 1_000_000;
+    protected final static int DEFAULT_SCN_GAP_TIME_INTERVAL = 20_000;
+
+    protected final static int DEFAULT_TRANSACTION_EVENTS_THRESHOLD = 0;
+
+    protected final static int DEFAULT_QUERY_FETCH_SIZE = 10_000;
+
+    protected final static Duration MAX_SLEEP_TIME = Duration.ofMillis(3_000);
+    protected final static Duration DEFAULT_SLEEP_TIME = Duration.ofMillis(1_000);
+    protected final static Duration MIN_SLEEP_TIME = Duration.ZERO;
+    protected final static Duration SLEEP_TIME_INCREMENT = Duration.ofMillis(200);
+
+    protected final static Duration ARCHIVE_LOG_ONLY_POLL_TIME = Duration.ofMillis(10_000);
+
+    public static final Field PORT = RelationalDatabaseConnectorConfig.PORT
+            .withDefault(DEFAULT_PORT);
+
+    public static final Field HOSTNAME = RelationalDatabaseConnectorConfig.HOSTNAME
+            .withNoValidation()
+            .withValidation(YashanDBConnectorConfig::requiredWhenNoUrl);
+
+    public static final Field INTERVAL_HANDLING_MODE = Field.create("interval.handling.mode")
+            .withDisplayName("Interval Handling")
+            .withEnum(IntervalHandlingMode.class, IntervalHandlingMode.NUMERIC)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 6))
+            .withDescription("Specify how INTERVAL columns should be represented in change events, including: "
+                    + "'string' represents values as an exact ISO formatted string; "
+                    + "'numeric' (default) represents values using the inexact conversion into microseconds");
+
+    public static final Field DDL_PARSE_FAIL_RETRY_READ_TABLE = Field.create("ddl.parse.fail.retry.read.table")
+            .withDisplayName("Ddl parse error handling mode")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.HIGH)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 6))
+            .withDescription("Incremental DDL Parsing Failure Handling Mode,including:" +
+                    "false -> Do nothing and throw an exception;" +
+                    "true -> Wait for the next DML event and read the source table DDL")
+            .withDefault(false);
+
+    public static final Field YSTREAM_SERVER_NAME = Field.create(DATABASE_CONFIG_PREFIX + "ystream.server.name")
+            .withDisplayName("Ystream out server name")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.HIGH)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION, 9))
+            // .withValidation(YashanDBConnectorConfig::validateOutServerName)
+            .withDescription("Name of the Ystream Out server to connect to.");
+
+    public static final Field SNAPSHOT_MODE = Field.create("snapshot.mode")
+            .withDisplayName("Snapshot mode")
+            .withEnum(SnapshotMode.class, SnapshotMode.INITIAL)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 0))
+            .withDescription("The criteria for running a snapshot upon startup of the connector. "
+                    + "Select one of the following snapshot options: "
+                    + "'always': The connector runs a snapshot every time that it starts. After the snapshot completes, the connector begins to stream changes from the redo logs.; "
+                    + "'initial' (default): If the connector does not detect any offsets for the logical server name, it runs a snapshot that captures the current full state of the configured tables. After the snapshot completes, the connector begins to stream changes from the redo logs. "
+                    + "'initial_only': The connector performs a snapshot as it does for the 'initial' option, but after the connector completes the snapshot, it stops, and does not stream changes from the redo logs.; "
+                    + "'schema_only': If the connector does not detect any offsets for the logical server name, it runs a snapshot that captures only the schema (table structures), but not any table data. After the snapshot completes, the connector begins to stream changes from the redo logs.; "
+                    + "'schema_only_recovery': The connector performs a snapshot that captures only the database schema history. The connector then transitions to streaming from the redo logs. Use this setting to restore a corrupted or lost database schema history topic. Do not use if the database schema was modified after the connector stopped.");
+
+    public static final Field SNAPSHOT_LOCKING_MODE = Field.create("snapshot.locking.mode")
+            .withDisplayName("Snapshot locking mode")
+            .withEnum(SnapshotLockingMode.class, SnapshotLockingMode.SHARED)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 1))
+            .withDescription("Controls how the connector holds locks on tables while performing the schema snapshot. The default is 'shared', "
+                    + "which means the connector will hold a table lock that prevents exclusive table access for just the initial portion of the snapshot "
+                    + "while the database schemas and other metadata are being read. The remaining work in a snapshot involves selecting all rows from "
+                    + "each table, and this is done using a flashback query that requires no locks. However, in some cases it may be desirable to avoid "
+                    + "locks entirely which can be done by specifying 'none'. This mode is only safe to use if no schema changes are happening while the "
+                    + "snapshot is taken.");
+
+    public static final Field SNAPSHOT_ENHANCEMENT_TOKEN = Field.create("snapshot.enhance.predicate.scn")
+            .withDisplayName("A string to replace on snapshot predicate enhancement")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.HIGH)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 11))
+            .withDescription("A token to replace on snapshot predicate template");
+
+    @Deprecated
+    public static final Field LOG_MINING_TRANSACTION_RETENTION = Field.create("log.mining.transaction.retention.hours")
+            .withDisplayName("Log Mining long running transaction retention")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.MEDIUM)
+            .withDefault(0)
+            .withValidation(Field::isNonNegativeLong)
+            .withDescription("Hours to keep long running transactions in transaction buffer between log mining " +
+                    "sessions. By default, all transactions are retained.");
+
+    public static final Field LOG_MINING_TRANSACTION_RETENTION_MS = Field.create("log.mining.transaction.retention.ms")
+            .withDisplayName("Log Mining long running transaction retention")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.MEDIUM)
+            .withDefault(0L)
+            .withValidation(Field::isNonNegativeLong)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 18))
+            .withDescription("Duration in milliseconds to keep long running transactions in transaction buffer between log mining " +
+                    "sessions. By default, all transactions are retained.");
+
+    public static final Field URL = Field.create(DATABASE_CONFIG_PREFIX + "url")
+            .withDisplayName("Complete JDBC URL")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withImportance(Importance.HIGH)
+            .withValidation(YashanDBConnectorConfig::requiredWhenNoHostname)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION, 10))
+            .withDescription("Complete JDBC URL as an alternative to specifying hostname, port and database provided "
+                    + "as a way to support alternative connection scenarios.");
+
+    public static final Field LOG_MINING_ARCHIVE_LOG_HOURS = Field.create("log.mining.archive.log.hours")
+            .withDisplayName("Log Mining Archive Log Hours")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 10))
+            .withDefault(0)
+            .withDescription("The number of hours in the past from SYSDATE to mine archive logs. Using 0 mines all available archive logs");
+
+    public static final Field LOG_MINING_BATCH_SIZE_MIN = Field.create("log.mining.batch.size.min")
+            .withDisplayName("Minimum batch size for reading redo/archive logs.")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 12))
+            .withDefault(MIN_BATCH_SIZE)
+            .withDescription(
+                    "The minimum SCN interval size that this connector will try to read from redo/archive logs. Active batch size will be also increased/decreased by this amount for tuning connector throughput when needed.");
+
+    public static final Field LOG_MINING_BATCH_SIZE_DEFAULT = Field.create("log.mining.batch.size.default")
+            .withDisplayName("Default batch size for reading redo/archive logs.")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 11))
+            .withDefault(DEFAULT_BATCH_SIZE)
+            .withDescription("The starting SCN interval size that the connector will use for reading data from redo/archive logs.");
+
+    public static final Field LOG_MINING_BATCH_SIZE_MAX = Field.create("log.mining.batch.size.max")
+            .withDisplayName("Maximum batch size for reading redo/archive logs.")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 13))
+            .withDefault(MAX_BATCH_SIZE)
+            .withDescription("The maximum SCN interval size that this connector will use when reading from redo/archive logs.");
+
+    public static final Field LOG_MINING_SLEEP_TIME_MIN_MS = Field.create("log.mining.sleep.time.min.ms")
+            .withDisplayName("Minimum sleep time in milliseconds when reading redo/archive logs.")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 15))
+            .withDefault(MIN_SLEEP_TIME.toMillis())
+            .withDescription(
+                    "The minimum amount of time that the connector will sleep after reading data from redo/archive logs and before starting reading data again. Value is in milliseconds.");
+
+    public static final Field LOG_MINING_SLEEP_TIME_DEFAULT_MS = Field.create("log.mining.sleep.time.default.ms")
+            .withDisplayName("Default sleep time in milliseconds when reading redo/archive logs.")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 14))
+            .withDefault(DEFAULT_SLEEP_TIME.toMillis())
+            .withDescription(
+                    "The amount of time that the connector will sleep after reading data from redo/archive logs and before starting reading data again. Value is in milliseconds.");
+
+    public static final Field LOG_MINING_SLEEP_TIME_MAX_MS = Field.create("log.mining.sleep.time.max.ms")
+            .withDisplayName("Maximum sleep time in milliseconds when reading redo/archive logs.")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 16))
+            .withDefault(MAX_SLEEP_TIME.toMillis())
+            .withDescription(
+                    "The maximum amount of time that the connector will sleep after reading data from redo/archive logs and before starting reading data again. Value is in milliseconds.");
+
+    public static final Field LOG_MINING_SLEEP_TIME_INCREMENT_MS = Field.create("log.mining.sleep.time.increment.ms")
+            .withDisplayName("The increment in sleep time in milliseconds used to tune auto-sleep behavior.")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 17))
+            .withDefault(SLEEP_TIME_INCREMENT.toMillis())
+            .withDescription(
+                    "The maximum amount of time that the connector will use to tune the optimal sleep time when reading data from LogMiner. Value is in milliseconds.");
+
+    public static final Field LOG_MINING_ARCHIVE_LOG_ONLY_MODE = Field.create("log.mining.archive.log.only.mode")
+            .withDisplayName("Specifies whether log mining should only target archive logs or both archive and redo logs")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 9))
+            .withDefault(false)
+            .withDescription("When set to 'false', the default, the connector will mine both archive log and redo logs to emit change events. " +
+                    "When set to 'true', the connector will only mine archive logs. There are circumstances where its advantageous to only " +
+                    "mine archive logs and accept latency in event emission due to frequent revolving redo logs.");
+
+    public static final Field LOG_MINING_ARCHIVE_LOG_ONLY_SCN_POLL_INTERVAL_MS = Field.create("log.mining.archive.log.only.scn.poll.interval.ms")
+            .withDisplayName("The interval in milliseconds to wait between polls when SCN is not yet in the archive logs")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 27))
+            .withDefault(ARCHIVE_LOG_ONLY_POLL_TIME.toMillis())
+            .withDescription("The interval in milliseconds to wait between polls checking to see if the SCN is in the archive logs.");
+
+    public static final Field LOB_ENABLED = Field.create("lob.enabled")
+            .withDisplayName("Specifies whether the connector supports mining LOB fields and operations")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_ADVANCED, 21))
+            .withDefault(false)
+            .withDescription("When set to 'false', the default, LOB fields will not be captured nor emitted. When set to 'true', the connector " +
+                    "will capture LOB fields and emit changes for those fields like any other column type.");
+
+    public static final Field LOG_MINING_USERNAME_INCLUDE_LIST = Field.create("log.mining.username.include.list")
+            .withDisplayName("List of users to include from LogMiner query")
+            .withType(Type.STRING)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDescription("Comma separated list of usernames to include from LogMiner query.");
+
+    public static final Field LOG_MINING_USERNAME_EXCLUDE_LIST = Field.create("log.mining.username.exclude.list")
+            .withDisplayName("List of users to exclude from LogMiner query")
+            .withType(Type.STRING)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 19))
+            .withValidation(YashanDBConnectorConfig::validateUsernameExcludeList)
+            .withDescription("Comma separated list of usernames to exclude from LogMiner query.");
+
+    public static final Field LOG_MINING_ARCHIVE_DESTINATION_NAME = Field.create("log.mining.archive.destination.name")
+            .withDisplayName("Name of the archive log destination to be used for reading archive logs")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 20))
+            .withDescription("Sets the specific archive log destination as the source for reading archive logs." +
+                    "When not set, the connector will automatically select the first LOCAL and VALID destination.");
+
+    public static final Field LOG_MINING_BUFFER_TYPE = Field.create("log.mining.buffer.type")
+            .withDisplayName("Controls which buffer type implementation to be used")
+            // .withEnum(LogMiningBufferType.class, LogMiningBufferType.MEMORY)
+            // .withValidation(YashanDBConnectorConfig::validateLogMiningBufferType)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 21))
+            .withDescription("The buffer type controls how the connector manages buffering transaction data." + System.lineSeparator() +
+                    System.lineSeparator() +
+                    "memory - Uses the JVM process' heap to buffer all transaction data." + System.lineSeparator() +
+                    System.lineSeparator() +
+                    "infinispan_embedded - This option uses an embedded Infinispan cache to buffer transaction data and persist it to disk." + System.lineSeparator() +
+                    System.lineSeparator() +
+                    "infinispan_remote - This option uses a remote Infinispan cluster to buffer transaction data and persist it to disk.");
+
+    public static final Field LOG_MINING_BUFFER_TRANSACTION_EVENTS_THRESHOLD = Field.create("log.mining.buffer.transaction.events.threshold")
+            .withDisplayName("The maximum number of events a transaction can have before being discarded.")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDefault(DEFAULT_TRANSACTION_EVENTS_THRESHOLD)
+            .withValidation(Field::isNonNegativeLong)
+            .withDescription("The number of events a transaction can include before the transaction is discarded. " +
+                    "This is useful for managing buffer memory and/or space when dealing with very large transactions. " +
+                    "Defaults to 0, meaning that no threshold is applied and transactions can have unlimited events.");
+
+    public static final Field LOG_MINING_BUFFER_INFINISPAN_CACHE_TRANSACTIONS = Field.create("log.mining.buffer.infinispan.cache.transactions")
+            .withDisplayName("Infinispan 'transactions' cache configuration")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 23))
+            // .withValidation(YashanDBConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
+            .withDescription("Specifies the XML configuration for the Infinispan 'transactions' cache");
+
+    public static final Field LOG_MINING_BUFFER_INFINISPAN_CACHE_PROCESSED_TRANSACTIONS = Field.create("log.mining.buffer.infinispan.cache.processed_transactions")
+            .withDisplayName("Infinispan 'processed-transactions' cache configuration")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 25))
+            // .withValidation(YashanDBConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
+            .withDescription("Specifies the XML configuration for the Infinispan 'processed-transactions' cache");
+
+    public static final Field LOG_MINING_BUFFER_INFINISPAN_CACHE_EVENTS = Field.create("log.mining.buffer.infinispan.cache.events")
+            .withDisplayName("Infinispan 'events' cache configurations")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 24))
+            // .withValidation(YashanDBConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
+            .withDescription("Specifies the XML configuration for the Infinispan 'events' cache");
+
+    public static final Field LOG_MINING_BUFFER_INFINISPAN_CACHE_SCHEMA_CHANGES = Field.create("log.mining.buffer.infinispan.cache.schema_changes")
+            .withDisplayName("Infinispan 'schema-changes' cache configuration")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 26))
+            // .withValidation(YashanDBConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
+            .withDescription("Specifies the XML configuration for the Infinispan 'schema-changes' cache");
+
+    public static final Field LOG_MINING_BUFFER_DROP_ON_STOP = Field.create("log.mining.buffer.drop.on.stop")
+            .withDisplayName("Controls whether the buffer cache is dropped when connector is stopped")
+            .withType(Type.BOOLEAN)
+            .withDefault(false)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDescription("When set to true the underlying buffer cache is not retained when the connector is stopped. " +
+                    "When set to false (the default), the buffer cache is retained across restarts.");
+
+    public static final Field LOG_MINING_SCN_GAP_DETECTION_GAP_SIZE_MIN = Field.create("log.mining.scn.gap.detection.gap.size.min")
+            .withDisplayName("SCN gap size used to detect SCN gap")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 28))
+            .withDefault(DEFAULT_SCN_GAP_SIZE)
+            .withDescription("Used for SCN gap detection, if the difference between current SCN and previous end SCN is " +
+                    "bigger than this value, and the time difference of current SCN and previous end SCN is smaller than " +
+                    "log.mining.scn.gap.detection.time.interval.max.ms, consider it a SCN gap.");
+
+    public static final Field LOG_MINING_SCN_GAP_DETECTION_TIME_INTERVAL_MAX_MS = Field.create("log.mining.scn.gap.detection.time.interval.max.ms")
+            .withDisplayName("Timer interval used to detect SCN gap")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 29))
+            .withDefault(DEFAULT_SCN_GAP_TIME_INTERVAL)
+            .withDescription("Used for SCN gap detection, if the difference between current SCN and previous end SCN is " +
+                    "bigger than log.mining.scn.gap.detection.gap.size.min, and the time difference of current SCN and previous end SCN is smaller than " +
+                    " this value, consider it a SCN gap.");
+
+    public static final Field LOG_MINING_LOG_BACKOFF_INITIAL_DELAY_MS = Field.createInternal("log.mining.log.backoff.initial.delay.ms")
+            .withDisplayName("Initial delay when logs cannot yet be found (ms)")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDefault(TimeUnit.SECONDS.toMillis(1))
+            .withValidation(Field::isPositiveInteger)
+            .withDescription("The initial delay when trying to query database redo logs, given in milliseconds. Defaults to 1 second (1,000 ms).");
+
+    public static final Field LOG_MINING_LOG_BACKOFF_MAX_DELAY_MS = Field.createInternal("log.mining.log.backoff.max.delay.ms")
+            .withDisplayName("Maximum delay when logs cannot yet be found (ms)")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDefault(TimeUnit.MINUTES.toMillis(1))
+            .withValidation(Field::isPositiveInteger)
+            .withDescription("The maximum delay when trying to query database redo logs, given in milliseconds. Defaults to 60 seconds (60,000 ms).");
+
+    public static final Field LOG_MINING_SESSION_MAX_MS = Field.create("log.mining.session.max.ms")
+            .withDisplayName("Maximum number of milliseconds of a single LogMiner session")
+            .withType(Type.LONG)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDefault(TimeUnit.MINUTES.toMillis(0))
+            .withValidation(Field::isNonNegativeInteger)
+            .withDescription(
+                    "The maximum number of milliseconds that a LogMiner session lives for before being restarted. Defaults to 0 (indefinite until a log switch occurs)");
+
+    public static final Field LOG_MINING_RESTART_CONNECTION = Field.create("log.mining.restart.connection")
+            .withDisplayName("Restarts Oracle database connection when reaching maximum session time or database log switch")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDefault(false)
+            .withDescription("Debezium opens a database connection and keeps that connection open throughout the entire streaming phase. " +
+                    "In some situations, this can lead to excessive SGA memory usage. " +
+                    "By setting this option to 'true' (the default is 'false'), the connector will close and re-open a database connection " +
+                    "after every detected log switch or if the log.mining.session.max.ms has been reached.");
+
+    public static final Field LOG_MINING_TRANSACTION_SNAPSHOT_BOUNDARY_MODE = Field.createInternal("log.mining.transaction.snapshot.boundary.mode")
+            .withEnum(TransactionSnapshotBoundaryMode.class, TransactionSnapshotBoundaryMode.SKIP)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDescription("Specifies how in-progress transactions are to be handled when resolving the snapshot SCN. " + System.lineSeparator() +
+                    "all - Captures in-progress transactions from both V$TRANSACTION and starting a LogMiner session near the snapshot SCN." + System.lineSeparator() +
+                    "transaction_view_only - Captures in-progress transactions based on data in V$TRANSACTION only. " +
+                    "Recently committed transactions near the flashback query SCN won't be included in the snapshot nor streaming." + System.lineSeparator() +
+                    "skip - Skips gathering any in-progress transactions.");
+
+    public static final Field LOG_MINING_QUERY_FILTER_MODE = Field.create("log.mining.query.filter.mode")
+            .withDisplayName("Specifies how the filter configuration is applied to the LogMiner database query")
+            .withEnum(LogMiningQueryFilterMode.class, LogMiningQueryFilterMode.NONE)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.MEDIUM)
+            .withDescription("Specifies how the filter configuration is applied to the LogMiner database query. " + System.lineSeparator() +
+                    "none - The query does not apply any schema or table filters, all filtering is at runtime by the connector." + System.lineSeparator() +
+                    "in - The query uses SQL in-clause expressions to specify the schema or table filters." + System.lineSeparator() +
+                    "regex - The query uses Oracle REGEXP_LIKE expressions to specify the schema or table filters." + System.lineSeparator());
+
+    public static final Field LOG_MINING_READ_ONLY = Field.createInternal("log.mining.read.only")
+            .withDisplayName("Runs the connector in read-only mode")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDefault(Boolean.FALSE)
+            // .withValidation(YashanDBConnectorConfig::validateLogMiningReadOnly)
+            .withDescription("When set to 'true', the connector will not attempt to flush the LGWR buffer to disk, allowing connecting to read-only databases.");
+
+    public static final Field LOG_MINING_FLUSH_TABLE_NAME = Field.create("log.mining.flush.table.name")
+            .withDisplayName("Specifies the name of the flush table used by the connector")
+            .withType(Type.STRING)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault("LOG_MINING_FLUSH")
+            // .withValidation(YashanDBConnectorConfig::validateLogMiningFlushTableName)
+            .withDescription("The name of the flush table used by the connector, defaults to LOG_MINING_FLUSH.");
+
+    public static final Field SOURCE_INFO_STRUCT_MAKER = CommonConnectorConfig.SOURCE_INFO_STRUCT_MAKER
+            .withDefault(YashanDBSourceInfoStructMaker.class.getName());
+
+    public static final Field QUERY_FETCH_SIZE = CommonConnectorConfig.QUERY_FETCH_SIZE
+            .withDescription(
+                    "The maximum number of records that should be loaded into memory while streaming. A value of '0' uses the default JDBC fetch size, defaults to '2000'.")
+            .withDefault(DEFAULT_QUERY_FETCH_SIZE);
+
+    public static final Field LOG_MINING_MAX_SCN_DEVIATION_MS = Field.createInternal("log.mining.max.scn.deviation.ms")
+            .withDisplayName("Allows applying a time-based deviation to the max mining scn")
+            .withType(Type.LONG)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(0)
+            .withValidation(Field::isNonNegativeLong)
+            .withDescription("By default, LogMiner will apply no deviation, meaning that the connector can mine up to the CURRENT_SCN. " +
+                    "There are situations where this could be problematic if perhaps when asynchronous IO operations are at play. " +
+                    "By applying a time-based deviation, for example 3000, the connector will only mine up the SCN that is a result of " +
+                    "the formula of TIMESTAMP_TO_SCN(SCN_TO_TIMESTAMP(CURRENT_SCN)-(3000/86400000)). If this SCN is not available, the " +
+                    "connector will log a warning and proceed to use the CURRENT_SCN or previously calculated upper SCN regardless. " +
+                    "NOTE: This option is internal and should not be used for general use. Using this option will create a net latency " +
+                    "on change events increased by the deviation value specified.");
+    // ------------------------------------------- ystream options
+    // ------------------------------------------------------
+    // Ystream options refer to:
+    // https://cod-doc.yasdb.com/yashandb/23.2/zh/%E5%BC%80%E5%8F%91%E6%89%8B%E5%86%8C/YStream%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C/YStream%E5%AE%A2%E6%88%B7%E7%AB%AF%E4%BD%BF%E7%94%A8%E4%BB%8B%E7%BB%8D.html
+
+    public static final Field YSTREAM_QUEUE_SIZE = Field.create("ystream.blocking.queue.size")
+            .withDisplayName("YashanDB YStream blocking queue size")
+            .withType(Type.INT)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(128)
+            .withDescription(
+                    "The length of the YStream client's built-in "
+                            + "blocking queue is directly obtained from this queue when retrieving incremental logical logs,"
+                            + " with a default value of 128.");
+
+    public static final Field YSTREAM_POLL_TIMEOUT = Field.create("ystream.poll.timeout")
+            .withType(Type.INT)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(10)
+            .withDescription(
+                    "The timeout (in seconds) for obtaining the next result from the blocking queue,"
+                            + " with a default value of 10.");
+
+    public static final Field YSTREAM_CLIENT_RESPONSE_TIMEOUT = Field.create("ystream.client.response.timeout")
+            .withType(Type.INT)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(60)
+            .withDescription(
+                    "The maximum time (in seconds) that the YStream server can wait for a response from the YStream client,"
+                            + " with a default value of 60.");
+
+    public static final Field LOGIC_SHARD_ENABLED = Field.create("logic.shard.enabled")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(false)
+            .withDescription(
+                    "Whether to enable logical sharding,default enabled.");
+
+    public static final Field TABLE_READ_THREADS = Field.create("table.read.threads")
+            .withType(Type.INT)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(1)
+            .withDescription(
+                    "Number of read threads per table.Default 1 thread.");
+
+    private static final ConfigDefinition CONFIG_DEFINITION = HistorizedRelationalDatabaseConnectorConfig.CONFIG_DEFINITION.edit()
+            .name("YashanDB")
+            .excluding(
+                    SCHEMA_INCLUDE_LIST,
+                    SCHEMA_EXCLUDE_LIST,
+                    RelationalDatabaseConnectorConfig.TABLE_IGNORE_BUILTIN,
+                    CommonConnectorConfig.QUERY_FETCH_SIZE)
+            .type(
+                    HOSTNAME,
+                    PORT,
+                    USER,
+                    PASSWORD,
+                    DATABASE_NAME,
+                    YSTREAM_SERVER_NAME,
+                    SNAPSHOT_MODE,
+                    URL)
+            .connector(
+                    QUERY_FETCH_SIZE,
+                    SNAPSHOT_ENHANCEMENT_TOKEN,
+                    SNAPSHOT_LOCKING_MODE,
+                    INTERVAL_HANDLING_MODE,
+                    YSTREAM_CLIENT_RESPONSE_TIMEOUT,
+                    YSTREAM_POLL_TIMEOUT,
+                    YSTREAM_QUEUE_SIZE,
+                    LOGIC_SHARD_ENABLED,
+                    TABLE_READ_THREADS,
+                    LOG_MINING_ARCHIVE_LOG_HOURS,
+                    LOG_MINING_BATCH_SIZE_DEFAULT,
+                    LOG_MINING_BATCH_SIZE_MIN,
+                    LOG_MINING_BATCH_SIZE_MAX,
+                    LOG_MINING_SLEEP_TIME_DEFAULT_MS,
+                    LOG_MINING_SLEEP_TIME_MIN_MS,
+                    LOG_MINING_SLEEP_TIME_MAX_MS,
+                    LOG_MINING_SLEEP_TIME_INCREMENT_MS,
+                    LOG_MINING_TRANSACTION_RETENTION,
+                    LOG_MINING_TRANSACTION_RETENTION_MS,
+                    LOG_MINING_ARCHIVE_LOG_ONLY_MODE,
+                    LOB_ENABLED,
+                    LOG_MINING_USERNAME_INCLUDE_LIST,
+                    LOG_MINING_USERNAME_EXCLUDE_LIST,
+                    LOG_MINING_ARCHIVE_DESTINATION_NAME,
+                    LOG_MINING_BUFFER_TYPE,
+                    LOG_MINING_BUFFER_DROP_ON_STOP,
+                    LOG_MINING_BUFFER_INFINISPAN_CACHE_TRANSACTIONS,
+                    LOG_MINING_BUFFER_INFINISPAN_CACHE_EVENTS,
+                    LOG_MINING_BUFFER_INFINISPAN_CACHE_PROCESSED_TRANSACTIONS,
+                    LOG_MINING_BUFFER_INFINISPAN_CACHE_SCHEMA_CHANGES,
+                    LOG_MINING_BUFFER_TRANSACTION_EVENTS_THRESHOLD,
+                    LOG_MINING_ARCHIVE_LOG_ONLY_SCN_POLL_INTERVAL_MS,
+                    LOG_MINING_SCN_GAP_DETECTION_GAP_SIZE_MIN,
+                    LOG_MINING_SCN_GAP_DETECTION_TIME_INTERVAL_MAX_MS,
+                    UNAVAILABLE_VALUE_PLACEHOLDER,
+                    BINARY_HANDLING_MODE,
+                    SCHEMA_NAME_ADJUSTMENT_MODE,
+                    LOG_MINING_LOG_BACKOFF_INITIAL_DELAY_MS,
+                    LOG_MINING_LOG_BACKOFF_MAX_DELAY_MS,
+                    LOG_MINING_SESSION_MAX_MS,
+                    LOG_MINING_TRANSACTION_SNAPSHOT_BOUNDARY_MODE,
+                    LOG_MINING_READ_ONLY,
+                    LOG_MINING_FLUSH_TABLE_NAME,
+                    LOG_MINING_QUERY_FILTER_MODE,
+                    LOG_MINING_RESTART_CONNECTION,
+                    LOG_MINING_MAX_SCN_DEVIATION_MS)
+            .events(SOURCE_INFO_STRUCT_MAKER)
+            .create();
+
+    /**
+     * The set of {@link Field}s defined as part of this configuration.
+     */
+    public static Field.Set ALL_FIELDS = Field.setOf(CONFIG_DEFINITION.all());
+
+    public static ConfigDef configDef() {
+        return CONFIG_DEFINITION.configDef();
+    }
+
+    public static final List<String> EXCLUDED_SCHEMAS = Collections.unmodifiableList(Arrays.asList("SYS", "MDSYS",
+            "XA_SYS"));
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBConnectorConfig.class);
+
+    private final String databaseName;
+    private final IntervalHandlingMode intervalHandlingMode;
+    private final SnapshotMode snapshotMode;
+
+    private final String snapshotEnhancementToken;
+    private final SnapshotLockingMode snapshotLockingMode;
+    private final int queryFetchSize;
+
+    // LogMiner options
+    // private final Set<String> racNodes;
+    private final Duration logMiningArchiveLogRetention;
+    private final int logMiningBatchSizeMin;
+    private final int logMiningBatchSizeMax;
+    private final int logMiningBatchSizeDefault;
+    private final Duration logMiningSleepTimeMin;
+    private final Duration logMiningSleepTimeMax;
+    private final Duration logMiningSleepTimeDefault;
+    private final Duration logMiningSleepTimeIncrement;
+    private final Duration logMiningTransactionRetention;
+    private final boolean archiveLogOnlyMode;
+    private final Duration archiveLogOnlyScnPollTime;
+    private final boolean lobEnabled;
+    private final Set<String> logMiningUsernameIncludes;
+    private final Set<String> logMiningUsernameExcludes;
+    private final String logMiningArchiveDestinationName;
+    private final long logMiningBufferTransactionEventsThreshold;
+    private final boolean logMiningBufferDropOnStop;
+    private final int logMiningScnGapDetectionGapSizeMin;
+    private final int logMiningScnGapDetectionTimeIntervalMaxMs;
+    private final Duration logMiningInitialDelay;
+    private final Duration logMiningMaxDelay;
+    private final Duration logMiningMaximumSession;
+    private final TransactionSnapshotBoundaryMode logMiningTransactionSnapshotBoundaryMode;
+    private final Boolean logMiningReadOnly;
+    private final String logMiningFlushTableName;
+    private final LogMiningQueryFilterMode logMiningQueryFilterMode;
+    private final Boolean logMiningRestartConnection;
+    private final Duration logMiningMaxScnDeviation;
+    private final StreamingAdapter streamingAdapter;
+    private final String ystreamServerName;
+    private final boolean ddlParseFailRetryReadTable;
+    private final int yStreamQueueSize;
+    private final int yStreamPollTimeout;
+    private final int yStreamClientResponseTimeout;
+    private final Boolean logicShardEnabled;
+    private final int tableReadThreads;
+
+    public YashanDBConnectorConfig(Configuration config) {
+        super(
+                YashanDBConnector.class, config,
+                new SystemTablesPredicate(config),
+                x -> x.schema() + "." + x.table(),
+                false,
+                DEFAULT_QUERY_FETCH_SIZE,
+                ColumnFilterMode.SCHEMA,
+                false);
+
+        this.databaseName = toUpperCase(config.getString(DATABASE_NAME));
+        this.intervalHandlingMode = IntervalHandlingMode.parse(config.getString(INTERVAL_HANDLING_MODE));
+        this.snapshotMode = SnapshotMode.parse(config.getString(SNAPSHOT_MODE));
+        this.snapshotEnhancementToken = config.getString(SNAPSHOT_ENHANCEMENT_TOKEN);
+        this.snapshotLockingMode = SnapshotLockingMode.parse(config.getString(SNAPSHOT_LOCKING_MODE), SNAPSHOT_LOCKING_MODE.defaultValueAsString());
+        this.lobEnabled = config.getBoolean(LOB_ENABLED);
+        this.queryFetchSize = config.getInteger(QUERY_FETCH_SIZE);
+        this.streamingAdapter = new YStreamAdapter(this);
+        this.ystreamServerName = config.getString(YSTREAM_SERVER_NAME);
+        this.ddlParseFailRetryReadTable = config.getBoolean(DDL_PARSE_FAIL_RETRY_READ_TABLE);
+
+        // LogMiner
+        this.logMiningArchiveLogRetention = Duration.ofHours(config.getLong(LOG_MINING_ARCHIVE_LOG_HOURS));
+        this.logMiningBatchSizeMin = config.getInteger(LOG_MINING_BATCH_SIZE_MIN);
+        this.logMiningBatchSizeMax = config.getInteger(LOG_MINING_BATCH_SIZE_MAX);
+        this.logMiningBatchSizeDefault = config.getInteger(LOG_MINING_BATCH_SIZE_DEFAULT);
+        this.logMiningSleepTimeMin = Duration.ofMillis(config.getInteger(LOG_MINING_SLEEP_TIME_MIN_MS));
+        this.logMiningSleepTimeMax = Duration.ofMillis(config.getInteger(LOG_MINING_SLEEP_TIME_MAX_MS));
+        this.logMiningSleepTimeDefault = Duration.ofMillis(config.getInteger(LOG_MINING_SLEEP_TIME_DEFAULT_MS));
+        this.logMiningSleepTimeIncrement = Duration.ofMillis(config.getInteger(LOG_MINING_SLEEP_TIME_INCREMENT_MS));
+        this.logMiningTransactionRetention = resolveLogMiningTransactionRetentionDuration(config);
+        this.archiveLogOnlyMode = config.getBoolean(LOG_MINING_ARCHIVE_LOG_ONLY_MODE);
+        this.logMiningUsernameIncludes = Strings.setOf(config.getString(LOG_MINING_USERNAME_INCLUDE_LIST), String::new);
+        this.logMiningUsernameExcludes = Strings.setOf(config.getString(LOG_MINING_USERNAME_EXCLUDE_LIST), String::new);
+        this.logMiningArchiveDestinationName = config.getString(LOG_MINING_ARCHIVE_DESTINATION_NAME);
+        this.logMiningBufferTransactionEventsThreshold = config.getLong(LOG_MINING_BUFFER_TRANSACTION_EVENTS_THRESHOLD);
+        this.logMiningBufferDropOnStop = config.getBoolean(LOG_MINING_BUFFER_DROP_ON_STOP);
+        this.archiveLogOnlyScnPollTime = Duration.ofMillis(config.getInteger(LOG_MINING_ARCHIVE_LOG_ONLY_SCN_POLL_INTERVAL_MS));
+        this.logMiningScnGapDetectionGapSizeMin = config.getInteger(LOG_MINING_SCN_GAP_DETECTION_GAP_SIZE_MIN);
+        this.logMiningScnGapDetectionTimeIntervalMaxMs = config.getInteger(LOG_MINING_SCN_GAP_DETECTION_TIME_INTERVAL_MAX_MS);
+        this.logMiningInitialDelay = Duration.ofMillis(config.getLong(LOG_MINING_LOG_BACKOFF_INITIAL_DELAY_MS));
+        this.logMiningMaxDelay = Duration.ofMillis(config.getLong(LOG_MINING_LOG_BACKOFF_MAX_DELAY_MS));
+        this.logMiningMaximumSession = Duration.ofMillis(config.getLong(LOG_MINING_SESSION_MAX_MS));
+        this.logMiningTransactionSnapshotBoundaryMode = TransactionSnapshotBoundaryMode.parse(config.getString(LOG_MINING_TRANSACTION_SNAPSHOT_BOUNDARY_MODE));
+        this.logMiningReadOnly = config.getBoolean(LOG_MINING_READ_ONLY);
+        this.logMiningFlushTableName = config.getString(LOG_MINING_FLUSH_TABLE_NAME);
+        this.logMiningQueryFilterMode = LogMiningQueryFilterMode.parse(config.getString(LOG_MINING_QUERY_FILTER_MODE));
+        this.logMiningRestartConnection = config.getBoolean(LOG_MINING_RESTART_CONNECTION);
+        this.logMiningMaxScnDeviation = Duration.ofMillis(config.getLong(LOG_MINING_MAX_SCN_DEVIATION_MS));
+
+        // YStream
+        this.yStreamPollTimeout = config.getInteger(YSTREAM_POLL_TIMEOUT);
+        this.yStreamQueueSize = config.getInteger(YSTREAM_QUEUE_SIZE);
+        this.yStreamClientResponseTimeout = config.getInteger(YSTREAM_CLIENT_RESPONSE_TIMEOUT);
+
+        // Shard
+        this.logicShardEnabled = config.getBoolean(LOGIC_SHARD_ENABLED);
+        this.tableReadThreads = config.getInteger(TABLE_READ_THREADS);
+    }
+
+    private static String toUpperCase(String property) {
+        return property == null ? null : property.toUpperCase();
+    }
+
+    public String getDatabaseName() {
+        return databaseName;
+    }
+
+    public String getYstreamServerName() {
+        return ystreamServerName;
+    }
+
+    public Boolean getDdlParseFailRetryReadTable() {
+        return ddlParseFailRetryReadTable;
+    }
+
+    public IntervalHandlingMode getIntervalHandlingMode() {
+        return intervalHandlingMode;
+    }
+
+    public SnapshotMode getSnapshotMode() {
+        return snapshotMode;
+    }
+
+    public SnapshotLockingMode getSnapshotLockingMode() {
+        return snapshotLockingMode;
+    }
+
+    public int getyStreamQueueSize() {
+        return yStreamQueueSize;
+    }
+
+    public int getyStreamPollTimeout() {
+        return yStreamPollTimeout;
+    }
+
+    public int getyStreamClientResponseTimeout() {
+        return yStreamClientResponseTimeout;
+    }
+
+    public Boolean getLogicShardEnabled() {
+        return logicShardEnabled;
+    }
+
+    public int getTableReadThreads() {
+        return tableReadThreads;
+    }
+
+    @Override
+    public int getQueryFetchSize() {
+        return queryFetchSize;
+    }
+
+    @Override
+    protected HistoryRecordComparator getHistoryRecordComparator() {
+        return streamingAdapter.getHistoryRecordComparator();
+    }
+
+    /**
+     * Defines modes of representation of {@code interval} datatype
+     */
+    public enum IntervalHandlingMode implements EnumeratedValue {
+
+        /**
+         * Represents interval as inexact microseconds count
+         */
+        NUMERIC("numeric"),
+
+        /**
+         * Represents interval as ISO 8601 time interval
+         */
+        STRING("string");
+
+        private final String value;
+
+        IntervalHandlingMode(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        /**
+         * Convert mode name into the logical value
+         *
+         * @param value the configuration property value ; may not be null
+         * @return the matching option, or null if the match is not found
+         */
+        public static IntervalHandlingMode parse(String value) {
+            if (value == null) {
+                return null;
+            }
+            value = value.trim();
+            for (IntervalHandlingMode option : IntervalHandlingMode.values()) {
+                if (option.getValue().equalsIgnoreCase(value)) {
+                    return option;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Convert mode name into the logical value
+         *
+         * @param value        the configuration property value ; may not be null
+         * @param defaultValue the default value ; may be null
+         * @return the matching option or null if the match is not found and non-null default is invalid
+         */
+        public static IntervalHandlingMode parse(String value, String defaultValue) {
+            IntervalHandlingMode mode = parse(value);
+            if (mode == null && defaultValue != null) {
+                mode = parse(defaultValue);
+            }
+            return mode;
+        }
+    }
+
+    /**
+     * The set of predefined SnapshotMode options or aliases.
+     */
+    public enum SnapshotMode implements EnumeratedValue {
+
+        /**
+         * Performs a snapshot of data and schema upon each connector start.
+         */
+        ALWAYS("always", true, true, true),
+
+        /**
+         * Perform a snapshot of data and schema upon initial startup of a connector.
+         */
+        INITIAL("initial", true, true, false),
+
+        /**
+         * Perform a snapshot of data and schema upon initial startup of a connector and stop after initial consistent snapshot.
+         */
+        INITIAL_ONLY("initial_only", true, false, false),
+
+        /**
+         * Perform a snapshot of the schema but no data upon initial startup of a connector.
+         */
+        SCHEMA_ONLY("schema_only", false, true, false),
+
+        /**
+         * Perform a snapshot of only the database schemas (without data) and then begin reading the redo log at the current redo log position.
+         * This can be used for recovery only if the connector has existing offsets and the schema.history.internal.kafka.topic does not exist (deleted).
+         * This recovery option should be used with care as it assumes there have been no schema changes since the connector last stopped,
+         * otherwise some events during the gap may be processed with an incorrect schema and corrupted.
+         */
+        SCHEMA_ONLY_RECOVERY("schema_only_recovery", false, true, true);
+
+        private final String value;
+        private final boolean includeData;
+        private final boolean shouldStream;
+        private final boolean shouldSnapshotOnSchemaError;
+
+        SnapshotMode(String value, boolean includeData, boolean shouldStream, boolean shouldSnapshotOnSchemaError) {
+            this.value = value;
+            this.includeData = includeData;
+            this.shouldStream = shouldStream;
+            this.shouldSnapshotOnSchemaError = shouldSnapshotOnSchemaError;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        /**
+         * Whether this snapshotting mode should include the actual data or just the
+         * schema of captured tables.
+         */
+        public boolean includeData() {
+            return includeData;
+        }
+
+        /**
+         * Whether the snapshot mode is followed by streaming.
+         */
+        public boolean shouldStream() {
+            return shouldStream;
+        }
+
+        /**
+         * Whether the schema can be recovered if database schema history is corrupted.
+         */
+        public boolean shouldSnapshotOnSchemaError() {
+            return shouldSnapshotOnSchemaError;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be null
+         * @return the matching option, or null if no match is found
+         */
+        public static SnapshotMode parse(String value) {
+            if (value == null) {
+                return null;
+            }
+            value = value.trim();
+
+            for (SnapshotMode option : SnapshotMode.values()) {
+                if (option.getValue().equalsIgnoreCase(value)) {
+                    return option;
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value        the configuration property value; may not be null
+         * @param defaultValue the default value; may be null
+         * @return the matching option, or null if no match is found and the non-null default is invalid
+         */
+        public static SnapshotMode parse(String value, String defaultValue) {
+            SnapshotMode mode = parse(value);
+
+            if (mode == null && defaultValue != null) {
+                mode = parse(defaultValue);
+            }
+
+            return mode;
+        }
+    }
+
+    public enum SnapshotLockingMode implements EnumeratedValue {
+        /**
+         * This mode will allow concurrent access to the table during the snapshot but prevents any
+         * session from acquiring any table-level exclusive lock.
+         */
+        SHARED("shared"),
+
+        /**
+         * This mode will avoid using ANY table locks during the snapshot process.
+         * This mode should be used carefully only when no schema changes are to occur.
+         */
+        NONE("none");
+
+        private final String value;
+
+        SnapshotLockingMode(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        public boolean usesLocking() {
+            return !value.equals(NONE.value);
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be {@code null}
+         * @return the matching option, or null if no match is found
+         */
+        public static SnapshotLockingMode parse(String value) {
+            if (value == null) {
+                return null;
+            }
+            value = value.trim();
+            for (SnapshotLockingMode option : SnapshotLockingMode.values()) {
+                if (option.getValue().equalsIgnoreCase(value)) {
+                    return option;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value        the configuration property value; may not be {@code null}
+         * @param defaultValue the default value; may be {@code null}
+         * @return the matching option, or null if no match is found and the non-null default is invalid
+         */
+        public static SnapshotLockingMode parse(String value, String defaultValue) {
+            SnapshotLockingMode mode = parse(value);
+            if (mode == null && defaultValue != null) {
+                mode = parse(defaultValue);
+            }
+            return mode;
+        }
+    }
+
+    /**
+     * Controls how in-progress transactions that occur just before and at the snapshot boundary
+     * are to be handled by the connector when transitioning to the streaming phase.
+     */
+    public enum TransactionSnapshotBoundaryMode implements EnumeratedValue {
+        /**
+         * Specifies that the in-progress transaction support at the snapshot boundary should be
+         * skipped and that only transactions committed prior to the snapshot SCN and those that
+         * are started after the snapshot SCN will be captured.
+         */
+        SKIP("skip"),
+
+        /**
+         * Specifies that in-progress transactions that are available in the {@code V$TRANSACTION}
+         * table will be captured and emitted when streaming begins. If a transaction is not in
+         * this view, and its changes were not captured by Oracle Flashback query based on the
+         * snapshot SCN, that transaction will not be captured.
+         */
+        TRANSACTION_VIEW_ONLY("transaction_view_only"),
+
+        /**
+         * Specifies that in-progress transactions identified in the {@code V$TRANSACTION} table as
+         * well as any in-progress transactions as of the current SCN that may have been committed
+         * immediately prior to or at the snapshot SCN will be captured. This is done by starting a
+         * special LogMiner session to gather these transactions prior to starting the snapshot.
+         */
+        ALL("all");
+
+        private final String value;
+
+        TransactionSnapshotBoundaryMode(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be {@code null}
+         * @return the matching option, or null if no match is found
+         */
+        public static TransactionSnapshotBoundaryMode parse(String value) {
+            if (value == null) {
+                return null;
+            }
+            value = value.trim();
+            for (TransactionSnapshotBoundaryMode option : TransactionSnapshotBoundaryMode.values()) {
+                if (option.getValue().equalsIgnoreCase(value)) {
+                    return option;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value        the configuration property value; may not be {@code null}
+         * @param defaultValue the default value; may be {@code null}
+         * @return the matching option, or null if no match is found and the non-null default is invalid
+         */
+        public static TransactionSnapshotBoundaryMode parse(String value, String defaultValue) {
+            TransactionSnapshotBoundaryMode mode = parse(value);
+            if (mode == null && defaultValue != null) {
+                mode = parse(defaultValue);
+            }
+            return mode;
+        }
+    }
+
+    public enum LogMiningStrategy implements EnumeratedValue {
+
+        /**
+         * This strategy uses LogMiner with data dictionary in online catalog.
+         * This option will not capture DDL , but acts fast on REDO LOG switch events
+         * This option does not use CONTINUOUS_MINE option
+         */
+        ONLINE_CATALOG("online_catalog"),
+
+        /**
+         * This strategy uses LogMiner with data dictionary in REDO LOG files.
+         * This option will capture DDL, but will develop some lag on REDO LOG switch event and will eventually catch up
+         * This option does not use CONTINUOUS_MINE option
+         * This is default value
+         */
+        CATALOG_IN_REDO("redo_log_catalog");
+
+        private final String value;
+
+        LogMiningStrategy(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be null
+         * @return the matching option, or null if no match is found
+         */
+        public static LogMiningStrategy parse(String value) {
+            if (value == null) {
+                return null;
+            }
+            value = value.trim();
+            for (LogMiningStrategy adapter : LogMiningStrategy.values()) {
+                if (adapter.getValue().equalsIgnoreCase(value)) {
+                    return adapter;
+                }
+            }
+            return null;
+        }
+
+        public static LogMiningStrategy parse(String value, String defaultValue) {
+            LogMiningStrategy mode = parse(value);
+
+            if (mode == null && defaultValue != null) {
+                mode = parse(defaultValue);
+            }
+
+            return mode;
+        }
+    }
+
+    public enum LogMiningQueryFilterMode implements EnumeratedValue {
+        /**
+         * This filter mode does not add any predicates to the LogMiner query, all filtering of
+         * change data is done at runtime in the connector's Java code. This is the default
+         * mode.
+         */
+        NONE("none"),
+
+        /**
+         * This filter mode adds predicates to the LogMiner query, using standard SQL in-clause
+         * semantics. This mode expects that the include/exclude connector properties specify
+         * schemas and tables without regular expressions.
+         * <p>
+         * This option may be the best performing option when there is substantially more data in
+         * the redo logs compared to the data wanting to be captured at the trade-off that the
+         * connector configuration is a bit more verbose with include/exclude filters.
+         */
+        IN("in"),
+
+        /**
+         * This filter mode adds predicates to the LogMiner query, using the Oracle REGEXP_LIKE
+         * operator. This mode supports the include/exclude connector properties specifying
+         * regular expressions.
+         * <p>
+         * For the best performance, it's generally a good idea to limit the number of REGEXP_LIKE
+         * operators in the query as it's treated similar to the LIKE operator which often does
+         * not perform well on large data sets. The number of REGEXP_LIKE operators can be reduced
+         * by specifying complex regular expressions where a single expression can potentially
+         * match multiple schemas or tables.
+         */
+        REGEX("regex");
+
+        private final String value;
+
+        LogMiningQueryFilterMode(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        /**
+         * Determine if the supplied value is one of the predefined options.
+         *
+         * @param value the configuration property value; may not be null
+         * @return the matching option, or null if no match is found
+         */
+        public static LogMiningQueryFilterMode parse(String value) {
+            if (value == null) {
+                return null;
+            }
+            value = value.trim();
+            for (LogMiningQueryFilterMode mode : LogMiningQueryFilterMode.values()) {
+                if (mode.getValue().equalsIgnoreCase(value)) {
+                    return mode;
+                }
+            }
+            return null;
+        }
+    }
+
+    /**
+     * A {@link TableFilter} that excludes all YashanDB system tables.
+     *
+     * @author Gunnar Morling
+     */
+    private static class SystemTablesPredicate implements TableFilter {
+
+        private final Configuration config;
+
+        SystemTablesPredicate(Configuration config) {
+            this.config = config;
+        }
+
+        @Override
+        public boolean isIncluded(TableId t) {
+            // not system schema
+            return !isExcludedSchema(t);
+        }
+
+        private boolean isExcludedSchema(TableId id) {
+            return EXCLUDED_SCHEMAS.contains(id.schema());
+        }
+    }
+
+    @Override
+    protected SourceInfoStructMaker<? extends AbstractSourceInfo> getSourceInfoStructMaker(Version version) {
+        return getSourceInfoStructMaker(SOURCE_INFO_STRUCT_MAKER, Module.name(), Module.version(), this);
+    }
+
+    @Override
+    public String getContextName() {
+        return Module.contextName();
+    }
+
+    /**
+     * @return String token to replace
+     */
+    public String getTokenToReplaceInSnapshotPredicate() {
+        return snapshotEnhancementToken;
+    }
+
+    /**
+     * @return the duration that archive logs are scanned for log mining
+     */
+    public Duration getLogMiningArchiveLogRetention() {
+        return logMiningArchiveLogRetention;
+    }
+
+    /**
+     *
+     * @return int The minimum SCN interval used when mining redo/archive logs
+     */
+    public int getLogMiningBatchSizeMin() {
+        return logMiningBatchSizeMin;
+    }
+
+    /**
+     *
+     * @return int The maximum SCN interval used when mining redo/archive logs
+     */
+    public int getLogMiningBatchSizeMax() {
+        return logMiningBatchSizeMax;
+    }
+
+    /**
+     *
+     * @return int Scn gap size for SCN gap detection
+     */
+    public int getLogMiningScnGapDetectionGapSizeMin() {
+        return logMiningScnGapDetectionGapSizeMin;
+    }
+
+    /**
+     *
+     * @return int Time interval for SCN gap detection
+     */
+    public int getLogMiningScnGapDetectionTimeIntervalMaxMs() {
+        return logMiningScnGapDetectionTimeIntervalMaxMs;
+    }
+
+    /**
+     *
+     * @return int The minimum sleep time used when mining redo/archive logs
+     */
+    public Duration getLogMiningSleepTimeMin() {
+        return logMiningSleepTimeMin;
+    }
+
+    /**
+     *
+     * @return int The maximum sleep time used when mining redo/archive logs
+     */
+    public Duration getLogMiningSleepTimeMax() {
+        return logMiningSleepTimeMax;
+    }
+
+    /**
+     *
+     * @return int The default sleep time used when mining redo/archive logs
+     */
+    public Duration getLogMiningSleepTimeDefault() {
+        return logMiningSleepTimeDefault;
+    }
+
+    public StreamingAdapter getAdapter() {
+        return streamingAdapter;
+    }
+
+    /**
+     *
+     * @return int The increment in sleep time when doing auto-tuning while mining redo/archive logs
+     */
+    public Duration getLogMiningSleepTimeIncrement() {
+        return logMiningSleepTimeIncrement;
+    }
+
+    /**
+     * @return the duration for which long running transactions are permitted in the transaction buffer between log switches
+     */
+    public Duration getLogMiningTransactionRetention() {
+        return logMiningTransactionRetention;
+    }
+
+    /**
+     * @return true if the connector is to mine archive logs only, false to mine all logs.
+     */
+    public boolean isArchiveLogOnlyMode() {
+        return archiveLogOnlyMode;
+    }
+
+    /**
+     * @return the duration that archive log only will use to wait between polling scn availability
+     */
+    public Duration getArchiveLogOnlyScnPollTime() {
+        return archiveLogOnlyScnPollTime;
+    }
+
+    /**
+     * @return true if LOB fields are to be captured; false otherwise to not capture LOB fields.
+     */
+    public boolean isLobEnabled() {
+        return lobEnabled;
+    }
+
+    /**
+     * @return User names to include from the LogMiner query
+     */
+    public Set<String> getLogMiningUsernameIncludes() {
+        return logMiningUsernameIncludes;
+    }
+
+    /**
+     * @return User names to exclude from the LogMiner query
+     */
+    public Set<String> getLogMiningUsernameExcludes() {
+        return logMiningUsernameExcludes;
+    }
+
+    /**
+     * @return name of the archive destination configuration to use
+     */
+    public String getLogMiningArchiveDestinationName() {
+        return logMiningArchiveDestinationName;
+    }
+
+    /**
+     * @return the log mining buffer type implementation to be used
+     */
+
+    /**
+     * @return the event count threshold for when a transaction should be discarded in the buffer.
+     */
+    public long getLogMiningBufferTransactionEventsThreshold() {
+        return logMiningBufferTransactionEventsThreshold;
+    }
+
+    /**
+     * @return whether buffer cache should be dropped on connector stop.
+     */
+    public boolean isLogMiningBufferDropOnStop() {
+        return logMiningBufferDropOnStop;
+    }
+
+    /**
+     *
+     * @return int The default SCN interval used when mining redo/archive logs
+     */
+    public int getLogMiningBatchSizeDefault() {
+        return logMiningBatchSizeDefault;
+    }
+
+    /**
+     * @return the initial delay for the log query delay strategy
+     */
+    public Duration getLogMiningInitialDelay() {
+        return logMiningInitialDelay;
+    }
+
+    /**
+     * @return the maximum delay for the log query delay strategy
+     */
+    public Duration getLogMiningMaxDelay() {
+        return logMiningMaxDelay;
+    }
+
+    /**
+     * @return the maximum duration for a LogMiner session
+     */
+    public Optional<Duration> getLogMiningMaximumSession() {
+        return logMiningMaximumSession.toMillis() == 0L ? Optional.empty() : Optional.of(logMiningMaximumSession);
+    }
+
+    /**
+     * @return how in-progress transactions are the snapshot boundary are to be handled.
+     */
+    public TransactionSnapshotBoundaryMode getLogMiningTransactionSnapshotBoundaryMode() {
+        return logMiningTransactionSnapshotBoundaryMode;
+    }
+
+    /**
+     * @return true if log mining should operate in read-only mode.
+     */
+    public boolean isLogMiningReadOnly() {
+        return logMiningReadOnly;
+    }
+
+    /**
+     * @return the log mining flush table name
+     */
+    public String getLogMiningFlushTableName() {
+        return logMiningFlushTableName;
+    }
+
+    /**
+     * @return how the LogMiner query include/exclude filters are applied to the query.
+     */
+    public LogMiningQueryFilterMode getLogMiningQueryFilterMode() {
+        return logMiningQueryFilterMode;
+    }
+
+    /**
+     * @return whether the connector should restart the JDBC connection after log switches or maximum session windows.
+     */
+    public boolean isLogMiningRestartConnection() {
+        return logMiningRestartConnection;
+    }
+
+    /**
+     * Returns the deviation in milliseconds that should be applied to the end SCN calculation.
+     * If this is {@code 0}, then there is no deviation applied.
+     *
+     * @return the deviation duration.
+     */
+    public Duration getLogMiningMaxScnDeviation() {
+        return logMiningMaxScnDeviation;
+    }
+
+    @Override
+    public String getConnectorName() {
+        return Module.name();
+    }
+
+    private Duration resolveLogMiningTransactionRetentionDuration(Configuration config) {
+        // Calculate the log mining transaction retention between the two properties
+        Duration logMiningTransactionRetentionMs = config.getDuration(LOG_MINING_TRANSACTION_RETENTION_MS, ChronoUnit.MILLIS);
+        Duration logMiningTransactionRetentionHours = config.getDuration(LOG_MINING_TRANSACTION_RETENTION, ChronoUnit.HOURS);
+        if (logMiningTransactionRetentionMs.isZero()) {
+            if (!logMiningTransactionRetentionHours.isZero()) {
+                LOGGER.warn("The option {} is deprecated and replaced by {} and will be removed in a future build.",
+                        LOG_MINING_TRANSACTION_RETENTION.name(), LOG_MINING_TRANSACTION_RETENTION_MS.name());
+                return logMiningTransactionRetentionHours;
+            }
+        }
+        return logMiningTransactionRetentionMs;
+    }
+
+    public static int requiredWhenNoUrl(Configuration config, Field field, ValidationOutput problems) {
+
+        // Validates that the field is required but only when an URL field is not present
+        if (config.getString(URL) == null) {
+            return Field.isRequired(config, field, problems);
+        }
+        return 0;
+    }
+
+    public static int requiredWhenNoHostname(Configuration config, Field field, ValidationOutput problems) {
+
+        // Validates that the field is required but only when an URL field is not present
+        if (config.getString(HOSTNAME) == null) {
+            return Field.isRequired(config, field, problems);
+        }
+        return 0;
+    }
+
+    public static int validateUsernameExcludeList(Configuration config, Field field, ValidationOutput problems) {
+        final String includeList = config.getString(LOG_MINING_USERNAME_INCLUDE_LIST);
+        final String excludeList = config.getString(LOG_MINING_USERNAME_EXCLUDE_LIST);
+
+        if (includeList != null && excludeList != null) {
+            problems.accept(TABLE_EXCLUDE_LIST, excludeList,
+                    String.format("\"%s\" is already specified", LOG_MINING_USERNAME_INCLUDE_LIST.name()));
+            return 1;
+        }
+        return 0;
+    }
+
+}
