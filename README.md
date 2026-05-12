@@ -21,7 +21,7 @@ The connector is based on Debezium 3.6.0 and leverages YashanDB's YStream techno
 
 ## Prerequisites
 
-- Java 11 or higher
+- Java 21 or higher (required by Debezium 3.6.0)
 - Apache Kafka 3.6.x with Kafka Connect
 - YashanDB database with YStream enabled
 - YashanDB JDBC driver (version 1.9.24 or compatible)
@@ -33,29 +33,46 @@ The connector is based on Debezium 3.6.0 and leverages YashanDB's YStream techno
 git clone https://github.com/debezium/debezium-connector-yashandb.git
 cd debezium-connector-yashandb
 
-# Build with Maven
+# Build connector JAR only
 mvn clean package -DskipTests
 
-# The connector JAR will be in target/debezium-connector-yashandb-3.6.0-SNAPSHOT.jar
+# Build connector with distribution package (recommended for deployment)
+mvn clean package -Passembly -DskipTests
 ```
+
+### Build Artifacts
+
+| Artifact | Description |
+|----------|-------------|
+| `debezium-connector-yashandb-3.6.0-SNAPSHOT.jar` | Connector JAR (requires manual dependency management) |
+| `debezium-connector-yashandb-3.6.0-SNAPSHOT-plugin.tar.gz` | Distribution package with all dependencies |
+| `debezium-connector-yashandb-3.6.0-SNAPSHOT-plugin.zip` | Distribution package with all dependencies |
+
+The `-Passembly` profile generates a distribution package containing the connector JAR and all required dependencies, ready for deployment to Kafka Connect.
 
 ## Deployment
 
 ### Kafka Connect Deployment
 
-1. Copy the connector JAR along with dependencies to your Kafka Connect plugin directory:
+1. Extract the distribution package to your Kafka Connect plugin directory:
 
 ```bash
-# Create plugin directory
-mkdir -p $KAFKA_CONNECT_PLUGINS_DIR/debezium-connector-yashandb
+# Using the distribution package (recommended)
+tar -xzf target/debezium-connector-yashandb-3.6.0-SNAPSHOT-plugin.tar.gz \
+    -C $KAFKA_CONNECT_PLUGINS_DIR/
 
-# Copy connector JAR
-cp target/debezium-connector-yashandb-3.6.0-SNAPSHOT.jar $KAFKA_CONNECT_PLUGINS_DIR/debezium-connector-yashandb/
+# Or using zip package
+unzip target/debezium-connector-yashandb-3.6.0-SNAPSHOT-plugin.zip \
+    -d $KAFKA_CONNECT_PLUGINS_DIR/
 ```
 
-2. Ensure YashanDB JDBC driver and YStream library are available in the plugin directory or Kafka Connect's classpath.
+The distribution package includes:
+- Connector JAR
+- YashanDB JDBC driver
+- YStream library
+- All required Debezium and Kafka dependencies
 
-3. Restart Kafka Connect to load the new connector.
+2. Restart Kafka Connect to load the new connector.
 
 ## Configuration
 
