@@ -13,8 +13,8 @@ import org.antlr.v4.runtime.tree.ParseTreeListener;
 import com.yashandb.jdbc.YasTypes;
 
 import io.debezium.antlr.DataTypeResolver;
-import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
+import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.TableEditor;
@@ -24,13 +24,13 @@ import io.debezium.relational.TableEditor;
  */
 public class ColumnDefinitionParserListener extends BaseParserListener {
 
-    private final YashanDBDdlParser parser;
+    private final YashanDbDdlParser parser;
     private final DataTypeResolver dataTypeResolver;
     private final TableEditor tableEditor;
     private final List<ParseTreeListener> listeners;
     private ColumnEditor columnEditor;
 
-    ColumnDefinitionParserListener(final TableEditor tableEditor, final ColumnEditor columnEditor, YashanDBDdlParser parser,
+    ColumnDefinitionParserListener(final TableEditor tableEditor, final ColumnEditor columnEditor, YashanDbDdlParser parser,
                                    List<ParseTreeListener> listeners) {
         this.tableEditor = tableEditor;
         this.columnEditor = columnEditor;
@@ -48,10 +48,10 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterColumn_definition(YashanDBParser.Column_definitionContext ctx) {
+    public void enterColumn_definition(YashanDbParser.Column_definitionContext ctx) {
         resolveColumnDataType(ctx);
         if (ctx.column_constraint() != null) {
-            for (YashanDBParser.Column_constraintContext constraintCtx : ctx.column_constraint()) {
+            for (YashanDbParser.Column_constraintContext constraintCtx : ctx.column_constraint()) {
                 if (constraintCtx.DEFAULT() != null && constraintCtx.default_expr() != null) {
                     columnEditor.defaultValueExpression(constraintCtx.default_expr().getText());
                 }
@@ -60,7 +60,7 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
         super.enterColumn_definition(ctx);
     }
 
-    private void resolveColumnDataType(YashanDBParser.Column_definitionContext ctx) {
+    private void resolveColumnDataType(YashanDbParser.Column_definitionContext ctx) {
         columnEditor.name(getColumnName(ctx.column_name()));
 
         boolean hasNotNullConstraint = ctx.column_constraint().stream()
@@ -76,14 +76,14 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
         }
     }
 
-    private void resolveColumnDataType(YashanDBParser.DatatypeContext ctx) {
+    private void resolveColumnDataType(YashanDbParser.DatatypeContext ctx) {
         // If the context is null, there is nothing this method can resolve and it is safe to return
         if (ctx == null) {
             return;
         }
 
         if (ctx.native_datatype_element() != null) {
-            YashanDBParser.Precision_partContext precisionPart = ctx.precision_part();
+            YashanDbParser.Precision_partContext precisionPart = ctx.precision_part();
             if (ctx.native_datatype_element().INT() != null
                     || ctx.native_datatype_element().INTEGER() != null
                     || ctx.native_datatype_element().PLS_INTEGER() != null) {
@@ -284,7 +284,7 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
                     .type("INTERVAL DAY TO SECOND")
                     .length(2)
                     .scale(6);
-            for (final YashanDBParser.ExpressionContext e : ctx.expression()) {
+            for (final YashanDbParser.ExpressionContext e : ctx.expression()) {
                 if (e.getSourceInterval().startsAfter(ctx.TO().getSourceInterval())) {
                     columnEditor.scale(Integer.valueOf(e.getText()));
                 }
@@ -306,13 +306,13 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
         return 4000;
     }
 
-    private void setPrecision(YashanDBParser.Precision_partContext precisionPart, ColumnEditor columnEditor) {
+    private void setPrecision(YashanDbParser.Precision_partContext precisionPart, ColumnEditor columnEditor) {
         if (precisionPart != null && !precisionPart.numeric().isEmpty()) {
             columnEditor.length(Integer.valueOf(precisionPart.numeric(0).getText()));
         }
     }
 
-    private void setScale(YashanDBParser.Precision_partContext precisionPart, ColumnEditor columnEditor) {
+    private void setScale(YashanDbParser.Precision_partContext precisionPart, ColumnEditor columnEditor) {
         if (precisionPart != null) {
             if (precisionPart.numeric().size() > 1) {
                 columnEditor.scale(Integer.valueOf(precisionPart.numeric(1).getText()));

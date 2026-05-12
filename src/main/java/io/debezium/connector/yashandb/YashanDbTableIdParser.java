@@ -13,7 +13,7 @@ import io.debezium.util.Strings;
 /**
  * Specialized parser implementation for YashanDB {@link TableId} instances.
  */
-public class YashanDBTableIdParser {
+public class YashanDbTableIdParser {
 
     public static TableId parse(String identifier) {
         final String[] parts = TableId.parseParts(identifier);

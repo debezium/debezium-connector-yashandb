@@ -18,12 +18,12 @@ import com.sics.ystream.conf.YstreamConfig;
 
 import io.debezium.connector.yashandb.Scn;
 import io.debezium.connector.yashandb.SourceInfo;
-import io.debezium.connector.yashandb.YashanDBConnection;
-import io.debezium.connector.yashandb.YashanDBConnectorConfig;
-import io.debezium.connector.yashandb.YashanDBDatabaseSchema;
-import io.debezium.connector.yashandb.YashanDBOffsetContext;
-import io.debezium.connector.yashandb.YashanDBPartition;
-import io.debezium.connector.yashandb.YashanDBStreamingChangeEventSourceMetrics;
+import io.debezium.connector.yashandb.YashanDbConnection;
+import io.debezium.connector.yashandb.YashanDbConnectorConfig;
+import io.debezium.connector.yashandb.YashanDbDatabaseSchema;
+import io.debezium.connector.yashandb.YashanDbOffsetContext;
+import io.debezium.connector.yashandb.YashanDbPartition;
+import io.debezium.connector.yashandb.YashanDbStreamingChangeEventSourceMetrics;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.source.snapshot.incremental.SignalBasedIncrementalSnapshotContext;
@@ -36,17 +36,17 @@ import io.debezium.util.Clock;
  * A {@link StreamingChangeEventSource} based on YashanDB's YStream API. The YStream event handler loop is executed in a
  * separate executor.
  */
-public class YStreamStreamingChangeEventSource implements StreamingChangeEventSource<YashanDBPartition, YashanDBOffsetContext> {
+public class YStreamStreamingChangeEventSource implements StreamingChangeEventSource<YashanDbPartition, YashanDbOffsetContext> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(YStreamStreamingChangeEventSource.class);
 
-    private final YashanDBConnectorConfig connectorConfig;
-    private final YashanDBConnection jdbcConnection;
-    private final EventDispatcher<YashanDBPartition, TableId> dispatcher;
+    private final YashanDbConnectorConfig connectorConfig;
+    private final YashanDbConnection jdbcConnection;
+    private final EventDispatcher<YashanDbPartition, TableId> dispatcher;
     private final ErrorHandler errorHandler;
     private final Clock clock;
-    private final YashanDBDatabaseSchema schema;
-    private final YashanDBStreamingChangeEventSourceMetrics streamingMetrics;
+    private final YashanDbDatabaseSchema schema;
+    private final YashanDbStreamingChangeEventSourceMetrics streamingMetrics;
     private final String yStreamServerName;
     private YstreamClientBoot<YStreamRecord> ystreamClientBoot;
     /**
@@ -57,12 +57,12 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
      * internal YashanDB code locking.
      */
     private final AtomicReference<PositionAndScn> lcrMessage = new AtomicReference<>();
-    private YashanDBOffsetContext effectiveOffset;
+    private YashanDbOffsetContext effectiveOffset;
 
-    public YStreamStreamingChangeEventSource(YashanDBConnectorConfig connectorConfig, YashanDBConnection jdbcConnection,
-                                             EventDispatcher<YashanDBPartition, TableId> dispatcher, ErrorHandler errorHandler,
-                                             Clock clock, YashanDBDatabaseSchema schema,
-                                             YashanDBStreamingChangeEventSourceMetrics streamingMetrics) {
+    public YStreamStreamingChangeEventSource(YashanDbConnectorConfig connectorConfig, YashanDbConnection jdbcConnection,
+                                             EventDispatcher<YashanDbPartition, TableId> dispatcher, ErrorHandler errorHandler,
+                                             Clock clock, YashanDbDatabaseSchema schema,
+                                             YashanDbStreamingChangeEventSourceMetrics streamingMetrics) {
         this.connectorConfig = connectorConfig;
         this.jdbcConnection = jdbcConnection;
         this.dispatcher = dispatcher;
@@ -74,19 +74,19 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     }
 
     @Override
-    public void init(YashanDBOffsetContext offsetContext) throws InterruptedException {
+    public void init(YashanDbOffsetContext offsetContext) throws InterruptedException {
         this.effectiveOffset = offsetContext == null ? emptyContext() : offsetContext;
     }
 
-    private YashanDBOffsetContext emptyContext() {
-        return YashanDBOffsetContext.create().logicalName(connectorConfig)
+    private YashanDbOffsetContext emptyContext() {
+        return YashanDbOffsetContext.create().logicalName(connectorConfig)
                 .snapshotPendingTransactions(Collections.emptyMap())
                 .transactionContext(new TransactionContext())
                 .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>()).build();
     }
 
     @Override
-    public void execute(ChangeEventSourceContext context, YashanDBPartition partition, YashanDBOffsetContext offsetContext)
+    public void execute(ChangeEventSourceContext context, YashanDbPartition partition, YashanDbOffsetContext offsetContext)
             throws InterruptedException {
 
         this.effectiveOffset = offsetContext;
@@ -145,9 +145,9 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     @Override
     public void commitOffset(Map<String, ?> partition, Map<String, ?> offset) {
         if (ystreamClientBoot != null) {
-            LOGGER.debug("Sending message to request recording of offsets to Oracle");
+            LOGGER.debug("Sending message to request recording of offsets to YashanDB");
             final YStreamPosition lcrPosition = YStreamPosition.valueOf(offset);
-            final Scn scn = YashanDBOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
+            final Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
             // We can safely overwrite the message even if it was not processed. The watermarked will be set to the highest
             // (last) delivered value in a single step instead of incrementally
             sendPublishedPosition(lcrPosition, scn);
@@ -155,7 +155,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     }
 
     @Override
-    public YashanDBOffsetContext getOffsetContext() {
+    public YashanDbOffsetContext getOffsetContext() {
         return effectiveOffset;
     }
 

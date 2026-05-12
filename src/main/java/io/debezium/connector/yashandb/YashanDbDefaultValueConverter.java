@@ -42,17 +42,17 @@ import io.debezium.util.Strings;
 
 @ThreadSafe
 @Immutable
-public class YashanDBDefaultValueConverter implements DefaultValueConverter {
+public class YashanDbDefaultValueConverter implements DefaultValueConverter {
 
-    private static Logger LOGGER = LoggerFactory.getLogger(YashanDBDefaultValueConverter.class);
+    private static Logger LOGGER = LoggerFactory.getLogger(YashanDbDefaultValueConverter.class);
 
-    private final YashanDBValueConverters valueConverters;
+    private final YashanDbValueConverters valueConverters;
     private final Map<Integer, DefaultValueMapper> defaultValueMappers;
     private static final Pattern TIME_FIELD_PATTERN = Pattern.compile("(\\-?[0-9]*):([0-9]*)(:([0-9]*))?(\\.([0-9]*))?");
     private static final Pattern TIMESTAMP_PATTERN = Pattern.compile("([0-9]*-[0-9]*-[0-9]*) ([0-9]*:[0-9]*:[0-9]*(\\.([0-9]*))?)");
     private static final Pattern DATE_PATTERN = Pattern.compile("([0-9]*-[0-9]*-[0-9]*)");
 
-    public YashanDBDefaultValueConverter(YashanDBValueConverters valueConverters, YashanDBConnection jdbcConnection) {
+    public YashanDbDefaultValueConverter(YashanDbValueConverters valueConverters, YashanDbConnection jdbcConnection) {
         this.valueConverters = valueConverters;
         this.defaultValueMappers = Collections.unmodifiableMap(createDefaultValueMappers(jdbcConnection));
     }
@@ -164,7 +164,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
         return bytes;
     }
 
-    private static Map<Integer, DefaultValueMapper> createDefaultValueMappers(YashanDBConnection jdbcConnection) {
+    private static Map<Integer, DefaultValueMapper> createDefaultValueMappers(YashanDbConnection jdbcConnection) {
         // Data types that are supported should be registered in the map.
         final Map<Integer, DefaultValueMapper> result = new HashMap<>();
 
@@ -250,7 +250,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
         return (column, value) -> value != null ? unquote(value) : null;
     }
 
-    private static DefaultValueMapper convertDate(YashanDBConnection jdbcConnection) {
+    private static DefaultValueMapper convertDate(YashanDbConnection jdbcConnection) {
         return (column, value) -> {
             if ("SYSDATE".equalsIgnoreCase(value.trim()) || value.trim().toUpperCase().equalsIgnoreCase("CURRENT_TIMESTAMP")) {
                 if (column.isOptional()) {
@@ -271,7 +271,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
                 }
                 else {
                     // For all other temporal types, return "0".
-                    // The return is a string-value as the YashanDBValueConverters know how to explicitly infer
+                    // The return is a string-value as the YashanDbValueConverters know how to explicitly infer
                     // whether to emit the final converted value as either a string or numeric value based on
                     // the column's data type.
                     return "0";
@@ -296,7 +296,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
         };
     }
 
-    private static DefaultValueMapper convertTime(YashanDBConnection jdbcConnection) {
+    private static DefaultValueMapper convertTime(YashanDbConnection jdbcConnection) {
         return (column, value) -> {
             if ("SYSDATE".equalsIgnoreCase(value.trim()) || value.trim().toUpperCase().equalsIgnoreCase("CURRENT_TIMESTAMP")) {
                 if (column.isOptional()) {
@@ -309,7 +309,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
                 }
                 else {
                     // For all other temporal types, return "0".
-                    // The return is a string-value as the YashanDBValueConverters know how to explicitly infer
+                    // The return is a string-value as the YashanDbValueConverters know how to explicitly infer
                     // whether to emit the final converted value as either a string or numeric value based on
                     // the column's data type.
                     return "0";
@@ -382,7 +382,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
         return isNegative && !duration.isNegative() ? duration.negated() : duration;
     }
 
-    private static DefaultValueMapper convertTimestamp(YashanDBConnection jdbcConnection) {
+    private static DefaultValueMapper convertTimestamp(YashanDbConnection jdbcConnection) {
         return (column, value) -> {
             if ("SYSDATE".equalsIgnoreCase(value.trim()) || value.trim().toUpperCase().equalsIgnoreCase("CURRENT_TIMESTAMP")) {
                 if (column.isOptional()) {
@@ -399,7 +399,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
                 }
                 else {
                     // For all other temporal types, return "0".
-                    // The return is a string-value as the YashanDBValueConverters know how to explicitly infer
+                    // The return is a string-value as the YashanDbValueConverters know how to explicitly infer
                     // whether to emit the final converted value as either a string or numeric value based on
                     // the column's data type.
                     return "0";
@@ -424,7 +424,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
         };
     }
 
-    private static DefaultValueMapper castTemporalFunctionCall(YashanDBConnection jdbcConnection) {
+    private static DefaultValueMapper castTemporalFunctionCall(YashanDbConnection jdbcConnection) {
         return (column, value) -> {
             if ("SYSDATE".equalsIgnoreCase(value.trim()) || value.trim().toUpperCase().equalsIgnoreCase("CURRENT_TIMESTAMP")) {
                 if (column.isOptional()) {
@@ -445,7 +445,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
                 }
                 else {
                     // For all other temporal types, return "0".
-                    // The return is a string-value as the YashanDBValueConverters know how to explicitly infer
+                    // The return is a string-value as the YashanDbValueConverters know how to explicitly infer
                     // whether to emit the final converted value as either a string or numeric value based on
                     // the column's data type.
                     return "0";

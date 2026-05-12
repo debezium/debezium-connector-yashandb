@@ -24,9 +24,9 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStreamingAdapter.class);
 
-    protected final YashanDBConnectorConfig connectorConfig;
+    protected final YashanDbConnectorConfig connectorConfig;
 
-    public AbstractStreamingAdapter(YashanDBConnectorConfig connectorConfig) {
+    public AbstractStreamingAdapter(YashanDbConnectorConfig connectorConfig) {
         this.connectorConfig = connectorConfig;
     }
 
@@ -48,7 +48,7 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
      * @return true if the two system change numbers have the same timestamp; false otherwise
      * @throws SQLException if a database error occurred
      */
-    protected boolean areSameTimestamp(Scn scn1, Scn scn2, YashanDBConnection connection) throws SQLException {
+    protected boolean areSameTimestamp(Scn scn1, Scn scn2, YashanDbConnection connection) throws SQLException {
         if (scn1 == null) {
             return false;
         }
@@ -70,7 +70,7 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
      * @return the latest table DDL system change number, never {@code null} but may be empty.
      * @throws SQLException if a database error occurred
      */
-    protected Optional<Scn> getLatestTableDdlScn(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> ctx, YashanDBConnection connection)
+    protected Optional<Scn> getLatestTableDdlScn(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx, YashanDbConnection connection)
             throws SQLException {
         if (ctx.capturedTables.isEmpty()) {
             return Optional.empty();

@@ -20,29 +20,26 @@ import io.debezium.relational.TableId;
 import io.debezium.schema.DatabaseSchema;
 import io.debezium.util.Clock;
 
-/**
- * @author Chris Cranford
- */
-public class YashanDBSignalBasedIncrementalSnapshotChangeEventSource extends SignalBasedIncrementalSnapshotChangeEventSource<YashanDBPartition, TableId> {
+public class YashanDbSignalBasedIncrementalSnapshotChangeEventSource extends SignalBasedIncrementalSnapshotChangeEventSource<YashanDbPartition, TableId> {
 
-    private final YashanDBConnection connection;
+    private final YashanDbConnection connection;
 
-    public YashanDBSignalBasedIncrementalSnapshotChangeEventSource(RelationalDatabaseConnectorConfig config,
+    public YashanDbSignalBasedIncrementalSnapshotChangeEventSource(RelationalDatabaseConnectorConfig config,
                                                                    JdbcConnection jdbcConnection,
-                                                                   EventDispatcher<YashanDBPartition, TableId> dispatcher,
+                                                                   EventDispatcher<YashanDbPartition, TableId> dispatcher,
                                                                    DatabaseSchema<?> databaseSchema,
                                                                    Clock clock,
-                                                                   SnapshotProgressListener<YashanDBPartition> progressListener,
-                                                                   DataChangeEventListener<YashanDBPartition> dataChangeEventListener,
-                                                                   NotificationService<YashanDBPartition, YashanDBOffsetContext> notificationService) {
+                                                                   SnapshotProgressListener<YashanDbPartition> progressListener,
+                                                                   DataChangeEventListener<YashanDbPartition> dataChangeEventListener,
+                                                                   NotificationService<YashanDbPartition, YashanDbOffsetContext> notificationService) {
         super(config, jdbcConnection, dispatcher, databaseSchema, clock, progressListener, dataChangeEventListener, notificationService);
-        this.connection = (YashanDBConnection) jdbcConnection;
+        this.connection = (YashanDbConnection) jdbcConnection;
     }
 
     @Override
     protected String getSignalTableName(String dataCollectionId) {
-        final TableId tableId = YashanDBTableIdParser.parse(dataCollectionId);
-        return YashanDBTableIdParser.quoteIfNeeded(tableId, false, true, connection.getSQLKeywords());
+        final TableId tableId = YashanDbTableIdParser.parse(dataCollectionId);
+        return YashanDbTableIdParser.quoteIfNeeded(tableId, false, true, connection.getSQLKeywords());
     }
 
     @Override

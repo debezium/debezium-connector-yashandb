@@ -15,13 +15,13 @@ import io.debezium.spi.schema.DataCollectionId;
 /**
  * YashanDB implementation that exposes {@code ROWID} as a physical row identifier for incremental snapshots.
  */
-public class YashanDBPhysicalRowIdentifierChunkQueryBuilder<T extends DataCollectionId>
+public class YashanDbPhysicalRowIdentifierChunkQueryBuilder<T extends DataCollectionId>
         extends PhysicalRowIdentifierChunkQueryBuilder<T> {
 
     private static final String ROWID = "ROWID";
     private static final String ROWID_TABLE_ALIAS = "DBZ_ROWID_ALIAS";
 
-    public YashanDBPhysicalRowIdentifierChunkQueryBuilder(RelationalDatabaseConnectorConfig config,
+    public YashanDbPhysicalRowIdentifierChunkQueryBuilder(RelationalDatabaseConnectorConfig config,
                                                           JdbcConnection jdbcConnection) {
         super(config,
                 jdbcConnection,

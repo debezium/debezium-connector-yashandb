@@ -17,7 +17,7 @@ import io.debezium.transforms.outbox.EventRouterConfigurationProvider;
 /**
  * An implementation of the {@link EventRouterConfigurationProvider} for the YashanDB connector.
  */
-public class YashanDBEventRouterConfigurationProvider implements EventRouterConfigurationProvider {
+public class YashanDbEventRouterConfigurationProvider implements EventRouterConfigurationProvider {
 
     private Configuration configuration;
 

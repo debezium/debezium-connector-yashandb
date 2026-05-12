@@ -17,12 +17,10 @@ import com.sics.ystream.result.Position;
 import com.sics.ystream.result.SystemChangeNumber;
 
 import io.debezium.connector.yashandb.Scn;
-import io.debezium.connector.yashandb.YashanDBOffsetContext;
+import io.debezium.connector.yashandb.YashanDbOffsetContext;
 
 /**
  * The logical encapsulation of raw LCR byte array.
- *
- * @author Jiri Pechanec
  */
 public class YStreamPosition implements Comparable<YStreamPosition> {
 
@@ -51,7 +49,7 @@ public class YStreamPosition implements Comparable<YStreamPosition> {
     }
 
     public static YStreamPosition valueOf(Map<String, ?> offset) {
-        return new YStreamPosition(Objects.requireNonNull(YashanDBOffsetContext.loadRecoverPosition(offset)));
+        return new YStreamPosition(Objects.requireNonNull(YashanDbOffsetContext.loadRecoverPosition(offset)));
     }
 
     public Position getRawPosition() {

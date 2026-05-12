@@ -12,7 +12,7 @@ import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetricsMXBean;
 /**
  * The JMX exposed interface for YashanDB streaming metrics.
  */
-public interface YashanDBStreamingChangeEventSourceMetricsMXBean extends StreamingChangeEventSourceMetricsMXBean {
+public interface YashanDbStreamingChangeEventSourceMetricsMXBean extends StreamingChangeEventSourceMetricsMXBean {
 
     /**
      * @return the current system change number of the database

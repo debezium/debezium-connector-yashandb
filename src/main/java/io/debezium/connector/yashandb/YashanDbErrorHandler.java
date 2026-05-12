@@ -17,7 +17,7 @@ import io.debezium.util.Collect;
 /**
  * Error handle for YashanDB.
  */
-public class YashanDBErrorHandler extends ErrorHandler {
+public class YashanDbErrorHandler extends ErrorHandler {
 
     /**
      * Contents of this set should only be YAS-xxxxx errors;
@@ -33,8 +33,8 @@ public class YashanDBErrorHandler extends ErrorHandler {
     @Immutable
     private static final Set<String> RETRIABLE_ERROR_MESSAGES = Collect.unmodifiableSet();
 
-    public YashanDBErrorHandler(YashanDBConnectorConfig connectorConfig, ChangeEventQueue<?> queue, ErrorHandler replacedErrorHandler) {
-        super(YashanDBConnector.class, connectorConfig, queue, replacedErrorHandler);
+    public YashanDbErrorHandler(YashanDbConnectorConfig connectorConfig, ChangeEventQueue<?> queue, ErrorHandler replacedErrorHandler) {
+        super(YashanDbConnector.class, connectorConfig, queue, replacedErrorHandler);
     }
 
     @Override

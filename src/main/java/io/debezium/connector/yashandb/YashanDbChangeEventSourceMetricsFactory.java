@@ -12,16 +12,16 @@ import io.debezium.pipeline.metrics.DefaultChangeEventSourceMetricsFactory;
 import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetrics;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 
-public class YashanDBChangeEventSourceMetricsFactory extends DefaultChangeEventSourceMetricsFactory<YashanDBPartition> {
+public class YashanDbChangeEventSourceMetricsFactory extends DefaultChangeEventSourceMetricsFactory<YashanDbPartition> {
 
-    private final YashanDBStreamingChangeEventSourceMetrics streamingMetrics;
+    private final YashanDbStreamingChangeEventSourceMetrics streamingMetrics;
 
-    public YashanDBChangeEventSourceMetricsFactory(YashanDBStreamingChangeEventSourceMetrics streamingMetrics) {
+    public YashanDbChangeEventSourceMetricsFactory(YashanDbStreamingChangeEventSourceMetrics streamingMetrics) {
         this.streamingMetrics = streamingMetrics;
     }
 
     @Override
-    public <T extends CdcSourceTaskContext> StreamingChangeEventSourceMetrics<YashanDBPartition> getStreamingMetrics(T taskContext,
+    public <T extends CdcSourceTaskContext> StreamingChangeEventSourceMetrics<YashanDbPartition> getStreamingMetrics(T taskContext,
                                                                                                                      ChangeEventQueueMetrics changeEventQueueMetrics,
                                                                                                                      EventMetadataProvider eventMetadataProvider,
                                                                                                                      CapturedTablesSupplier capturedTablesSupplier) {

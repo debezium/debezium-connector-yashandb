@@ -16,7 +16,7 @@ import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.spi.schema.DataCollectionId;
 import io.debezium.util.Collect;
 
-class YashanDBEventMetadataProvider implements EventMetadataProvider {
+class YashanDbEventMetadataProvider implements EventMetadataProvider {
 
     @Override
     public Instant getEventTimestamp(DataCollectionId source, OffsetContext offset, Object key, Struct value) {

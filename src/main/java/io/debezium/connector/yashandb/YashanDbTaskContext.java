@@ -8,9 +8,9 @@ package io.debezium.connector.yashandb;
 import io.debezium.config.Configuration;
 import io.debezium.connector.common.CdcSourceTaskContext;
 
-public class YashanDBTaskContext extends CdcSourceTaskContext<YashanDBConnectorConfig> {
+public class YashanDbTaskContext extends CdcSourceTaskContext<YashanDbConnectorConfig> {
 
-    public YashanDBTaskContext(Configuration rawConfig, YashanDBConnectorConfig config) {
+    public YashanDbTaskContext(Configuration rawConfig, YashanDbConnectorConfig config) {
         super(rawConfig, config, config.getCustomMetricTags());
     }
 }

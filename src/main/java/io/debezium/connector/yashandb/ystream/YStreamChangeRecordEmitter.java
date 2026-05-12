@@ -18,9 +18,9 @@ import com.sics.ystream.result.YstreamColumn;
 import com.sics.ystream.result.YstreamColumns;
 
 import io.debezium.connector.yashandb.BaseChangeRecordEmitter;
-import io.debezium.connector.yashandb.YashanDBConnectorConfig;
-import io.debezium.connector.yashandb.YashanDBDatabaseSchema;
-import io.debezium.connector.yashandb.YashanDBPartition;
+import io.debezium.connector.yashandb.YashanDbConnectorConfig;
+import io.debezium.connector.yashandb.YashanDbDatabaseSchema;
+import io.debezium.connector.yashandb.YashanDbPartition;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.relational.Column;
@@ -29,8 +29,6 @@ import io.debezium.util.Clock;
 
 /**
  * Emits change data based on a single {@link YStreamDataChangeRecord} event.
- *
- * @author Gunnar Morling
  */
 public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamDataChangeRecord> {
 
@@ -38,8 +36,8 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
 
     private final YStreamDataChangeRecord record;
 
-    public YStreamChangeRecordEmitter(YashanDBConnectorConfig connectorConfig, YashanDBPartition partition, OffsetContext offset, YStreamDataChangeRecord record,
-                                      Table table, YashanDBDatabaseSchema schema, Clock clock, Object[] newValues, Object[] oldValues) {
+    public YStreamChangeRecordEmitter(YashanDbConnectorConfig connectorConfig, YashanDbPartition partition, OffsetContext offset, YStreamDataChangeRecord record,
+                                      Table table, YashanDbDatabaseSchema schema, Clock clock, Object[] newValues, Object[] oldValues) {
         super(connectorConfig, partition, offset, schema, table, clock, oldValues,
                 newValues);
         this.record = record;

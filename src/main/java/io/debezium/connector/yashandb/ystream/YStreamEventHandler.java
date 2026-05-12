@@ -29,14 +29,14 @@ import com.sics.ystream.result.YstreamXactCommit;
 import com.yashandb.jdbc.YasTypes;
 
 import io.debezium.DebeziumException;
-import io.debezium.connector.yashandb.YashanDBConnection;
-import io.debezium.connector.yashandb.YashanDBConnectorConfig;
-import io.debezium.connector.yashandb.YashanDBDatabaseSchema;
-import io.debezium.connector.yashandb.YashanDBOffsetContext;
-import io.debezium.connector.yashandb.YashanDBPartition;
-import io.debezium.connector.yashandb.YashanDBSchemaChangeEventEmitter;
-import io.debezium.connector.yashandb.YashanDBStreamingChangeEventSourceMetrics;
-import io.debezium.connector.yashandb.YashanDBValueConverters;
+import io.debezium.connector.yashandb.YashanDbConnection;
+import io.debezium.connector.yashandb.YashanDbConnectorConfig;
+import io.debezium.connector.yashandb.YashanDbDatabaseSchema;
+import io.debezium.connector.yashandb.YashanDbOffsetContext;
+import io.debezium.connector.yashandb.YashanDbPartition;
+import io.debezium.connector.yashandb.YashanDbSchemaChangeEventEmitter;
+import io.debezium.connector.yashandb.YashanDbStreamingChangeEventSourceMetrics;
+import io.debezium.connector.yashandb.YashanDbValueConverters;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.relational.Column;
@@ -51,23 +51,23 @@ class YStreamEventHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(YStreamEventHandler.class);
     private YStreamDeserializer ystreamDeserializer;
-    private final YashanDBConnectorConfig connectorConfig;
+    private final YashanDbConnectorConfig connectorConfig;
     private final ErrorHandler errorHandler;
-    private final EventDispatcher<YashanDBPartition, TableId> dispatcher;
+    private final EventDispatcher<YashanDbPartition, TableId> dispatcher;
     private final Clock clock;
-    private final YashanDBDatabaseSchema schema;
-    private final YashanDBPartition partition;
-    private final YashanDBOffsetContext offsetContext;
+    private final YashanDbDatabaseSchema schema;
+    private final YashanDbPartition partition;
+    private final YashanDbOffsetContext offsetContext;
     private final YStreamStreamingChangeEventSource eventSource;
-    private final YashanDBStreamingChangeEventSourceMetrics streamingMetrics;
+    private final YashanDbStreamingChangeEventSourceMetrics streamingMetrics;
     private final Map<String, ChunkColumnValues> columnChunks;
     private YStreamRecord currentRecord;
     private int outRowSize;
 
-    YStreamEventHandler(YashanDBConnectorConfig connectorConfig, ErrorHandler errorHandler,
-                        EventDispatcher<YashanDBPartition, TableId> dispatcher, Clock clock,
-                        YashanDBDatabaseSchema schema, YashanDBPartition partition, YashanDBOffsetContext offsetContext, YStreamStreamingChangeEventSource eventSource,
-                        YashanDBStreamingChangeEventSourceMetrics streamingMetrics) {
+    YStreamEventHandler(YashanDbConnectorConfig connectorConfig, ErrorHandler errorHandler,
+                        EventDispatcher<YashanDbPartition, TableId> dispatcher, Clock clock,
+                        YashanDbDatabaseSchema schema, YashanDbPartition partition, YashanDbOffsetContext offsetContext, YStreamStreamingChangeEventSource eventSource,
+                        YashanDbStreamingChangeEventSourceMetrics streamingMetrics) {
         this.connectorConfig = connectorConfig;
         this.errorHandler = errorHandler;
         this.dispatcher = dispatcher;
@@ -198,7 +198,7 @@ class YStreamEventHandler {
 
         try {
             // YStream does not provide any before state for LOB columns and so this map will be
-            // populated here by column name with the YashanDBValueConverters.UNAVAILABLE_VALUE.
+            // populated here by column name with the YashanDbValueConverters.UNAVAILABLE_VALUE.
             Map<String, Object> oldChunkValues = new HashMap<>(0);
 
             if (chunkValues == null) {
@@ -216,11 +216,11 @@ class YStreamEventHandler {
             // marker object so its transformed correctly by the value converters.
 
             for (Column column : schema.getLobColumnsForTable(table.id())) {
-                oldChunkValues.put(column.name(), YashanDBValueConverters.UNAVAILABLE_VALUE);
+                oldChunkValues.put(column.name(), YashanDbValueConverters.UNAVAILABLE_VALUE);
                 if (!chunkValues.containsKey(column.name())) {
                     // Column not supplied, initialize with unavailable value marker
                     LOGGER.trace("\tColumn '{}' not supplied, initialized with unavailable value", column.name());
-                    chunkValues.put(column.name(), YashanDBValueConverters.UNAVAILABLE_VALUE);
+                    chunkValues.put(column.name(), YashanDbValueConverters.UNAVAILABLE_VALUE);
                 }
             }
             Table tableFor;
@@ -294,7 +294,7 @@ class YStreamEventHandler {
                 partition,
                 offsetContext,
                 tableId,
-                new YashanDBSchemaChangeEventEmitter(
+                new YashanDbSchemaChangeEventEmitter(
                         connectorConfig,
                         partition,
                         offsetContext,
@@ -319,7 +319,7 @@ class YStreamEventHandler {
                 partition,
                 offsetContext,
                 tableId,
-                new YashanDBSchemaChangeEventEmitter(
+                new YashanDbSchemaChangeEventEmitter(
                         connectorConfig,
                         partition,
                         offsetContext,
@@ -371,7 +371,7 @@ class YStreamEventHandler {
         LOGGER.info("Getting database metadata for table '{}'", tableId);
         // A separate connection must be used for this out-of-bands query while processing the Xstream callback.
         // This should have negligible overhead as this should happen rarely.
-        try (YashanDBConnection connection = new YashanDBConnection(connectorConfig.getJdbcConfig())) {
+        try (YashanDbConnection connection = new YashanDbConnection(connectorConfig.getJdbcConfig())) {
             connection.setAutoCommit(false);
             String tableMetadataDdl = connection.getTableMetadataDdl(tableId);
             LOGGER.debug("Obtain table {}.{} ddl: {}", tableId.schema(), tableId.table(), tableMetadataDdl);

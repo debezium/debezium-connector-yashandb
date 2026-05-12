@@ -23,13 +23,13 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.yashandb.AbstractStreamingAdapter;
 import io.debezium.connector.yashandb.Scn;
 import io.debezium.connector.yashandb.SourceInfo;
-import io.debezium.connector.yashandb.YashanDBConnection;
-import io.debezium.connector.yashandb.YashanDBConnectorConfig;
-import io.debezium.connector.yashandb.YashanDBDatabaseSchema;
-import io.debezium.connector.yashandb.YashanDBOffsetContext;
-import io.debezium.connector.yashandb.YashanDBPartition;
-import io.debezium.connector.yashandb.YashanDBStreamingChangeEventSourceMetrics;
-import io.debezium.connector.yashandb.YashanDBTaskContext;
+import io.debezium.connector.yashandb.YashanDbConnection;
+import io.debezium.connector.yashandb.YashanDbConnectorConfig;
+import io.debezium.connector.yashandb.YashanDbDatabaseSchema;
+import io.debezium.connector.yashandb.YashanDbOffsetContext;
+import io.debezium.connector.yashandb.YashanDbPartition;
+import io.debezium.connector.yashandb.YashanDbStreamingChangeEventSourceMetrics;
+import io.debezium.connector.yashandb.YashanDbTaskContext;
 import io.debezium.document.Document;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
@@ -44,8 +44,6 @@ import io.debezium.util.Clock;
 
 /**
  * The streaming adapter implementation for YashanDB YStream.
- *
- * @author Chris Cranford
  */
 public class YStreamAdapter extends AbstractStreamingAdapter {
 
@@ -53,7 +51,7 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
 
     public static final String TYPE = "ystream";
 
-    public YStreamAdapter(YashanDBConnectorConfig connectorConfig) {
+    public YStreamAdapter(YashanDbConnectorConfig connectorConfig) {
         super(connectorConfig);
     }
 
@@ -105,19 +103,19 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
     }
 
     @Override
-    public OffsetContext.Loader<YashanDBOffsetContext> getOffsetContextLoader() {
+    public OffsetContext.Loader<YashanDbOffsetContext> getOffsetContextLoader() {
         return new YStreamOffsetContextLoader(connectorConfig);
     }
 
     @Override
-    public StreamingChangeEventSource<YashanDBPartition, YashanDBOffsetContext> getSource(YashanDBConnection connection,
-                                                                                          EventDispatcher<YashanDBPartition, TableId> dispatcher,
+    public StreamingChangeEventSource<YashanDbPartition, YashanDbOffsetContext> getSource(YashanDbConnection connection,
+                                                                                          EventDispatcher<YashanDbPartition, TableId> dispatcher,
                                                                                           ErrorHandler errorHandler,
                                                                                           Clock clock,
-                                                                                          YashanDBDatabaseSchema schema,
-                                                                                          YashanDBTaskContext taskContext,
+                                                                                          YashanDbDatabaseSchema schema,
+                                                                                          YashanDbTaskContext taskContext,
                                                                                           Configuration jdbcConfig,
-                                                                                          YashanDBStreamingChangeEventSourceMetrics streamingMetrics) {
+                                                                                          YashanDbStreamingChangeEventSourceMetrics streamingMetrics) {
         return new YStreamStreamingChangeEventSource(
                 connectorConfig,
                 connection,
@@ -129,7 +127,7 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
     }
 
     @Override
-    public TableNameCaseSensitivity getTableNameCaseSensitivity(YashanDBConnection connection) {
+    public TableNameCaseSensitivity getTableNameCaseSensitivity(YashanDbConnection connection) {
         return super.getTableNameCaseSensitivity(connection);
     }
 
@@ -147,9 +145,9 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
     }
 
     @Override
-    public YashanDBOffsetContext determineSnapshotOffset(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> ctx,
-                                                         YashanDBConnectorConfig connectorConfig,
-                                                         YashanDBConnection connection)
+    public YashanDbOffsetContext determineSnapshotOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx,
+                                                         YashanDbConnectorConfig connectorConfig,
+                                                         YashanDbConnection connection)
             throws SQLException {
 
         final Optional<Scn> latestTableDdlScn = getLatestTableDdlScn(ctx, connection);
@@ -177,7 +175,7 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
 
         LOGGER.info("\tCurrent SCN resolved as {}", flashPointScn);
 
-        return YashanDBOffsetContext.create()
+        return YashanDbOffsetContext.create()
                 .logicalName(connectorConfig)
                 .ystreamStartScn(currentScn1)
                 .recoverPosition(position)

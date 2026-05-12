@@ -33,10 +33,10 @@ import io.debezium.util.LRUCacheMap;
  * The metrics implementation for YashanDB connector streaming phase.
  */
 @ThreadSafe
-public class YashanDBStreamingChangeEventSourceMetrics extends DefaultStreamingChangeEventSourceMetrics<YashanDBPartition>
-        implements YashanDBStreamingChangeEventSourceMetricsMXBean {
+public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingChangeEventSourceMetrics<YashanDbPartition>
+        implements YashanDbStreamingChangeEventSourceMetricsMXBean {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBStreamingChangeEventSourceMetrics.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbStreamingChangeEventSourceMetrics.class);
 
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final int TRANSACTION_ID_SET_SIZE = 10;
@@ -115,9 +115,9 @@ public class YashanDBStreamingChangeEventSourceMetrics extends DefaultStreamingC
 
     private final Clock clock;
 
-    public YashanDBStreamingChangeEventSourceMetrics(CdcSourceTaskContext taskContext, ChangeEventQueueMetrics changeEventQueueMetrics,
+    public YashanDbStreamingChangeEventSourceMetrics(CdcSourceTaskContext taskContext, ChangeEventQueueMetrics changeEventQueueMetrics,
                                                      EventMetadataProvider metadataProvider,
-                                                     YashanDBConnectorConfig connectorConfig,
+                                                     YashanDbConnectorConfig connectorConfig,
                                                      CapturedTablesSupplier capturedTablesSupplier) {
         this(taskContext, changeEventQueueMetrics, metadataProvider, connectorConfig, Clock.systemUTC(), capturedTablesSupplier);
     }
@@ -126,9 +126,9 @@ public class YashanDBStreamingChangeEventSourceMetrics extends DefaultStreamingC
      * Constructor that allows providing a clock to be used for Tests.
      */
     @VisibleForTesting
-    YashanDBStreamingChangeEventSourceMetrics(CdcSourceTaskContext taskContext, ChangeEventQueueMetrics changeEventQueueMetrics,
+    YashanDbStreamingChangeEventSourceMetrics(CdcSourceTaskContext taskContext, ChangeEventQueueMetrics changeEventQueueMetrics,
                                               EventMetadataProvider metadataProvider,
-                                              YashanDBConnectorConfig connectorConfig,
+                                              YashanDbConnectorConfig connectorConfig,
                                               Clock clock,
                                               CapturedTablesSupplier capturedTablesSupplier) {
         super(taskContext, changeEventQueueMetrics, metadataProvider, capturedTablesSupplier);
@@ -759,7 +759,7 @@ public class YashanDBStreamingChangeEventSourceMetrics extends DefaultStreamingC
 
     @Override
     public String toString() {
-        return "OracleStreamingChangeEventSourceMetrics{" +
+        return "YashanDbStreamingChangeEventSourceMetrics{" +
                 "currentScn=" + currentScn +
                 ", oldestScn=" + oldestScn.get() +
                 ", committedScn=" + committedScn.get() +

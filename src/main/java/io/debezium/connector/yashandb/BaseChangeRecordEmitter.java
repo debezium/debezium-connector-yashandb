@@ -31,18 +31,18 @@ import io.debezium.util.Clock;
 /**
  * Base class to emit change data based on a single entry event.
  */
-public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordEmitter<YashanDBPartition> {
+public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordEmitter<YashanDbPartition> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseChangeRecordEmitter.class);
 
-    private final YashanDBConnectorConfig connectorConfig;
+    private final YashanDbConnectorConfig connectorConfig;
     private final Object[] oldColumnValues;
     private final Object[] newColumnValues;
-    private final YashanDBDatabaseSchema schema;
+    private final YashanDbDatabaseSchema schema;
     protected final Table table;
 
-    protected BaseChangeRecordEmitter(YashanDBConnectorConfig connectorConfig, YashanDBPartition partition, OffsetContext offset,
-                                      YashanDBDatabaseSchema schema, Table table, Clock clock, Object[] oldColumnValues,
+    protected BaseChangeRecordEmitter(YashanDbConnectorConfig connectorConfig, YashanDbPartition partition, OffsetContext offset,
+                                      YashanDbDatabaseSchema schema, Table table, Clock clock, Object[] oldColumnValues,
                                       Object[] newColumnValues) {
         super(partition, offset, clock, connectorConfig);
         this.connectorConfig = connectorConfig;
@@ -69,7 +69,7 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
     }
 
     @Override
-    protected void emitUpdateRecord(Receiver<YashanDBPartition> receiver, TableSchema tableSchema)
+    protected void emitUpdateRecord(Receiver<YashanDbPartition> receiver, TableSchema tableSchema)
             throws InterruptedException {
         Object[] oldColumnValues = getOldColumnValues();
         Object[] newColumnValues = getNewColumnValues();
@@ -115,7 +115,7 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
                     table.id(), newKey, reselectColumns.stream().map(Column::name).collect(Collectors.toList()));
 
             final JdbcConfiguration jdbcConfig = connectorConfig.getJdbcConfig();
-            try (YashanDBConnection connection = new YashanDBConnection(jdbcConfig)) {
+            try (YashanDbConnection connection = new YashanDbConnection(jdbcConfig)) {
                 final String query = getReselectQuery(reselectColumns, table, connection);
                 connection.prepareQuery(query,
                         ps -> prepareReselectQueryStatement(ps, table, newKey),
@@ -147,7 +147,7 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
                         table.id(), oldKey, newKey, reselectColumns.stream().map(Column::name).collect(Collectors.toList()));
 
                 final JdbcConfiguration jdbcConfig = connectorConfig.getJdbcConfig();
-                try (YashanDBConnection connection = new YashanDBConnection(jdbcConfig)) {
+                try (YashanDbConnection connection = new YashanDbConnection(jdbcConfig)) {
                     final String query = getReselectQuery(reselectColumns, table, connection);
                     connection.prepareQuery(query,
                             ps -> prepareReselectQueryStatement(ps, table, newKey),
@@ -200,7 +200,7 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
      * @param connection the database connection
      * @return the query string for the reselect query
      */
-    private String getReselectQuery(List<Column> reselectColumns, Table table, YashanDBConnection connection) {
+    private String getReselectQuery(List<Column> reselectColumns, Table table, YashanDbConnection connection) {
         final TableId id = new TableId(null, table.id().schema(), table.id().table());
         final StringBuilder query = new StringBuilder("SELECT ")
                 .append(reselectColumns.stream().map(c -> connection.quoteIdentifier(c.name())).collect(Collectors.joining(", ")))

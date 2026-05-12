@@ -29,8 +29,8 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.spi.schema.DataCollectionId;
 
-public class YashanDBConnection extends JdbcConnection {
-    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBConnection.class);
+public class YashanDbConnection extends JdbcConnection {
+    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbConnection.class);
 
     private static final String QUOTED_CHARACTER = "\"";
 
@@ -38,15 +38,15 @@ public class YashanDBConnection extends JdbcConnection {
 
     private static final int YASHANDB_UNSET_SCALE = -127;
 
-    public YashanDBConnection(JdbcConfiguration config) {
+    public YashanDbConnection(JdbcConfiguration config) {
         super(config, resolveConnectionFactory(config), QUOTED_CHARACTER, QUOTED_CHARACTER);
     }
 
-    public YashanDBConnection(JdbcConfiguration config, ConnectionFactory connectionFactory) {
+    public YashanDbConnection(JdbcConfiguration config, ConnectionFactory connectionFactory) {
         super(config, connectionFactory, QUOTED_CHARACTER, QUOTED_CHARACTER);
     }
 
-    protected YashanDBConnection(JdbcConfiguration config, ConnectionFactory connectionFactory, Operations initialOperations) {
+    protected YashanDbConnection(JdbcConfiguration config, ConnectionFactory connectionFactory, Operations initialOperations) {
         super(config, connectionFactory, initialOperations, QUOTED_CHARACTER, QUOTED_CHARACTER);
     }
 
@@ -199,6 +199,6 @@ public class YashanDBConnection extends JdbcConnection {
 
     @Override
     public <T extends DataCollectionId> ChunkQueryBuilder<T> chunkQueryBuilder(RelationalDatabaseConnectorConfig connectorConfig) {
-        return new YashanDBPhysicalRowIdentifierChunkQueryBuilder<>(connectorConfig, this);
+        return new YashanDbPhysicalRowIdentifierChunkQueryBuilder<>(connectorConfig, this);
     }
 }

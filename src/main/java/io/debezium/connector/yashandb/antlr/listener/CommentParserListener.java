@@ -8,8 +8,8 @@ package io.debezium.connector.yashandb.antlr.listener;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
+import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableEditor;
@@ -21,17 +21,17 @@ import io.debezium.relational.TableId;
 public class CommentParserListener extends BaseParserListener {
     private final String catalogName;
     private final String schemaName;
-    private final YashanDBDdlParser parser;
+    private final YashanDbDdlParser parser;
     private TableEditor tableEditor;
 
-    CommentParserListener(final String catalogName, final String schemaName, final YashanDBDdlParser parser) {
+    CommentParserListener(final String catalogName, final String schemaName, final YashanDbDdlParser parser) {
         this.catalogName = catalogName;
         this.schemaName = schemaName;
         this.parser = parser;
     }
 
     @Override
-    public void enterComment_statement(YashanDBParser.Comment_statementContext ctx) {
+    public void enterComment_statement(YashanDbParser.Comment_statementContext ctx) {
         if (!parser.skipComments()) {
             String comment = parser.withoutQuotes(ctx.quoted_string().getText());
 
@@ -50,7 +50,7 @@ public class CommentParserListener extends BaseParserListener {
             }
             // COMMENT ON COLUMN
             else if (ctx.COLUMN() != null) {
-                List<YashanDBParser.IdentifierContext> identifiers = ctx.identifier();
+                List<YashanDbParser.IdentifierContext> identifiers = ctx.identifier();
                 if (identifiers.size() >= 2) {
                     // identifier.identifier format - first is schema or table, second is table or column
                     String tableName;
@@ -98,7 +98,7 @@ public class CommentParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitComment_statement(YashanDBParser.Comment_statementContext ctx) {
+    public void exitComment_statement(YashanDbParser.Comment_statementContext ctx) {
         if (!parser.skipComments()) {
             parser.runIfNotNull(() -> {
                 parser.databaseTables().overwriteTable(tableEditor.create());
@@ -108,8 +108,8 @@ public class CommentParserListener extends BaseParserListener {
         super.exitComment_statement(ctx);
     }
 
-    private String getTableNameFromComment(YashanDBParser.Comment_statementContext ctx) {
-        List<YashanDBParser.IdentifierContext> identifiers = ctx.identifier();
+    private String getTableNameFromComment(YashanDbParser.Comment_statementContext ctx) {
+        List<YashanDbParser.IdentifierContext> identifiers = ctx.identifier();
         if (ctx.schema() != null) {
             // schema '.' identifier format
             if (identifiers.size() >= 1) {
