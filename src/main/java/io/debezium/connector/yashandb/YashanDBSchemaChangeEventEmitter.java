@@ -5,6 +5,15 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
 import io.debezium.connector.yashandb.ystream.TruncateReceiver;
 import io.debezium.pipeline.spi.SchemaChangeEventEmitter;
@@ -20,14 +29,6 @@ import io.debezium.relational.ddl.DdlParserListener.TableTruncatedEvent;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.text.MultipleParsingExceptions;
 import io.debezium.text.ParsingException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
 
 /**
  * {@link SchemaChangeEventEmitter} implementation based on YashanDB.
@@ -78,13 +79,14 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
         final Table tableBefore = schema.tableFor(tableId);
 
         final YashanDBDdlParser parser = schema.getDdlParser();
-        final DdlChanges ddlChanges = parser.getDdlChanges();
+        final DdlChanges ddlChanges = parser.getAndResetDdlChanges();
         try {
             ddlChanges.reset();
             parser.setCurrentDatabase(sourceDatabaseName);
             parser.setCurrentSchema(objectOwner);
             parser.parse(ddlText, schema.getTables());
-        } catch (ParsingException | MultipleParsingExceptions e) {
+        }
+        catch (ParsingException | MultipleParsingExceptions e) {
             if (schema.skipUnparseableDdlStatements()) {
                 LOGGER.warn("Ignoring unparsable DDL statement '{}'", ddlText, e);
                 streamingMetrics.incrementWarningCount();
@@ -95,7 +97,8 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
                         schema.getTables().removeTable(tableId);
                     }
                 }
-            } else {
+            }
+            else {
                 throw e;
             }
         }
@@ -128,7 +131,8 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
                 if (!schema.skipSchemaChangeEvent(event)) {
                     if (SchemaChangeEvent.SchemaChangeEventType.TRUNCATE == event.getType()) {
                         truncateReceiver.processTruncateEvent();
-                    } else {
+                    }
+                    else {
                         receiver.schemaChangeEvent(event);
                     }
 
@@ -163,7 +167,8 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
                     tableId.schema(),
                     event.statement(),
                     schema.tableFor(event.tableId()));
-        } else {
+        }
+        else {
             return SchemaChangeEvent.ofRename(
                     partition,
                     offsetContext,

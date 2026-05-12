@@ -5,16 +5,17 @@
  */
 package io.debezium.connector.yashandb;
 
-import io.debezium.document.Document;
-import io.debezium.relational.RelationalSnapshotChangeEventSource.RelationalSnapshotContext;
-import io.debezium.relational.TableId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.debezium.document.Document;
+import io.debezium.relational.RelationalSnapshotChangeEventSource.RelationalSnapshotContext;
+import io.debezium.relational.TableId;
 
 /**
  * Abstract implementation of the {@link StreamingAdapter} for which all streaming adapters are derived.
@@ -106,8 +107,6 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
         }
         catch (SQLException e) {
             if (e.getErrorCode() == 8180) {
-                // DBZ-1446 In this use case we actually do not want to propagate the exception but
-                // rather return an empty optional value allowing the current SCN to take prior.
                 LOGGER.info("No latest table SCN could be resolved, defaulting to current SCN");
                 return Optional.empty();
             }

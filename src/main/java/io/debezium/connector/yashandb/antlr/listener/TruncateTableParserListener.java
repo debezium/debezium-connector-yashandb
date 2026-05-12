@@ -10,7 +10,7 @@ import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
 import io.debezium.relational.TableId;
 
 /**
- * This class is parsing Oracle truncate table statements.
+ * This class is parsing YashanDB truncate table statements.
  */
 public class TruncateTableParserListener extends BaseParserListener {
 
@@ -25,9 +25,21 @@ public class TruncateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterTruncate_table(final YashanDBParser.Truncate_tableContext ctx) {
-        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name()));
+    public void enterTruncate_table_statement(final YashanDBParser.Truncate_table_statementContext ctx) {
+        TableId tableId = new TableId(catalogName, schemaName, getTableNameFromTruncate(ctx));
         parser.signalTruncateTable(tableId, ctx);
-        super.enterTruncate_table(ctx);
+        super.enterTruncate_table_statement(ctx);
+    }
+
+    private String getTableNameFromTruncate(YashanDBParser.Truncate_table_statementContext ctx) {
+        // truncate_table_statement: TRUNCATE TABLE identifier | TRUNCATE TABLE schema '.' identifier
+        if (ctx.schema() != null) {
+            // schema.identifier format - return the table name (identifier after schema)
+            return ctx.identifier().id_expression().getText();
+        }
+        else if (ctx.identifier() != null) {
+            return ctx.identifier().id_expression().getText();
+        }
+        return ctx.getText();
     }
 }

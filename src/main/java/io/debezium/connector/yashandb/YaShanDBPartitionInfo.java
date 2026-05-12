@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-
 /**
  * 此类用于记录YaShan数据库本身的分区信息.
  */
@@ -35,8 +34,10 @@ public class YaShanDBPartitionInfo {
 
         @Override
         public boolean equals(Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
+            if (obj == this)
+                return true;
+            if (obj == null || obj.getClass() != this.getClass())
+                return false;
             var that = (SubPartitionInfo) obj;
             return Objects.equals(this.tableName, that.tableName) &&
                     Objects.equals(this.partitionName, that.partitionName) &&
@@ -67,7 +68,7 @@ public class YaShanDBPartitionInfo {
         this.schema = schema;
         this.tableName = tableName;
         this.isPartition = isPartition;
-        this.subPartitionInfo = new ArrayList<>();//Collections.emptyList();
+        this.subPartitionInfo = new ArrayList<>();// Collections.emptyList();
     }
 
     // Getter for schema (final field, no setter)

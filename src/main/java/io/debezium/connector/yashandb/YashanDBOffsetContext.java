@@ -5,19 +5,6 @@
  */
 package io.debezium.connector.yashandb;
 
-import com.sics.ystream.result.LogPosition;
-import com.sics.ystream.result.Position;
-import com.sics.ystream.result.SystemChangeNumber;
-import io.debezium.connector.SnapshotRecord;
-import io.debezium.pipeline.CommonOffsetContext;
-import io.debezium.pipeline.source.snapshot.incremental.IncrementalSnapshotContext;
-import io.debezium.pipeline.txmetadata.TransactionContext;
-import io.debezium.relational.TableId;
-import io.debezium.spi.schema.DataCollectionId;
-import org.apache.kafka.connect.data.Schema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
@@ -25,6 +12,21 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.apache.kafka.connect.data.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.sics.ystream.result.LogPosition;
+import com.sics.ystream.result.Position;
+import com.sics.ystream.result.SystemChangeNumber;
+
+import io.debezium.connector.SnapshotRecord;
+import io.debezium.pipeline.CommonOffsetContext;
+import io.debezium.pipeline.source.snapshot.incremental.IncrementalSnapshotContext;
+import io.debezium.pipeline.txmetadata.TransactionContext;
+import io.debezium.relational.TableId;
+import io.debezium.spi.schema.DataCollectionId;
 
 public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
 
@@ -102,7 +104,8 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
         this.snapshotCompleted = snapshotCompleted;
         if (this.snapshotCompleted) {
             postSnapshotCompletion();
-        } else {
+        }
+        else {
             sourceInfo.setSnapshot(snapshot ? SnapshotRecord.TRUE : SnapshotRecord.FALSE);
         }
     }
@@ -213,7 +216,8 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
             offset.put(SourceInfo.INSTANCE_ID_KEY, String.valueOf(recoverPosition.getLogPosition().getInstanceId()));
 
             return offset;
-        } else {
+        }
+        else {
             final Map<String, Object> offset = new HashMap<>();
             if (sourceInfo.getLcrPosition() != null) {
                 // offset.put(SourceInfo.LCR_POSITION_KEY, sourceInfo.getLcrPosition());
@@ -222,7 +226,8 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
                 offset.put(SourceInfo.GROUP_OFFSET_KEY, sourceInfo.getGroupOffset());
                 offset.put(SourceInfo.INSTANCE_ID_KEY, sourceInfo.getInstanceId());
                 offset.put(SourceInfo.BATCH_ROW_ID_KEY, sourceInfo.getBatchRowId());
-            } else {
+            }
+            else {
                 // has not lcr position, use recoverPosition.
                 final Scn scn = sourceInfo.getScn();
                 offset.put(SourceInfo.SCN_KEY, scn != null ? scn.toString() : null);
@@ -340,12 +345,12 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
     }
 
     @Override
-    public boolean isSnapshotRunning() {
+    public boolean isInitialSnapshotRunning() {
         return sourceInfo.isSnapshot() && !snapshotCompleted;
     }
 
     @Override
-    public void preSnapshotStart() {
+    public void preSnapshotStart(boolean onDemand) {
         sourceInfo.setSnapshot(SnapshotRecord.TRUE);
         snapshotCompleted = false;
     }
@@ -408,7 +413,8 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
         Object scn = offset.get(key);
         if (scn instanceof String) {
             return Scn.valueOf((String) scn);
-        } else if (scn != null) {
+        }
+        else if (scn != null) {
             return Scn.valueOf((Long) scn);
         }
         return null;
@@ -461,7 +467,8 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
         byte instanceIdB;
         if (isDigit(instanceId)) {
             instanceIdB = Byte.parseByte(instanceId);
-        } else {
+        }
+        else {
             // 兼容旧数据 AAAAAAA=
             byte[] instanceIdBytes = Base64.getDecoder().decode(instanceId);
             instanceIdB = instanceIdBytes[0];
@@ -469,23 +476,26 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
         if (scn instanceof String) {
             return new Position(new SystemChangeNumber(Long.parseLong((String) scn)),
                     new LogPosition(instanceIdB, (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
-        } else if (scn instanceof Long) {
+        }
+        else if (scn instanceof Long) {
             if (groupOffset instanceof Long) {
                 return new Position(new SystemChangeNumber((Long) scn),
                         new LogPosition(instanceIdB, (Long) groupLsn, Math.toIntExact((Long) groupOffset), Math.toIntExact((Long) batchRowId)));
             }
             return new Position(new SystemChangeNumber((Long) scn), new LogPosition(instanceIdB, (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
-        } else if (scn instanceof Integer) {
+        }
+        else if (scn instanceof Integer) {
             return new Position(new SystemChangeNumber((Integer) scn), new LogPosition(instanceIdB, (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
 
-        } else {
+        }
+        else {
             return null;
         }
     }
 
-    private static boolean isDigit(String s){
+    private static boolean isDigit(String s) {
         for (char c : s.toCharArray()) {
-            if(!Character.isDigit(c)){
+            if (!Character.isDigit(c)) {
                 return false;
             }
         }

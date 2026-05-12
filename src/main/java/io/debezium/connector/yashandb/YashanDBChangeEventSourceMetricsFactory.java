@@ -7,6 +7,7 @@ package io.debezium.connector.yashandb;
 
 import io.debezium.connector.base.ChangeEventQueueMetrics;
 import io.debezium.connector.common.CdcSourceTaskContext;
+import io.debezium.pipeline.metrics.CapturedTablesSupplier;
 import io.debezium.pipeline.metrics.DefaultChangeEventSourceMetricsFactory;
 import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetrics;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
@@ -25,7 +26,8 @@ public class YashanDBChangeEventSourceMetricsFactory extends DefaultChangeEventS
     @Override
     public <T extends CdcSourceTaskContext> StreamingChangeEventSourceMetrics<YashanDBPartition> getStreamingMetrics(T taskContext,
                                                                                                                      ChangeEventQueueMetrics changeEventQueueMetrics,
-                                                                                                                     EventMetadataProvider eventMetadataProvider) {
+                                                                                                                     EventMetadataProvider eventMetadataProvider,
+                                                                                                                     CapturedTablesSupplier capturedTablesSupplier) {
         return streamingMetrics;
     }
 }

@@ -5,9 +5,19 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
+import java.sql.SQLException;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.sics.ystream.result.LogPosition;
 import com.sics.ystream.result.Position;
 import com.sics.ystream.result.SystemChangeNumber;
+
 import io.debezium.DebeziumException;
 import io.debezium.config.Configuration;
 import io.debezium.connector.yashandb.AbstractStreamingAdapter;
@@ -31,15 +41,6 @@ import io.debezium.relational.RelationalSnapshotChangeEventSource.RelationalSnap
 import io.debezium.relational.TableId;
 import io.debezium.relational.history.HistoryRecordComparator;
 import io.debezium.util.Clock;
-import io.reactivex.rxjava3.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.sql.SQLException;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 /**
  * The streaming adapter implementation for YashanDB YStream.
@@ -86,16 +87,17 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
         int batchRowId = document.getInteger(SourceInfo.BATCH_ROW_ID_KEY);
         if (isDigit(instanceId)) {
             return new YStreamPosition(new Position(new SystemChangeNumber(scn), new LogPosition(Byte.parseByte(instanceId), groupLsn, groupOffset, batchRowId)));
-        } else {
+        }
+        else {
             // 兼容旧数据 AAAAAAA=
             byte[] instanceIdBytes = Base64.getDecoder().decode(instanceId);
             return new YStreamPosition(new Position(new SystemChangeNumber(scn), new LogPosition(instanceIdBytes[0], groupLsn, groupOffset, batchRowId)));
         }
     }
 
-    private static boolean isDigit(String s){
+    private static boolean isDigit(String s) {
         for (char c : s.toCharArray()) {
-            if(!Character.isDigit(c)){
+            if (!Character.isDigit(c)) {
                 return false;
             }
         }
@@ -132,7 +134,7 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
     }
 
     private Scn calculateEarliestActiveTxnScn(
-                                              Scn st, @Nullable Scn e1, @Nullable Scn e2) {
+                                              Scn st, Scn e1, Scn e2) {
         // 选择3个值当中的最小值
         Scn res = st;
         if (e1 != null) {

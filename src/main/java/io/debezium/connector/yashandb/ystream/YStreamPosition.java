@@ -5,17 +5,19 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
-import com.sics.ystream.result.LogPosition;
-import com.sics.ystream.result.Position;
-import com.sics.ystream.result.SystemChangeNumber;
-import io.debezium.connector.yashandb.Scn;
-import io.debezium.connector.yashandb.YashanDBOffsetContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.math.BigInteger;
 import java.util.Map;
 import java.util.Objects;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.sics.ystream.result.LogPosition;
+import com.sics.ystream.result.Position;
+import com.sics.ystream.result.SystemChangeNumber;
+
+import io.debezium.connector.yashandb.Scn;
+import io.debezium.connector.yashandb.YashanDBOffsetContext;
 
 /**
  * The logical encapsulation of raw LCR byte array.

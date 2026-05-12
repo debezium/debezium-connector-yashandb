@@ -5,6 +5,8 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.sql.SQLException;
+
 import io.debezium.config.Configuration;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
@@ -14,8 +16,6 @@ import io.debezium.relational.RelationalSnapshotChangeEventSource.RelationalSnap
 import io.debezium.relational.TableId;
 import io.debezium.relational.history.HistoryRecordComparator;
 import io.debezium.util.Clock;
-
-import java.sql.SQLException;
 
 /**
  * Contract that defines unique behavior for each possible {@code connection.adapter}.

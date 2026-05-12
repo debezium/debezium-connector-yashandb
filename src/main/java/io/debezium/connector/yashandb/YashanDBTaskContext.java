@@ -5,11 +5,12 @@
  */
 package io.debezium.connector.yashandb;
 
+import io.debezium.config.Configuration;
 import io.debezium.connector.common.CdcSourceTaskContext;
 
-public class YashanDBTaskContext extends CdcSourceTaskContext<YashanDBOffsetContext> {
+public class YashanDBTaskContext extends CdcSourceTaskContext<YashanDBConnectorConfig> {
 
-    public YashanDBTaskContext(YashanDBConnectorConfig config, YashanDBDatabaseSchema schema) {
-        super(config.getContextName(), config.getLogicalName(), config.getCustomMetricTags(), schema::tableIds);
+    public YashanDBTaskContext(Configuration rawConfig, YashanDBConnectorConfig config) {
+        super(rawConfig, config, config.getCustomMetricTags());
     }
 }

@@ -5,6 +5,18 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
+import java.sql.SQLException;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.sics.ystream.result.YstreamChunk;
 import com.sics.ystream.result.YstreamColumn;
 import com.sics.ystream.result.YstreamColumns;
@@ -15,6 +27,7 @@ import com.sics.ystream.result.YstreamMetadata;
 import com.sics.ystream.result.YstreamXactBegin;
 import com.sics.ystream.result.YstreamXactCommit;
 import com.yashandb.jdbc.YasTypes;
+
 import io.debezium.DebeziumException;
 import io.debezium.connector.yashandb.YashanDBConnection;
 import io.debezium.connector.yashandb.YashanDBConnectorConfig;
@@ -30,17 +43,6 @@ import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.util.Clock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.sql.SQLException;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Handler for YashanDB DDL and DML events. Just forwards events to the {@link EventDispatcher}.
@@ -136,14 +138,18 @@ class YStreamEventHandler {
             YstreamLcrInterface ystreamLcrInterface = record.getYstreamLcrInterface();
             if (record.getYstreamLcrInterface() instanceof YstreamDdl) {
                 dispatchSchemaChangeEvent((YstreamDdl) ystreamLcrInterface);
-            } else if (ystreamLcrInterface instanceof YstreamDml) {
+            }
+            else if (ystreamLcrInterface instanceof YstreamDml) {
                 processDml(new YStreamDataChangeRecord((YstreamDml) ystreamLcrInterface, record.getTableMetadata()), (YstreamDml) ystreamLcrInterface);
-            } else if (ystreamLcrInterface instanceof YstreamChunk) {
+            }
+            else if (ystreamLcrInterface instanceof YstreamChunk) {
                 processChunk((YstreamChunk) ystreamLcrInterface);
-            } else if (ystreamLcrInterface instanceof YstreamXactBegin) {
+            }
+            else if (ystreamLcrInterface instanceof YstreamXactBegin) {
                 dispatcher.dispatchTransactionStartedEvent(partition, String.valueOf(ystreamLcrInterface.getTransactionId()), offsetContext,
                         ((YstreamXactBegin) ystreamLcrInterface).getCommitScn().getTimestamp().toInstant());
-            } else if (ystreamLcrInterface instanceof YstreamXactCommit) {
+            }
+            else if (ystreamLcrInterface instanceof YstreamXactCommit) {
                 dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext,
                         ystreamLcrInterface.getPosition().getCommitScn().getTimestamp().toInstant());
             }
@@ -176,7 +182,8 @@ class YStreamEventHandler {
                     outRowSize++;
                 }
             });
-        } else {
+        }
+        else {
             // Since the row has no chunk data, it can be dispatched immediately.
             dispatchDataChangeEvent(record, null);
         }
@@ -190,7 +197,8 @@ class YStreamEventHandler {
         Table table = schema.tableFor(tableId);
         if (table == null) {
             table = getTable(tableId);
-            if (table == null) return;
+            if (table == null)
+                return;
         }
 
         try {
@@ -229,7 +237,8 @@ class YStreamEventHandler {
                 tableFor = schema.tableFor(tableId);
                 newValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues);
                 oldValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
-            } catch (IllegalStateException e) {
+            }
+            catch (IllegalStateException e) {
                 LOGGER.warn("Try to read table metadata again to resolve the error when obtaining field values.");
                 printDiffMetadata(record, tableId);
                 schema.getTables().removeTable(tableId);
@@ -238,13 +247,13 @@ class YStreamEventHandler {
                 oldValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
             }
             if (!truncateTable) {
-                //获取被修改的字段名称
+                // 获取被修改的字段名称
                 Set<String> columnNamesPresentInAfter = record.getYstreamDml().getNewValues().getColumns().stream()
                         .filter(ystreamColumn -> !ystreamColumn.getColumn().isDeleted())
                         .map(ystreamColumn -> ystreamColumn.getColumn().getColumnName())
                         .collect(Collectors.toSet());
                 YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues, columnNamesPresentInAfter, tableFor);
-                //YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
+                // YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
             }
             dispatcher.dispatchDataChangeEvent(
                     partition,
@@ -257,9 +266,11 @@ class YStreamEventHandler {
                             tableFor,
                             schema,
                             clock, newValues, oldValues));
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e) {
             throw e;
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             printDiffMetadata(record, tableId);
             throw e;
         }
@@ -348,14 +359,16 @@ class YStreamEventHandler {
                 ddl.getYstreamMetadata()));
         try {
             dispatchDataChangeEvent(streamDmlRecord, null);
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e) {
             throw new RuntimeException("Interrupted", e);
         }
 
     }
 
     private TableId getTableId(YStreamDataChangeRecord dmlRecord) {
-        return dmlRecord.isTruncateTable() ? new TableId("", dmlRecord.getyStreamTruncate().getTableId().getSchema(), dmlRecord.getyStreamTruncate().getTableId().getTable())
+        return dmlRecord.isTruncateTable()
+                ? new TableId("", dmlRecord.getyStreamTruncate().getTableId().getSchema(), dmlRecord.getyStreamTruncate().getTableId().getTable())
                 : new TableId("", dmlRecord.getYstreamDml().getTableId().getSchema(), dmlRecord.getYstreamDml().getTableId().getTable());
     }
 
@@ -372,7 +385,8 @@ class YStreamEventHandler {
             String tableMetadataDdl = connection.getTableMetadataDdl(tableId);
             LOGGER.debug("Obtain table {}.{} ddl: {}", tableId.schema(), tableId.table(), tableMetadataDdl);
             return tableMetadataDdl;
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             throw new DebeziumException("Failed to get table DDL metadata for: " + tableId, e);
         }
     }
@@ -392,11 +406,13 @@ class YStreamEventHandler {
             }
             eventSource.getYstreamClientBoot().setAppliedPosition(
                     message.position.getRawPosition());
-        } else if (message.scn != null) {
+        }
+        else if (message.scn != null) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Recording position with SCN {}", message.scn);
             }
-        } else {
+        }
+        else {
             LOGGER.warn("Nothing in offsets could be recorded to YashanDB");
             return;
         }
@@ -453,10 +469,12 @@ class YStreamEventHandler {
             columnChunks.clear();
             dispatchDataChangeEvent(new YStreamDataChangeRecord((YstreamDml) currentRecord.getYstreamLcrInterface(), currentRecord.getTableMetadata()),
                     resolvedChunkValues);
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e) {
             Thread.interrupted();
             LOGGER.info("Received signal to stop, event loop will halt");
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             throw new DebeziumException("Failed to process chunk data", e);
         }
     }

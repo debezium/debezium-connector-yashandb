@@ -13,51 +13,57 @@ import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParserBaseListener;
  */
 class BaseParserListener extends YashanDBParserBaseListener {
 
+    String getTableName(final YashanDBParser.Table_nameContext table_name) {
+        // table_name: identifier | schema '.' identifier
+        if (table_name.schema() != null) {
+            // schema '.' identifier format - return the table name (identifier after schema)
+            return getTableOrColumnName(table_name.identifier().id_expression().getText());
+        }
+        else if (table_name.identifier() != null) {
+            return getTableOrColumnName(table_name.identifier().id_expression().getText());
+        }
+        return getTableOrColumnName(table_name.getText());
+    }
+
     String getTableName(final YashanDBParser.Tableview_nameContext tableview_name) {
-        final String tableName;
-        if (tableview_name.id_expression() != null) {
-            tableName = tableview_name.id_expression().getText();
+        // tableview_name: (identifier '.')? identifier (...)
+        // Get the actual table/view name (last identifier part)
+        if (!tableview_name.identifier().isEmpty()) {
+            // Get the last identifier (the actual table name)
+            return getTableOrColumnName(tableview_name.identifier(tableview_name.identifier().size() - 1).id_expression().getText());
         }
-        else {
-            tableName = tableview_name.identifier().id_expression().getText();
-        }
-        return getTableOrColumnName(tableName);
+        return getTableOrColumnName(tableview_name.getText());
     }
 
     String getTableName(final YashanDBParser.Column_nameContext ctx) {
-        final String tableName;
-        if (ctx.id_expression() != null && ctx.id_expression().size() > 1) {
-            tableName = getTableOrColumnName(ctx.id_expression(0).getText());
+        // column_name: (identifier '.')? pseudo_column or (PRIOR|CONNECT_BY_ROOT)? identifier ('.' column_field)*
+        if (ctx.identifier() != null) {
+            return getTableOrColumnName(ctx.identifier().id_expression().getText());
         }
-        else {
-            tableName = getTableOrColumnName(ctx.identifier().id_expression().getText());
-        }
-        return tableName;
-    }
-
-    String getColumnName(final YashanDBParser.Column_nameContext ctx) {
-        final String columnName;
-        if (ctx.id_expression() != null && ctx.id_expression().size() > 0) {
-            columnName = getTableOrColumnName(ctx.id_expression(ctx.id_expression().size() - 1).getText());
-        }
-        else {
-            columnName = getTableOrColumnName(ctx.identifier().id_expression().getText());
-        }
-        return columnName;
-    }
-
-    String getColumnName(final YashanDBParser.Old_column_nameContext ctx) {
         return getTableOrColumnName(ctx.getText());
     }
 
-    String getColumnName(final YashanDBParser.New_column_nameContext ctx) {
+    String getColumnName(final YashanDBParser.Column_nameContext ctx) {
+        // column_name: (identifier '.')? pseudo_column or (PRIOR|CONNECT_BY_ROOT)? identifier ('.' column_field)*
+        // Get the actual column name (last meaningful part)
+        if (ctx.pseudo_column() != null) {
+            return getTableOrColumnName(ctx.pseudo_column().getText());
+        }
+        else if (ctx.identifier() != null) {
+            return getTableOrColumnName(ctx.identifier().id_expression().getText());
+        }
+        // Check for column_field which contains the actual column name
+        if (!ctx.column_field().isEmpty()) {
+            // Return the last column_field
+            return getTableOrColumnName(ctx.column_field().get(ctx.column_field().size() - 1).getText());
+        }
         return getTableOrColumnName(ctx.getText());
     }
 
     /**
      * Resolves a table or column name from the provided string.
      *
-     * Oracle table and column names are inherently stored in upper-case; however, if the objects
+     * YashanDB table and column names are inherently stored in upper-case; however, if the objects
      * are created using double-quotes, the case of the object name is retained.  Therefore when
      * needing to parse a table or column name, this method will adhere to those rules and will
      * always return the name in upper-case unless the provided name is double-quoted in which
@@ -66,7 +72,7 @@ class BaseParserListener extends YashanDBParserBaseListener {
      * @param name table or column name
      * @return parsed table or column name from the supplied name argument
      */
-    private static String getTableOrColumnName(String name) {
+    static String getTableOrColumnName(String name) {
         return removeQuotes(name, true);
     }
 

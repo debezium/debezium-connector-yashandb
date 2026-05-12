@@ -5,6 +5,21 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
+
+import org.apache.kafka.connect.source.SourceRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.debezium.DebeziumException;
 import io.debezium.bean.StandardBeanNames;
 import io.debezium.config.CommonConnectorConfig;
@@ -36,20 +51,6 @@ import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.snapshot.SnapshotterService;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
-import org.apache.kafka.connect.source.SourceRecord;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
 
 public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, YashanDBOffsetContext> {
 
@@ -77,7 +78,7 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
     public CdcSourceTaskContext<? extends CommonConnectorConfig> preStart(Configuration config) {
 
         connectorConfig = new YashanDBConnectorConfig(config);
-        taskContext = new YashanDBTaskContext(config);
+        taskContext = new YashanDBTaskContext(config, connectorConfig);
 
         return taskContext;
     }
@@ -92,8 +93,7 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
 
         JdbcConfiguration jdbcConfig = connectorConfig.getJdbcConfig();
 
-        MainConnectionProvidingConnectionFactory<YashanDBConnection> connectionFactory =
-                new DefaultMainConnectionProvidingConnectionFactory<>(
+        MainConnectionProvidingConnectionFactory<YashanDBConnection> connectionFactory = new DefaultMainConnectionProvidingConnectionFactory<>(
                 () -> new YashanDBConnection(jdbcConfig));
 
         jdbcConnection = connectionFactory.mainConnection();
@@ -109,7 +109,7 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
         StreamingAdapter.TableNameCaseSensitivity tableNameCaseSensitivity = connectorConfig.getAdapter().getTableNameCaseSensitivity(jdbcConnection);
         CustomConverterRegistry customConverterRegistry = connectorConfig.getServiceRegistry().tryGetService(CustomConverterRegistry.class);
         this.schema = new YashanDBDatabaseSchema(connectorConfig, valueConverters, defaultValueConverter, schemaNameAdjuster,
-                topicNamingStrategy, tableNameCaseSensitivity,customConverterRegistry,taskContext);
+                topicNamingStrategy, tableNameCaseSensitivity, customConverterRegistry, taskContext);
         final SnapshotterService snapshotterService = connectorConfig.getServiceRegistry().tryGetService(SnapshotterService.class);
 
         Offsets<YashanDBPartition, YashanDBOffsetContext> previousOffsets = getPreviousOffsets(new YashanDBPartition.Provider(connectorConfig),
@@ -128,9 +128,12 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
         YashanDBPartition partition = previousOffsets.getTheOnlyPartition();
         YashanDBOffsetContext previousOffset = previousOffsets.getTheOnlyOffset();
 
-        validateAndLoadSchemaHistory(connectorConfig, partition, previousOffset, schema);
-
-        taskContext = new YashanDBTaskContext(connectorConfig, schema);
+        try {
+            validateAndLoadSchemaHistory(connectorConfig, partition, previousOffset, schema);
+        }
+        catch (InterruptedException e) {
+            throw new DebeziumException(e);
+        }
 
         Clock clock = Clock.system();
 
@@ -178,7 +181,7 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
                 connectorConfig.getServiceRegistry().tryGetService(DebeziumHeaderProducer.class));
 
         final YashanDBStreamingChangeEventSourceMetrics streamingMetrics = new YashanDBStreamingChangeEventSourceMetrics(taskContext, queue, metadataProvider,
-                connectorConfig);
+                connectorConfig, schema::dataCollectionIds);
 
         NotificationService<YashanDBPartition, YashanDBOffsetContext> notificationService = new NotificationService<>(getNotificationChannels(),
                 connectorConfig, SchemaFactory.get(), dispatcher::enqueueNotification);
@@ -189,11 +192,11 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
                 YashanDBConnector.class,
                 connectorConfig,
                 new YashanDBChangeEventSourceFactory(connectorConfig, connectionFactory, errorHandler, dispatcher, clock, schema, jdbcConfig, taskContext,
-                        streamingMetrics,snapshotterService),
+                        streamingMetrics, snapshotterService),
                 new YashanDBChangeEventSourceMetricsFactory(streamingMetrics),
                 dispatcher,
                 schema, signalProcessor,
-                notificationService,snapshotterService);
+                notificationService, snapshotterService);
 
         coordinator.start(taskContext, this.queue, metadataProvider);
 
@@ -252,7 +255,6 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
     protected Iterable<Field> getAllConfigurationFields() {
         return YashanDBConnectorConfig.ALL_FIELDS;
     }
-
 
     @Override
     public void performCommit() {
@@ -328,7 +330,8 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
                 config.getLogMiningTransactionSnapshotBoundaryMode() == YashanDBConnectorConfig.TransactionSnapshotBoundaryMode.ALL;
     }
 
-    private void validateAndLoadSchemaHistory(YashanDBConnectorConfig config, YashanDBPartition partition, YashanDBOffsetContext offset, YashanDBDatabaseSchema schema) throws InterruptedException {
+    private void validateAndLoadSchemaHistory(YashanDBConnectorConfig config, YashanDBPartition partition, YashanDBOffsetContext offset, YashanDBDatabaseSchema schema)
+            throws InterruptedException {
         if (offset == null) {
             if (config.getSnapshotMode().shouldSnapshotOnSchemaError() && config.getSnapshotMode() != YashanDBConnectorConfig.SnapshotMode.ALWAYS) {
                 // We are in schema only recovery mode, use the existing redo log position

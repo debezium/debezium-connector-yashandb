@@ -5,22 +5,25 @@
  */
 package io.debezium.connector.yashandb;
 
-import io.debezium.config.Configuration;
-import io.debezium.connector.common.RelationalBaseSourceConnector;
-import io.debezium.relational.RelationalDatabaseConnectorConfig;
-import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.ConfigValue;
-import org.apache.kafka.connect.connector.Task;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class YashanDBConnector extends RelationalBaseSourceConnector {
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigValue;
+import org.apache.kafka.connect.connector.Task;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.debezium.config.Configuration;
+import io.debezium.config.Field;
+import io.debezium.connector.common.RelationalBaseSourceConnector;
+import io.debezium.metadata.ConfigDescriptor;
+import io.debezium.relational.RelationalDatabaseConnectorConfig;
+
+public class YashanDBConnector extends RelationalBaseSourceConnector implements ConfigDescriptor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBConnector.class);
 
@@ -85,5 +88,10 @@ public class YashanDBConnector extends RelationalBaseSourceConnector {
     @Override
     protected Map<String, ConfigValue> validateAllFields(Configuration config) {
         return config.validate(YashanDBConnectorConfig.ALL_FIELDS);
+    }
+
+    @Override
+    public Field.Set getConfigFields() {
+        return YashanDBConnectorConfig.ALL_FIELDS;
     }
 }

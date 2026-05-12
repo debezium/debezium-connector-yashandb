@@ -5,10 +5,11 @@
  */
 package io.debezium.connector.yashandb;
 
-import io.debezium.config.CommonConnectorConfig;
-import io.debezium.connector.AbstractSourceInfoStructMaker;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
+
+import io.debezium.config.CommonConnectorConfig;
+import io.debezium.connector.AbstractSourceInfoStructMaker;
 
 public class YashanDBSourceInfoStructMaker extends AbstractSourceInfoStructMaker<SourceInfo> {
 

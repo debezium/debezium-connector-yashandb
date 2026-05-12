@@ -5,6 +5,18 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import org.apache.kafka.connect.data.Struct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.debezium.DebeziumException;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.jdbc.JdbcConfiguration;
@@ -15,17 +27,6 @@ import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.relational.TableSchema;
 import io.debezium.util.Clock;
-import org.apache.kafka.connect.data.Struct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * Base class to emit change data based on a single entry event.
@@ -202,7 +203,7 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
     private String getReselectQuery(List<Column> reselectColumns, Table table, YashanDBConnection connection) {
         final TableId id = new TableId(null, table.id().schema(), table.id().table());
         final StringBuilder query = new StringBuilder("SELECT ")
-                .append(reselectColumns.stream().map(c -> connection.quotedColumnIdString(c.name())).collect(Collectors.joining(", ")))
+                .append(reselectColumns.stream().map(c -> connection.quoteIdentifier(c.name())).collect(Collectors.joining(", ")))
                 .append(" FROM ")
                 .append(id.toDoubleQuotedString())
                 .append(" WHERE ");
@@ -211,7 +212,7 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
             if (i > 0) {
                 query.append(" AND ");
             }
-            query.append(connection.quotedColumnIdString(table.primaryKeyColumnNames().get(i))).append("=?");
+            query.append(connection.quoteIdentifier(table.primaryKeyColumnNames().get(i))).append("=?");
         }
 
         return query.toString();

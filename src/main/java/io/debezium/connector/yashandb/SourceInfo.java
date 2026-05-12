@@ -5,18 +5,19 @@
  */
 package io.debezium.connector.yashandb;
 
-import com.sics.ystream.result.LogPosition;
-import com.sics.ystream.result.Position;
-import com.sics.ystream.result.SystemChangeNumber;
-import io.debezium.annotation.NotThreadSafe;
-import io.debezium.connector.common.BaseSourceInfo;
-import io.debezium.relational.TableId;
-
 import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.sics.ystream.result.LogPosition;
+import com.sics.ystream.result.Position;
+import com.sics.ystream.result.SystemChangeNumber;
+
+import io.debezium.annotation.NotThreadSafe;
+import io.debezium.connector.common.BaseSourceInfo;
+import io.debezium.relational.TableId;
 
 @NotThreadSafe
 public class SourceInfo extends BaseSourceInfo {
