@@ -323,21 +323,8 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         // Check whether the archive log is enabled.
         final boolean archivelogMode = jdbcConnection.isArchiveLogMode();
         if (!archivelogMode) {
-            if (redoLogRequired(config)) {
-                throw new DebeziumException("The YashanDB server is not configured to use a archive log LOG_MODE, which is "
-                        + "required for this connector to work properly. Change the YashanDB configuration to use a "
-                        + "LOG_MODE=ARCHIVELOG and restart the connector.");
-            }
-            else {
-                LOGGER.warn("Failed the archive log check but continuing as redo log isn't strictly required");
-            }
+            LOGGER.warn("Failed the archive log check but continuing as redo log isn't strictly required");
         }
-    }
-
-    private static boolean redoLogRequired(YashanDbConnectorConfig config) {
-        // Check whether our connector configuration relies on the redo log and should fail fast if it isn't configured
-        return config.getSnapshotMode().shouldStream() ||
-                config.getLogMiningTransactionSnapshotBoundaryMode() == YashanDbConnectorConfig.TransactionSnapshotBoundaryMode.ALL;
     }
 
     private void validateAndLoadSchemaHistory(YashanDbConnectorConfig config, YashanDbPartition partition, YashanDbOffsetContext offset, YashanDbDatabaseSchema schema)
