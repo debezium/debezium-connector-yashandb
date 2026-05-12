@@ -490,6 +490,15 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
                     "connector will log a warning and proceed to use the CURRENT_SCN or previously calculated upper SCN regardless. " +
                     "NOTE: This option is internal and should not be used for general use. Using this option will create a net latency " +
                     "on change events increased by the deviation value specified.");
+
+    public static final Field LEGACY_DECIMAL_HANDLING_STRATEGY = Field.create("legacy.decimal.handling.strategy")
+            .withDisplayName("Use legacy decimal handling strategy")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withDefault(false)
+            .withDescription("Uses the legacy decimal handling behavior before DBZ-7882");
+
     // ------------------------------------------- ystream options
     // ------------------------------------------------------
     // Ystream options refer to:
@@ -602,7 +611,8 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
                     LOG_MINING_FLUSH_TABLE_NAME,
                     LOG_MINING_QUERY_FILTER_MODE,
                     LOG_MINING_RESTART_CONNECTION,
-                    LOG_MINING_MAX_SCN_DEVIATION_MS)
+                    LOG_MINING_MAX_SCN_DEVIATION_MS,
+                    LEGACY_DECIMAL_HANDLING_STRATEGY)
             .events(SOURCE_INFO_STRUCT_MAKER)
             .create();
 
@@ -666,6 +676,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final int yStreamClientResponseTimeout;
     private final Boolean logicShardEnabled;
     private final int tableReadThreads;
+    private final boolean legacyDecimalHandlingStrategy;
 
     public YashanDBConnectorConfig(Configuration config) {
         super(
@@ -725,6 +736,9 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         // Shard
         this.logicShardEnabled = config.getBoolean(LOGIC_SHARD_ENABLED);
         this.tableReadThreads = config.getInteger(TABLE_READ_THREADS);
+
+        // Legacy decimal handling
+        this.legacyDecimalHandlingStrategy = config.getBoolean(LEGACY_DECIMAL_HANDLING_STRATEGY);
     }
 
     private static String toUpperCase(String property) {
@@ -773,6 +787,13 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
 
     public int getTableReadThreads() {
         return tableReadThreads;
+    }
+
+    /**
+     * @return {@code true} if the legacy decimal handling behavior is used, {@code false} otherwise
+     */
+    public boolean isUsingLegacyDecimalHandlingStrategy() {
+        return legacyDecimalHandlingStrategy;
     }
 
     @Override
