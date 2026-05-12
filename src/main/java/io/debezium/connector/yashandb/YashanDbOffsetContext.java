@@ -165,9 +165,9 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         }
     }
 
-/**
- * Builder for constructing YashanDbOffsetContext instances with a fluent API.
- */
+    /**
+     * Builder for constructing YashanDbOffsetContext instances with a fluent API.
+     */
     public static class Builder {
 
         private YashanDbConnectorConfig connectorConfig;
@@ -182,143 +182,143 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         private Scn ystreamStartScn;
         private Position recoverPosition;
 
-    /**
-     * Sets the connector configuration (logical name).
-     *
-     * @param connectorConfig the connector configuration
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the connector configuration (logical name).
+         *
+         * @param connectorConfig the connector configuration
+         *
+         * @return this builder for method chaining
+         */
         public Builder logicalName(YashanDbConnectorConfig connectorConfig) {
             this.connectorConfig = connectorConfig;
             return this;
         }
 
-    /**
-     * Sets the YStream start SCN.
-     *
-     * @param scn the YStream start SCN
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the YStream start SCN.
+         *
+         * @param scn the YStream start SCN
+         *
+         * @return this builder for method chaining
+         */
         public Builder ystreamStartScn(Scn scn) {
             this.ystreamStartScn = scn;
             return this;
         }
 
-    /**
-     * Sets the recover position.
-     *
-     * @param recoverPosition the recover position
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the recover position.
+         *
+         * @param recoverPosition the recover position
+         *
+         * @return this builder for method chaining
+         */
         public Builder recoverPosition(Position recoverPosition) {
             this.recoverPosition = recoverPosition;
             return this;
         }
 
-    /**
-     * Sets the SCN.
-     *
-     * @param scn the SCN value
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the SCN.
+         *
+         * @param scn the SCN value
+         *
+         * @return this builder for method chaining
+         */
         public Builder scn(Scn scn) {
             this.scn = scn;
             return this;
         }
 
-    /**
-     * Sets the LCR position string.
-     *
-     * @param lcrPosition the LCR position string
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the LCR position string.
+         *
+         * @param lcrPosition the LCR position string
+         *
+         * @return this builder for method chaining
+         */
         public Builder lcrPosition(String lcrPosition) {
             this.lcrPosition = lcrPosition;
             return this;
         }
 
-    /**
-     * Sets the snapshot flag.
-     *
-     * @param snapshot the snapshot flag
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the snapshot flag.
+         *
+         * @param snapshot the snapshot flag
+         *
+         * @return this builder for method chaining
+         */
         public Builder snapshot(boolean snapshot) {
             this.snapshot = snapshot;
             return this;
         }
 
-    /**
-     * Sets the snapshot completion flag.
-     *
-     * @param snapshotCompleted the snapshot completed flag
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the snapshot completion flag.
+         *
+         * @param snapshotCompleted the snapshot completed flag
+         *
+         * @return this builder for method chaining
+         */
         public Builder snapshotCompleted(boolean snapshotCompleted) {
             this.snapshotCompleted = snapshotCompleted;
             return this;
         }
 
-    /**
-     * Sets the transaction context.
-     *
-     * @param transactionContext the transaction context
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the transaction context.
+         *
+         * @param transactionContext the transaction context
+         *
+         * @return this builder for method chaining
+         */
         public Builder transactionContext(TransactionContext transactionContext) {
             this.transactionContext = transactionContext;
             return this;
         }
 
-    /**
-     * Sets the incremental snapshot context.
-     *
-     * @param incrementalSnapshotContext the incremental snapshot context
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the incremental snapshot context.
+         *
+         * @param incrementalSnapshotContext the incremental snapshot context
+         *
+         * @return this builder for method chaining
+         */
         public Builder incrementalSnapshotContext(IncrementalSnapshotContext<TableId> incrementalSnapshotContext) {
             this.incrementalSnapshotContext = incrementalSnapshotContext;
             return this;
         }
 
-    /**
-     * Sets the snapshot pending transactions map.
-     *
-     * @param snapshotPendingTransactions the pending transaction map
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the snapshot pending transactions map.
+         *
+         * @param snapshotPendingTransactions the pending transaction map
+         *
+         * @return this builder for method chaining
+         */
         public Builder snapshotPendingTransactions(Map<String, Scn> snapshotPendingTransactions) {
             this.snapshotPendingTransactions = snapshotPendingTransactions;
             return this;
         }
 
-    /**
-     * Sets the snapshot SCN.
-     *
-     * @param scn the snapshot SCN
-     *
-     * @return this builder for method chaining
-     */
+        /**
+         * Sets the snapshot SCN.
+         *
+         * @param scn the snapshot SCN
+         *
+         * @return this builder for method chaining
+         */
         public Builder snapshotScn(Scn scn) {
             this.snapshotScn = scn;
             return this;
         }
 
-    /**
-     * Builds and returns a YashanDbOffsetContext instance from the configured builder parameters.
-     *
-     * @return the built YashanDbOffsetContext instance
-     */
+        /**
+         * Builds and returns a YashanDbOffsetContext instance from the configured builder parameters.
+         *
+         * @return the built YashanDbOffsetContext instance
+         */
         public YashanDbOffsetContext build() {
             return new YashanDbOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
                     snapshotCompleted, transactionContext,

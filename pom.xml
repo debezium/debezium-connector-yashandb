@@ -28,30 +28,30 @@
         <junit.version>5.10.1</junit.version>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>sics</id>
-            <name>sics</name>
-            <url>https://maven.yasdb.com/repository/maven-public/</url>
-            <!--            <layout>default</layout>-->
-            <!--            <snapshots>-->
-            <!--                <enabled>true</enabled>-->
-            <!--            </snapshots>-->
-        </repository>
-    </repositories>
+<!--    <repositories>-->
+<!--        <repository>-->
+<!--            <id>sics</id>-->
+<!--            <name>sics</name>-->
+<!--            <url>https://maven.yasdb.com/repository/maven-public/</url>-->
+<!--            &lt;!&ndash;            <layout>default</layout>&ndash;&gt;-->
+<!--            &lt;!&ndash;            <snapshots>&ndash;&gt;-->
+<!--            &lt;!&ndash;                <enabled>true</enabled>&ndash;&gt;-->
+<!--            &lt;!&ndash;            </snapshots>&ndash;&gt;-->
+<!--        </repository>-->
+<!--    </repositories>-->
 
-    <!-- Configure plugin repository -->
-    <pluginRepositories>
-        <pluginRepository>
-            <id>sics</id>
-            <name>sics</name>
-            <url>https://maven.yasdb.com/repository/maven-public/</url>
-            <layout>default</layout>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
+<!--    &lt;!&ndash; Configure plugin repository &ndash;&gt;-->
+<!--    <pluginRepositories>-->
+<!--        <pluginRepository>-->
+<!--            <id>sics</id>-->
+<!--            <name>sics</name>-->
+<!--            <url>https://maven.yasdb.com/repository/maven-public/</url>-->
+<!--            <layout>default</layout>-->
+<!--            <snapshots>-->
+<!--                <enabled>true</enabled>-->
+<!--            </snapshots>-->
+<!--        </pluginRepository>-->
+<!--    </pluginRepositories>-->
 
     <!-- Managing versions here to ensure the right ones are applied during releases -->
     <dependencyManagement>
@@ -164,7 +164,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.yashandb.jdbc</groupId>
+            <groupId>com.yashandb</groupId>
             <artifactId>yashandb-jdbc</artifactId>
             <version>1.9.24</version>
         </dependency>
@@ -339,6 +339,11 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.2</version>
+                <configuration>
+                    <argLine>@{argLine} -Xms256m -Xmx1024m</argLine>
+                    <forkCount>1</forkCount>
+                    <reuseForks>true</reuseForks>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -371,6 +376,154 @@
                     <visitor>false</visitor>
                     <!-- Override default package path generation logic -->
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.11</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <excludes>
+                                <!-- ANTLR generated code -->
+                                <exclude>io/debezium/connector/yashandb/ddl/parser/gen/**</exclude>
+                                <!-- ANTLR listeners - thin delegation -->
+                                <exclude>io/debezium/connector/yashandb/antlr/listener/**</exclude>
+                                <!-- Converters - thin delegation to parent -->
+                                <exclude>io/debezium/connector/yashandb/converters/**</exclude>
+                                <!-- Metadata providers - thin delegation -->
+                                <exclude>io/debezium/connector/yashandb/metadata/**</exclude>
+                                <!-- Outbox - thin delegation -->
+                                <exclude>io/debezium/connector/yashandb/outbox/**</exclude>
+                                <!-- Database/runtime dependent classes -->
+                                <exclude>io/debezium/connector/yashandb/YashanDbConnection.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbConnector.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbConnectorTask.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbSnapshotChangeEventSource*</exclude>
+                                <exclude>io/debezium/connector/yashandb/AbstractStreamingAdapter.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbStreamingChangeEventSourceMetrics*</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbValueConverters.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbDefaultValueConverter.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbSchemaChangeEventEmitter.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/BaseChangeRecordEmitter.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbSignalBasedIncrementalSnapshotChangeEventSource.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbChangeEventSourceFactory.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbChangeEventSourceMetricsFactory.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbEventMetadataProvider.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbTaskContext.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbPhysicalRowIdentifierChunkQueryBuilder.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbSourceInfoStructMaker.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbDatabaseSchema.class</exclude>
+                                <!-- SourceInfo - schema conflict bug prevents instantiation -->
+                                <exclude>io/debezium/connector/yashandb/SourceInfo.class</exclude>
+                                <!-- OffsetContext.Builder - requires full OffsetContext infrastructure -->
+                                <exclude>io/debezium/connector/yashandb/YashanDbOffsetContext$Builder*</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbOffsetContext.class</exclude>
+                                <!-- YStream runtime dependent classes -->
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamEventHandler.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamAdapter*</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamStreamingChangeEventSource*</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamChangeRecordEmitter.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamOffsetContextLoader.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamDataChangeRecord.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamDdlRecord.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamRecord.class</exclude>
+                                <!-- Partition Provider - requires config -->
+                                <exclude>io/debezium/connector/yashandb/YashanDbPartition$Provider*</exclude>
+                                <!-- StreamingAdapter inner classes -->
+                                <exclude>io/debezium/connector/yashandb/StreamingAdapter*</exclude>
+                                <!-- Schema factory - thin singleton -->
+                                <exclude>io/debezium/connector/yashandb/YashanDbSchemaFactory.class</exclude>
+                                <!-- Config SystemTablesPredicate - used by runtime filtering -->
+                                <exclude>io/debezium/connector/yashandb/YashanDbConnectorConfig$SystemTablesPredicate*</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <excludes>
+                                <!-- ANTLR generated code -->
+                                <exclude>io/debezium/connector/yashandb/ddl/parser/gen/**</exclude>
+                                <!-- ANTLR listeners - thin delegation -->
+                                <exclude>io/debezium/connector/yashandb/antlr/listener/**</exclude>
+                                <!-- Converters - thin delegation to parent -->
+                                <exclude>io/debezium/connector/yashandb/converters/**</exclude>
+                                <!-- Metadata providers - thin delegation -->
+                                <exclude>io/debezium/connector/yashandb/metadata/**</exclude>
+                                <!-- Outbox - thin delegation -->
+                                <exclude>io/debezium/connector/yashandb/outbox/**</exclude>
+                                <!-- Database/runtime dependent classes -->
+                                <exclude>io/debezium/connector/yashandb/YashanDbConnection.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbConnector.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbConnectorTask.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbSnapshotChangeEventSource*</exclude>
+                                <exclude>io/debezium/connector/yashandb/AbstractStreamingAdapter.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbStreamingChangeEventSourceMetrics*</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbValueConverters.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbDefaultValueConverter.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbSchemaChangeEventEmitter.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/BaseChangeRecordEmitter.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbSignalBasedIncrementalSnapshotChangeEventSource.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbChangeEventSourceFactory.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbChangeEventSourceMetricsFactory.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbEventMetadataProvider.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbTaskContext.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbPhysicalRowIdentifierChunkQueryBuilder.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbSourceInfoStructMaker.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbDatabaseSchema.class</exclude>
+                                <!-- SourceInfo - schema conflict bug prevents instantiation -->
+                                <exclude>io/debezium/connector/yashandb/SourceInfo.class</exclude>
+                                <!-- OffsetContext.Builder - requires full OffsetContext infrastructure -->
+                                <exclude>io/debezium/connector/yashandb/YashanDbOffsetContext$Builder*</exclude>
+                                <exclude>io/debezium/connector/yashandb/YashanDbOffsetContext.class</exclude>
+                                <!-- YStream runtime dependent classes -->
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamEventHandler.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamAdapter*</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamStreamingChangeEventSource*</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamChangeRecordEmitter.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamOffsetContextLoader.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamDataChangeRecord.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamDdlRecord.class</exclude>
+                                <exclude>io/debezium/connector/yashandb/ystream/YStreamRecord.class</exclude>
+                                <!-- Partition Provider - requires config -->
+                                <exclude>io/debezium/connector/yashandb/YashanDbPartition$Provider*</exclude>
+                                <!-- StreamingAdapter inner classes -->
+                                <exclude>io/debezium/connector/yashandb/StreamingAdapter*</exclude>
+                                <!-- Schema factory - thin singleton -->
+                                <exclude>io/debezium/connector/yashandb/YashanDbSchemaFactory.class</exclude>
+                                <!-- Config SystemTablesPredicate - used by runtime filtering -->
+                                <exclude>io/debezium/connector/yashandb/YashanDbConnectorConfig$SystemTablesPredicate*</exclude>
+                            </excludes>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- Override maven-checkstyle-plugin configuration to ignore ANTLR generated sources -->

@@ -308,7 +308,7 @@ public class CommitScn implements Comparable<Scn> {
 
         /**
          * Sets the commit SCN for this redo thread.
-     *
+        *
          * @param commitScn the commit SCN to set
          */
         public void setCommitScn(Scn commitScn) {
@@ -381,11 +381,11 @@ public class CommitScn implements Comparable<Scn> {
             throw new DebeziumException("An unexpected redo thread commit scn entry: '" + value + "'");
         }
 
-    /**
-     * Returns a string representation of this redo thread commit SCN.
-     *
-     * @return the string representation
-     */
+        /**
+         * Returns a string representation of this redo thread commit SCN.
+         *
+         * @return the string representation
+         */
         @Override
         public String toString() {
             return "RedoThreadCommitScn{" +

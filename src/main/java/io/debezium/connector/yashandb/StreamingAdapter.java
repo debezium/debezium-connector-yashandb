@@ -43,7 +43,6 @@ public interface StreamingAdapter {
         INSENSITIVE
     };
 
-
     /**
      * Returns the type of this streaming adapter.
      *
@@ -56,7 +55,6 @@ public interface StreamingAdapter {
      */
     String getType();
 
-
     /**
      * Returns the history record comparator for schema history.
      *
@@ -68,7 +66,6 @@ public interface StreamingAdapter {
      * @return the history record comparator
      */
     HistoryRecordComparator getHistoryRecordComparator();
-
 
     /**
      * Returns the offset context loader for reconstructing offsets from storage.

@@ -15,7 +15,6 @@ import com.sics.ystream.exception.YstreamSqlException;
 import com.sics.ystream.metadata.TableMetadata;
 import com.sics.ystream.result.YstreamChunk;
 import com.sics.ystream.util.ChunkUtil;
-import com.yashandb.jdbc.YasSQLXML;
 import com.yashandb.jdbc.YasTypes;
 
 import io.debezium.DebeziumException;
@@ -114,7 +113,7 @@ public class ChunkColumnValues {
             case YasTypes.CLOB:
             case YasTypes.NCLOB:
             case YasTypes.SQLXML, YasTypes.VARCHAR,
-                 YasTypes.NVARCHAR, YasTypes.RAW, YasTypes.BLOB:
+                    YasTypes.NVARCHAR, YasTypes.RAW, YasTypes.BLOB:
                 return chunkColumnValue.getSize();
             default:
                 return 0;
