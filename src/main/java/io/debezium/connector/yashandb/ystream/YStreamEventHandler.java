@@ -191,8 +191,9 @@ class YStreamEventHandler {
         Table table = schema.tableFor(tableId);
         if (table == null) {
             table = getTable(tableId);
-            if (table == null)
+            if (table == null) {
                 return;
+            }
         }
 
         try {
