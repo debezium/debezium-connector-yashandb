@@ -24,9 +24,9 @@ import io.debezium.connector.common.RelationalBaseSourceConnector;
 import io.debezium.metadata.ConfigDescriptor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 
-public class YashanDBConnector extends RelationalBaseSourceConnector implements ConfigDescriptor {
+public class YashanDbConnector extends RelationalBaseSourceConnector implements ConfigDescriptor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBConnector.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbConnector.class);
 
     private Map<String, String> properties;
 
@@ -42,7 +42,7 @@ public class YashanDBConnector extends RelationalBaseSourceConnector implements 
 
     @Override
     public Class<? extends Task> taskClass() {
-        return YashanDBConnectorTask.class;
+        return YashanDbConnectorTask.class;
     }
 
     @Override
@@ -60,7 +60,7 @@ public class YashanDBConnector extends RelationalBaseSourceConnector implements 
 
     @Override
     public ConfigDef config() {
-        return YashanDBConnectorConfig.configDef();
+        return YashanDbConnectorConfig.configDef();
     }
 
     @Override
@@ -73,8 +73,8 @@ public class YashanDBConnector extends RelationalBaseSourceConnector implements 
         final ConfigValue hostnameValue = configValues.get(RelationalDatabaseConnectorConfig.HOSTNAME.name());
         final ConfigValue userValue = configValues.get(RelationalDatabaseConnectorConfig.USER.name());
 
-        YashanDBConnectorConfig connectorConfig = new YashanDBConnectorConfig(config);
-        try (YashanDBConnection connection = new YashanDBConnection(connectorConfig.getJdbcConfig())) {
+        YashanDbConnectorConfig connectorConfig = new YashanDbConnectorConfig(config);
+        try (YashanDbConnection connection = new YashanDbConnection(connectorConfig.getJdbcConfig())) {
             connection.connection();
             connection.close();
             LOGGER.debug("Successfully tested connection for {} with user '{}'", connectorConfig.getJdbcConfig().getHostname(),
@@ -88,12 +88,12 @@ public class YashanDBConnector extends RelationalBaseSourceConnector implements 
 
     @Override
     protected Map<String, ConfigValue> validateAllFields(Configuration config) {
-        return config.validate(YashanDBConnectorConfig.ALL_FIELDS);
+        return config.validate(YashanDbConnectorConfig.ALL_FIELDS);
     }
 
     @Override
     public Field.Set getConfigFields() {
-        return YashanDBConnectorConfig.ALL_FIELDS;
+        return YashanDbConnectorConfig.ALL_FIELDS;
     }
 
     @Override

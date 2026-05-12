@@ -28,8 +28,6 @@ import io.debezium.util.Strings;
  * YashanDB reports {@code Time} as a long data type by default.  There may be some cases
  * where the consumer would prefer this to be translated to a {@code String} and this converter
  * provides this behavior out of the box.
- *
- * @author Chris Cranford
  */
 public class TimeToStringConverter implements CustomConverter<SchemaBuilder, RelationalColumn>, ConfigDescriptor {
 

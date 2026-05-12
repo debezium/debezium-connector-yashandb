@@ -19,7 +19,7 @@ import com.yashandb.jdbc.YasTypes;
 
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
+import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.DefaultValueConverter;
@@ -35,16 +35,16 @@ import io.debezium.spi.topic.TopicNamingStrategy;
 /**
  * The schema of an YashanDB database.
  */
-public class YashanDBDatabaseSchema extends HistorizedRelationalDatabaseSchema {
+public class YashanDbDatabaseSchema extends HistorizedRelationalDatabaseSchema {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBDatabaseSchema.class);
-    private final YashanDBDdlParser ddlParser;
+    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbDatabaseSchema.class);
+    private final YashanDbDdlParser ddlParser;
     private final ConcurrentMap<TableId, List<Column>> lobColumnsByTableId = new ConcurrentHashMap<>();
-    private final YashanDBValueConverters valueConverters;
+    private final YashanDbValueConverters valueConverters;
 
     private boolean storageInitializationExecuted = false;
 
-    public YashanDBDatabaseSchema(YashanDBConnectorConfig connectorConfig, YashanDBValueConverters valueConverters,
+    public YashanDbDatabaseSchema(YashanDbConnectorConfig connectorConfig, YashanDbValueConverters valueConverters,
                                   DefaultValueConverter defaultValueConverter, SchemaNameAdjuster schemaNameAdjuster,
                                   TopicNamingStrategy<TableId> topicNamingStrategy,
                                   StreamingAdapter.TableNameCaseSensitivity tableNameCaseSensitivity,
@@ -65,7 +65,7 @@ public class YashanDBDatabaseSchema extends HistorizedRelationalDatabaseSchema {
                 connectorConfig.getKeyMapper(), taskContext);
 
         this.valueConverters = valueConverters;
-        this.ddlParser = new YashanDBDdlParser(
+        this.ddlParser = new YashanDbDdlParser(
                 true,
                 false,
                 connectorConfig.isSchemaCommentsHistoryEnabled(),
@@ -77,12 +77,12 @@ public class YashanDBDatabaseSchema extends HistorizedRelationalDatabaseSchema {
         return tables();
     }
 
-    public YashanDBValueConverters getValueConverters() {
+    public YashanDbValueConverters getValueConverters() {
         return valueConverters;
     }
 
     @Override
-    public YashanDBDdlParser getDdlParser() {
+    public YashanDbDdlParser getDdlParser() {
         return ddlParser;
     }
 

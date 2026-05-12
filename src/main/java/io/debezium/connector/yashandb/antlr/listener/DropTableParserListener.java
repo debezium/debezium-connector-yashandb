@@ -5,8 +5,8 @@
  */
 package io.debezium.connector.yashandb.antlr.listener;
 
-import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
+import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParser;
 import io.debezium.relational.TableId;
 
 /**
@@ -16,16 +16,16 @@ public class DropTableParserListener extends BaseParserListener {
 
     private String catalogName;
     private String schemaName;
-    private YashanDBDdlParser parser;
+    private YashanDbDdlParser parser;
 
-    DropTableParserListener(final String catalogName, final String schemaName, final YashanDBDdlParser parser) {
+    DropTableParserListener(final String catalogName, final String schemaName, final YashanDbDdlParser parser) {
         this.catalogName = catalogName;
         this.schemaName = schemaName;
         this.parser = parser;
     }
 
     @Override
-    public void enterDrop_table_statement(final YashanDBParser.Drop_table_statementContext ctx) {
+    public void enterDrop_table_statement(final YashanDbParser.Drop_table_statementContext ctx) {
         TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.table_name()));
         parser.databaseTables().removeTable(tableId);
         parser.signalDropTable(tableId, ctx);

@@ -15,22 +15,22 @@ import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 import io.debezium.antlr.AntlrDdlParserListener;
 import io.debezium.antlr.ProxyParseTreeListenerUtil;
-import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParserBaseListener;
+import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParserBaseListener;
 import io.debezium.text.ParsingException;
 
 /**
- * This class is Oracle main DDL parser listener class.
+ * This class is the main YashanDB DDL parser listener class.
  * It instantiates supported listeners, walks listeners through every parsing rule and collects parsing exceptions.
  *
  */
-public class YashanDBDdlParserListener extends YashanDBParserBaseListener implements AntlrDdlParserListener {
+public class YashanDbDdlParserListener extends YashanDbParserBaseListener implements AntlrDdlParserListener {
 
     private final List<ParseTreeListener> listeners = new CopyOnWriteArrayList<>();
     private final Collection<ParsingException> errors = new ArrayList<>();
 
-    public YashanDBDdlParserListener(final String catalogName, final String schemaName,
-                                     final YashanDBDdlParser parser) {
+    public YashanDbDdlParserListener(final String catalogName, final String schemaName,
+                                     final YashanDbDdlParser parser) {
         listeners.add(new CreateTableParserListener(catalogName, schemaName, parser, listeners));
         listeners.add(new AlterTableParserListener(catalogName, schemaName, parser, listeners));
         listeners.add(new DropTableParserListener(catalogName, schemaName, parser));

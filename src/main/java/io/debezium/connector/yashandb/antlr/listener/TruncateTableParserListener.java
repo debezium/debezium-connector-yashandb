@@ -5,8 +5,8 @@
  */
 package io.debezium.connector.yashandb.antlr.listener;
 
-import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
+import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParser;
 import io.debezium.relational.TableId;
 
 /**
@@ -16,22 +16,22 @@ public class TruncateTableParserListener extends BaseParserListener {
 
     private final String catalogName;
     private final String schemaName;
-    private final YashanDBDdlParser parser;
+    private final YashanDbDdlParser parser;
 
-    TruncateTableParserListener(final String catalogName, final String schemaName, final YashanDBDdlParser parser) {
+    TruncateTableParserListener(final String catalogName, final String schemaName, final YashanDbDdlParser parser) {
         this.catalogName = catalogName;
         this.schemaName = schemaName;
         this.parser = parser;
     }
 
     @Override
-    public void enterTruncate_table_statement(final YashanDBParser.Truncate_table_statementContext ctx) {
+    public void enterTruncate_table_statement(final YashanDbParser.Truncate_table_statementContext ctx) {
         TableId tableId = new TableId(catalogName, schemaName, getTableNameFromTruncate(ctx));
         parser.signalTruncateTable(tableId, ctx);
         super.enterTruncate_table_statement(ctx);
     }
 
-    private String getTableNameFromTruncate(YashanDBParser.Truncate_table_statementContext ctx) {
+    private String getTableNameFromTruncate(YashanDbParser.Truncate_table_statementContext ctx) {
         // truncate_table_statement: TRUNCATE TABLE identifier | TRUNCATE TABLE schema '.' identifier
         if (ctx.schema() != null) {
             // schema.identifier format - return the table name (identifier after schema)

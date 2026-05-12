@@ -56,7 +56,7 @@ public class SourceInfo extends BaseSourceInfo {
     private int groupOffset;
     private int batchRowId;
 
-    protected SourceInfo(YashanDBConnectorConfig connectorConfig) {
+    protected SourceInfo(YashanDbConnectorConfig connectorConfig) {
         super(connectorConfig);
     }
 

@@ -12,8 +12,8 @@ import org.antlr.v4.runtime.tree.ParseTreeListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
+import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.Table;
@@ -29,11 +29,11 @@ public class CreateTableParserListener extends BaseParserListener {
     private TableEditor tableEditor;
     private final String catalogName;
     private final String schemaName;
-    private final YashanDBDdlParser parser;
+    private final YashanDbDdlParser parser;
     private ColumnDefinitionParserListener columnDefinitionParserListener;
     private String inlinePrimaryKey;
 
-    CreateTableParserListener(final String catalogName, final String schemaName, final YashanDBDdlParser parser,
+    CreateTableParserListener(final String catalogName, final String schemaName, final YashanDbDdlParser parser,
                               final List<ParseTreeListener> listeners) {
         this.catalogName = catalogName;
         this.schemaName = schemaName;
@@ -42,7 +42,7 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterCreate_table_statement(YashanDBParser.Create_table_statementContext ctx) {
+    public void enterCreate_table_statement(YashanDbParser.Create_table_statementContext ctx) {
         if (ctx.relation_properties() == null) {
             throw new ParsingException(null, "Only relational tables are supported");
         }
@@ -59,7 +59,7 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitCreate_table_statement(YashanDBParser.Create_table_statementContext ctx) {
+    public void exitCreate_table_statement(YashanDbParser.Create_table_statementContext ctx) {
         parser.runIfNotNull(() -> {
             if (inlinePrimaryKey != null) {
                 if (!tableEditor.primaryKeyColumnNames().isEmpty()) {
@@ -82,7 +82,7 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterColumn_definition(YashanDBParser.Column_definitionContext ctx) {
+    public void enterColumn_definition(YashanDbParser.Column_definitionContext ctx) {
         parser.runIfNotNull(() -> {
             String columnName = getColumnName(ctx.column_name());
             ColumnEditor columnEditor = Column.editor().name(columnName);
@@ -99,17 +99,17 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitColumn_definition(YashanDBParser.Column_definitionContext ctx) {
+    public void exitColumn_definition(YashanDbParser.Column_definitionContext ctx) {
         parser.runIfNotNull(() -> tableEditor.addColumn(columnDefinitionParserListener.getColumn()),
                 tableEditor, columnDefinitionParserListener);
         super.exitColumn_definition(ctx);
     }
 
     @Override
-    public void exitInline_constraint(YashanDBParser.Inline_constraintContext ctx) {
+    public void exitInline_constraint(YashanDbParser.Inline_constraintContext ctx) {
         if (ctx.PRIMARY() != null) {
-            if (ctx.getParent() instanceof YashanDBParser.Column_definitionContext) {
-                YashanDBParser.Column_definitionContext columnCtx = (YashanDBParser.Column_definitionContext) ctx.getParent();
+            if (ctx.getParent() instanceof YashanDbParser.Column_definitionContext) {
+                YashanDbParser.Column_definitionContext columnCtx = (YashanDbParser.Column_definitionContext) ctx.getParent();
                 inlinePrimaryKey = getColumnName(columnCtx.column_name());
             }
         }
@@ -117,7 +117,7 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitIndex_definition(YashanDBParser.Index_definitionContext ctx) {
+    public void exitIndex_definition(YashanDbParser.Index_definitionContext ctx) {
         parser.runIfNotNull(() -> {
             if (ctx.PRIMARY() != null) {
                 if (inlinePrimaryKey != null) {

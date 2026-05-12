@@ -47,20 +47,20 @@ public interface StreamingAdapter {
 
     HistoryRecordComparator getHistoryRecordComparator();
 
-    OffsetContext.Loader<YashanDBOffsetContext> getOffsetContextLoader();
+    OffsetContext.Loader<YashanDbOffsetContext> getOffsetContextLoader();
 
-    StreamingChangeEventSource<YashanDBPartition, YashanDBOffsetContext> getSource(YashanDBConnection connection,
-                                                                                   EventDispatcher<YashanDBPartition, TableId> dispatcher,
+    StreamingChangeEventSource<YashanDbPartition, YashanDbOffsetContext> getSource(YashanDbConnection connection,
+                                                                                   EventDispatcher<YashanDbPartition, TableId> dispatcher,
                                                                                    ErrorHandler errorHandler, Clock clock,
-                                                                                   YashanDBDatabaseSchema schema,
-                                                                                   YashanDBTaskContext taskContext,
+                                                                                   YashanDbDatabaseSchema schema,
+                                                                                   YashanDbTaskContext taskContext,
                                                                                    Configuration jdbcConfig,
-                                                                                   YashanDBStreamingChangeEventSourceMetrics streamingMetrics);
+                                                                                   YashanDbStreamingChangeEventSourceMetrics streamingMetrics);
 
     /**
      * Returns whether table names are case sensitive.
      *
-     * By default the Oracle driver returns table names that are case sensitive.  The table names will
+     * By default the YashanDB driver returns table names that are case sensitive.  The table names will
      * be returned in upper-case by default and will only be returned in lower or mixed case when the
      * table is created using double-quotes to preserve case.  The adapter aligns with the driver's
      * behavior and enforces that table names are case sensitive by default.
@@ -68,7 +68,7 @@ public interface StreamingAdapter {
      * @param connection database connection, should never be {@code null}
      * @return the case sensitivity setting for table names used by the connector's runtime adapter
      */
-    default TableNameCaseSensitivity getTableNameCaseSensitivity(YashanDBConnection connection) {
+    default TableNameCaseSensitivity getTableNameCaseSensitivity(YashanDbConnection connection) {
         return TableNameCaseSensitivity.SENSITIVE;
     }
 
@@ -81,7 +81,7 @@ public interface StreamingAdapter {
      * @return the offset context, never {@code null}
      * @throws SQLException if a database error occurred
      */
-    YashanDBOffsetContext determineSnapshotOffset(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> ctx,
-                                                  YashanDBConnectorConfig connectorConfig, YashanDBConnection connection)
+    YashanDbOffsetContext determineSnapshotOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx,
+                                                  YashanDbConnectorConfig connectorConfig, YashanDbConnection connection)
             throws SQLException;
 }

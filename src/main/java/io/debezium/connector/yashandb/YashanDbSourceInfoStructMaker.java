@@ -11,7 +11,7 @@ import org.apache.kafka.connect.data.Struct;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.AbstractSourceInfoStructMaker;
 
-public class YashanDBSourceInfoStructMaker extends AbstractSourceInfoStructMaker<SourceInfo> {
+public class YashanDbSourceInfoStructMaker extends AbstractSourceInfoStructMaker<SourceInfo> {
 
     private Schema schema;
 

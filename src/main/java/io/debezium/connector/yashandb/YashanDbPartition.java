@@ -14,12 +14,12 @@ import io.debezium.pipeline.spi.Partition;
 import io.debezium.relational.AbstractPartition;
 import io.debezium.util.Collect;
 
-public class YashanDBPartition extends AbstractPartition implements Partition {
+public class YashanDbPartition extends AbstractPartition implements Partition {
     private static final String SERVER_PARTITION_KEY = "server";
 
     private final String serverName;
 
-    public YashanDBPartition(String serverName, String databaseName) {
+    public YashanDbPartition(String serverName, String databaseName) {
         super(databaseName);
         this.serverName = serverName;
     }
@@ -37,7 +37,7 @@ public class YashanDBPartition extends AbstractPartition implements Partition {
         if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        final YashanDBPartition other = (YashanDBPartition) obj;
+        final YashanDbPartition other = (YashanDbPartition) obj;
         return Objects.equals(serverName, other.serverName);
     }
 
@@ -48,20 +48,20 @@ public class YashanDBPartition extends AbstractPartition implements Partition {
 
     @Override
     public String toString() {
-        return "YashanDBPartition [sourcePartition=" + getSourcePartition() + "]";
+        return "YashanDbPartition [sourcePartition=" + getSourcePartition() + "]";
     }
 
-    static class Provider implements Partition.Provider<YashanDBPartition> {
-        private final YashanDBConnectorConfig connectorConfig;
+    static class Provider implements Partition.Provider<YashanDbPartition> {
+        private final YashanDbConnectorConfig connectorConfig;
 
-        Provider(YashanDBConnectorConfig connectorConfig) {
+        Provider(YashanDbConnectorConfig connectorConfig) {
             this.connectorConfig = connectorConfig;
         }
 
         @Override
-        public Set<YashanDBPartition> getPartitions() {
+        public Set<YashanDbPartition> getPartitions() {
 
-            return Collections.singleton(new YashanDBPartition(connectorConfig.getLogicalName(), connectorConfig.getDatabaseName()));
+            return Collections.singleton(new YashanDbPartition(connectorConfig.getLogicalName(), connectorConfig.getDatabaseName()));
         }
     }
 }

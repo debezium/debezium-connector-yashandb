@@ -14,7 +14,7 @@ import io.debezium.converters.spi.SerializerType;
 /**
  * An implementation of {@link CloudEventsProvider} for YashanDB.
  */
-public class YashanDBCloudEventsProvider implements CloudEventsProvider {
+public class YashanDbCloudEventsProvider implements CloudEventsProvider {
     @Override
     public String getName() {
         return Module.name();
@@ -23,6 +23,6 @@ public class YashanDBCloudEventsProvider implements CloudEventsProvider {
     @Override
     public CloudEventsMaker createMaker(RecordAndMetadata recordAndMetadata, SerializerType dataContentType, String dataSchemaUriBase,
                                         String cloudEventsSchemaName) {
-        return new YashanDBCloudEventsMaker(recordAndMetadata, dataContentType, dataSchemaUriBase, cloudEventsSchemaName);
+        return new YashanDbCloudEventsMaker(recordAndMetadata, dataContentType, dataSchemaUriBase, cloudEventsSchemaName);
     }
 }

@@ -50,32 +50,32 @@ import io.debezium.util.Strings;
 /**
  * A {@link StreamingChangeEventSource} for YashanDB.
  */
-public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeEventSource<YashanDBPartition, YashanDBOffsetContext> {
+public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeEventSource<YashanDbPartition, YashanDbOffsetContext> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBSnapshotChangeEventSource.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbSnapshotChangeEventSource.class);
 
-    private final YashanDBConnectorConfig connectorConfig;
-    private final YashanDBConnection jdbcConnection;
-    private final YashanDBDatabaseSchema databaseSchema;
+    private final YashanDbConnectorConfig connectorConfig;
+    private final YashanDbConnection jdbcConnection;
+    private final YashanDbDatabaseSchema databaseSchema;
 
-    public YashanDBSnapshotChangeEventSource(YashanDBConnectorConfig connectorConfig, MainConnectionProvidingConnectionFactory connectionFactory,
-                                             YashanDBDatabaseSchema schema, EventDispatcher<YashanDBPartition, TableId> dispatcher, Clock clock,
-                                             SnapshotProgressListener<YashanDBPartition> snapshotProgressListener,
-                                             NotificationService<YashanDBPartition, YashanDBOffsetContext> notificationService, SnapshotterService snapshotterService) {
+    public YashanDbSnapshotChangeEventSource(YashanDbConnectorConfig connectorConfig, MainConnectionProvidingConnectionFactory connectionFactory,
+                                             YashanDbDatabaseSchema schema, EventDispatcher<YashanDbPartition, TableId> dispatcher, Clock clock,
+                                             SnapshotProgressListener<YashanDbPartition> snapshotProgressListener,
+                                             NotificationService<YashanDbPartition, YashanDbOffsetContext> notificationService, SnapshotterService snapshotterService) {
         super(connectorConfig, connectionFactory, schema, dispatcher, clock, snapshotProgressListener, notificationService, snapshotterService);
         this.connectorConfig = connectorConfig;
-        this.jdbcConnection = (YashanDBConnection) connectionFactory.mainConnection();
+        this.jdbcConnection = (YashanDbConnection) connectionFactory.mainConnection();
         this.databaseSchema = schema;
     }
 
     @Override
-    protected SnapshotContext<YashanDBPartition, YashanDBOffsetContext> prepare(YashanDBPartition partition, boolean onDemand) {
+    protected SnapshotContext<YashanDbPartition, YashanDbOffsetContext> prepare(YashanDbPartition partition, boolean onDemand) {
 
-        return new OracleSnapshotContext(partition, connectorConfig.getDatabaseName(), onDemand);
+        return new YashanDbSnapshotContext(partition, connectorConfig.getDatabaseName(), onDemand);
     }
 
     @Override
-    protected Set<TableId> getAllTableIds(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> ctx)
+    protected Set<TableId> getAllTableIds(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx)
             throws Exception {
         return jdbcConnection.getAllTableIds(ctx.catalogName);
         // this very slow approach(commented out), it took 30 minutes on an instance with 600 tables
@@ -84,10 +84,10 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
     @Override
     protected void lockTablesForSchemaSnapshot(ChangeEventSourceContext sourceContext,
-                                               RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext)
+                                               RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext)
             throws SQLException, InterruptedException {
         if (connectorConfig.getSnapshotLockingMode().get().usesLocking()) {
-            ((OracleSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint = jdbcConnection.connection().setSavepoint("dbz_schema_snapshot");
+            ((YashanDbSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint = jdbcConnection.connection().setSavepoint("dbz_schema_snapshot");
 
             try (Statement statement = jdbcConnection.connection().createStatement()) {
                 for (TableId tableId : snapshotContext.capturedTables) {
@@ -109,16 +109,16 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
-    protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext)
+    protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext)
             throws SQLException {
         if (connectorConfig.getSnapshotLockingMode().get().usesLocking()) {
-            jdbcConnection.connection().rollback(((OracleSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint);
+            jdbcConnection.connection().rollback(((YashanDbSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint);
         }
     }
 
     @Override
-    protected void determineSnapshotOffset(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> ctx,
-                                           YashanDBOffsetContext previousOffset)
+    protected void determineSnapshotOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx,
+                                           YashanDbOffsetContext previousOffset)
             throws Exception {
 
         if (previousOffset != null && !snapshotterService.getSnapshotter().shouldStreamEventsStartingFromSnapshot()) {
@@ -132,8 +132,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
     @Override
     protected void readTableStructure(ChangeEventSourceContext sourceContext,
-                                      RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext,
-                                      YashanDBOffsetContext offsetContext, SnapshottingTask snapshottingTask)
+                                      RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
+                                      YashanDbOffsetContext offsetContext, SnapshottingTask snapshottingTask)
             throws SQLException, InterruptedException {
         Set<TableId> capturedSchemaTables;
         if (databaseSchema.storeOnlyCapturedTables()) {
@@ -162,7 +162,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         }
     }
 
-    private Tables.TableFilter getTableFilter(SnapshottingTask snapshottingTask, RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext) {
+    private Tables.TableFilter getTableFilter(SnapshottingTask snapshottingTask, RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext) {
 
         if (snapshottingTask.isOnDemand()) {
             return Tables.TableFilter.fromPredicate(snapshotContext.capturedTables::contains);
@@ -176,7 +176,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
-    protected String enhanceOverriddenSelect(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext,
+    protected String enhanceOverriddenSelect(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                              String overriddenSelect, TableId tableId) {
         String snapshotOffset = (String) snapshotContext.offset.getOffset().get(SourceInfo.SCN_KEY);
         String token = connectorConfig.getTokenToReplaceInSnapshotPredicate();
@@ -187,12 +187,12 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
-    protected Collection<TableId> getTablesForSchemaChange(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext) {
+    protected Collection<TableId> getTablesForSchemaChange(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext) {
         return snapshotContext.capturedSchemaTables;
     }
 
     @Override
-    protected SchemaChangeEvent getCreateTableEvent(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext,
+    protected SchemaChangeEvent getCreateTableEvent(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                                     Table table)
             throws SQLException {
         return SchemaChangeEvent.ofCreate(
@@ -206,9 +206,9 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     @Override
-    protected Instant getSnapshotSourceTimestamp(JdbcConnection jdbcConnection, YashanDBOffsetContext offset, TableId tableId) {
+    protected Instant getSnapshotSourceTimestamp(JdbcConnection jdbcConnection, YashanDbOffsetContext offset, TableId tableId) {
         try {
-            final YashanDBConnection connection = (YashanDBConnection) jdbcConnection;
+            final YashanDbConnection connection = (YashanDbConnection) jdbcConnection;
             return connection.getScnToTimestamp(offset.getScn())
                     .orElseThrow(() -> new ConnectException("Failed reading SCN timestamp from database"))
                     // Database host timezone adjustment
@@ -222,13 +222,13 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     /**
-     * Generate a valid Oracle query string for the specified table and columns
+     * Generate a valid YashanDB query string for the specified table and columns
      *
      * @param tableId the table to generate a query for
      * @return a valid query string
      */
     @Override
-    protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext,
+    protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                                  TableId tableId, List<String> columns) {
 
         return snapshotterService.getSnapshotQuery().snapshotQuery(quote(tableId), columns);
@@ -236,7 +236,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
     @Override
     protected List<Pattern> getSignalDataCollectionPattern(String signalingDataCollection) {
-        // Oracle expects this value to be supplied using "<database>.<schema>.<table>"; however the
+        // YashanDB expects this value to be supplied using "<database>.<schema>.<table>"; however the
         // TableIdMapper used by the connector uses only "<schema>.<table>". This primarily targets
         // a fix for this specific use case as a much larger refactor is likely necessary long term.
         final TableId tableId = TableId.parse(signalingDataCollection);
@@ -250,31 +250,31 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     /**
      * Mutable context which is populated in the course of snapshotting.
      */
-    private static class OracleSnapshotContext extends RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> {
+    private static class YashanDbSnapshotContext extends RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> {
 
         private Savepoint preSchemaSnapshotSavepoint;
 
-        OracleSnapshotContext(YashanDBPartition partition, String catalogName, boolean onDemand) {
+        YashanDbSnapshotContext(YashanDbPartition partition, String catalogName, boolean onDemand) {
             super(partition, catalogName, onDemand);
         }
     }
 
     @Override
-    protected YashanDBOffsetContext copyOffset(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext) {
+    protected YashanDbOffsetContext copyOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext) {
         return load(snapshotContext.offset.getOffset());
     }
 
-    public YashanDBOffsetContext load(Map<String, ?> offset) {
+    public YashanDbOffsetContext load(Map<String, ?> offset) {
         boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
-        boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(YashanDBOffsetContext.SNAPSHOT_COMPLETED_KEY));
-        boolean isCreateServer = Boolean.TRUE.equals(offset.get(YashanDBOffsetContext.YSTREAM_SERVER_CREATE));
-        Scn scn = YashanDBOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
+        boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY));
+        boolean isCreateServer = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.YSTREAM_SERVER_CREATE));
+        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
         CommitScn commitScn = CommitScn.load(offset);
-        Map<String, Scn> snapshotPendingTransactions = YashanDBOffsetContext.loadSnapshotPendingTransactions(offset);
-        Scn snapshotScn = YashanDBOffsetContext.loadSnapshotScn(offset);
-        Scn ystreamStartScn = YashanDBOffsetContext.loadYstreamStartScn(offset);
-        Position recoverPosition = YashanDBOffsetContext.loadRecoverPosition(offset);
-        return new YashanDBOffsetContext(connectorConfig, scn, commitScn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
+        Map<String, Scn> snapshotPendingTransactions = YashanDbOffsetContext.loadSnapshotPendingTransactions(offset);
+        Scn snapshotScn = YashanDbOffsetContext.loadSnapshotScn(offset);
+        Scn ystreamStartScn = YashanDbOffsetContext.loadYstreamStartScn(offset);
+        Position recoverPosition = YashanDbOffsetContext.loadRecoverPosition(offset);
+        return new YashanDbOffsetContext(connectorConfig, scn, commitScn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
                 snapshotCompleted,
                 TransactionContext.load(offset),
                 SignalBasedIncrementalSnapshotContext.load(offset), isCreateServer);
@@ -282,14 +282,14 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
     @Override
     protected Callable<Void> createDataEventsForTableCallable(ChangeEventSourceContext sourceContext,
-                                                              RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext,
-                                                              EventDispatcher.SnapshotReceiver<YashanDBPartition> snapshotReceiver, Table table,
+                                                              RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
+                                                              EventDispatcher.SnapshotReceiver<YashanDbPartition> snapshotReceiver, Table table,
                                                               boolean firstTable, boolean lastTable, int tableOrder, int tableCount,
                                                               String selectStatement, OptionalLong rowCount, Set<TableId> rowCountKeySet,
-                                                              Queue<JdbcConnection> connectionPool, Queue<YashanDBOffsetContext> offsets) {
+                                                              Queue<JdbcConnection> connectionPool, Queue<YashanDbOffsetContext> offsets) {
         return () -> {
             JdbcConnection connection = connectionPool.poll();
-            YashanDBOffsetContext offset = offsets.poll();
+            YashanDbOffsetContext offset = offsets.poll();
             try {
                 final int maxRetries = getTableSnapshotMaxRetries();
                 final Metronome retrySleeper = Metronome.sleeper(Duration.ofSeconds(5), clock);

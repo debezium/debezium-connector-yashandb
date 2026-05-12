@@ -11,8 +11,6 @@ import io.debezium.util.IoUtil;
 
 /**
  * Information about this module.
- *
- * @author Gunnar Morling
  */
 public final class Module {
 

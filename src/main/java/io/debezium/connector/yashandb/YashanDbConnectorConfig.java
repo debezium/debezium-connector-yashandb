@@ -41,7 +41,7 @@ import io.debezium.util.Strings;
 /**
  * Connector configuration for YashanDB.
  */
-public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnectorConfig {
+public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnectorConfig {
 
     protected static final int DEFAULT_PORT = 1688;
 
@@ -68,7 +68,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
 
     public static final Field HOSTNAME = RelationalDatabaseConnectorConfig.HOSTNAME
             .withNoValidation()
-            .withValidation(YashanDBConnectorConfig::requiredWhenNoUrl);
+            .withValidation(YashanDbConnectorConfig::requiredWhenNoUrl);
 
     public static final Field INTERVAL_HANDLING_MODE = Field.create("interval.handling.mode")
             .withDisplayName("Interval Handling")
@@ -97,7 +97,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.MEDIUM)
             .withImportance(Importance.HIGH)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTION, 9))
-            // .withValidation(YashanDBConnectorConfig::validateOutServerName)
+            // .withValidation(YashanDbConnectorConfig::validateOutServerName)
             .withDescription("Name of the Ystream Out server to connect to.");
 
     public static final Field SNAPSHOT_MODE = Field.create("snapshot.mode")
@@ -171,7 +171,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withType(Type.STRING)
             .withWidth(Width.LONG)
             .withImportance(Importance.HIGH)
-            .withValidation(YashanDBConnectorConfig::requiredWhenNoHostname)
+            .withValidation(YashanDbConnectorConfig::requiredWhenNoHostname)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTION, 10))
             .withDescription("Complete JDBC URL as an alternative to specifying hostname, port and database provided "
                     + "as a way to support alternative connection scenarios.");
@@ -296,7 +296,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.SHORT)
             .withImportance(Importance.LOW)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 19))
-            .withValidation(YashanDBConnectorConfig::validateUsernameExcludeList)
+            .withValidation(YashanDbConnectorConfig::validateUsernameExcludeList)
             .withDescription("Comma separated list of usernames to exclude from LogMiner query.");
 
     public static final Field LOG_MINING_ARCHIVE_DESTINATION_NAME = Field.create("log.mining.archive.destination.name")
@@ -311,7 +311,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
     public static final Field LOG_MINING_BUFFER_TYPE = Field.create("log.mining.buffer.type")
             .withDisplayName("Controls which buffer type implementation to be used")
             // .withEnum(LogMiningBufferType.class, LogMiningBufferType.MEMORY)
-            // .withValidation(YashanDBConnectorConfig::validateLogMiningBufferType)
+            // .withValidation(YashanDbConnectorConfig::validateLogMiningBufferType)
             .withImportance(Importance.LOW)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 21))
             .withDescription("The buffer type controls how the connector manages buffering transaction data." + System.lineSeparator() +
@@ -339,7 +339,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.LONG)
             .withImportance(Importance.LOW)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 23))
-            // .withValidation(YashanDBConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
+            // .withValidation(YashanDbConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
             .withDescription("Specifies the XML configuration for the Infinispan 'transactions' cache");
 
     public static final Field LOG_MINING_BUFFER_INFINISPAN_CACHE_PROCESSED_TRANSACTIONS = Field.create("log.mining.buffer.infinispan.cache.processed_transactions")
@@ -348,7 +348,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.LONG)
             .withImportance(Importance.LOW)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 25))
-            // .withValidation(YashanDBConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
+            // .withValidation(YashanDbConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
             .withDescription("Specifies the XML configuration for the Infinispan 'processed-transactions' cache");
 
     public static final Field LOG_MINING_BUFFER_INFINISPAN_CACHE_EVENTS = Field.create("log.mining.buffer.infinispan.cache.events")
@@ -357,7 +357,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.LONG)
             .withImportance(Importance.LOW)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 24))
-            // .withValidation(YashanDBConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
+            // .withValidation(YashanDbConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
             .withDescription("Specifies the XML configuration for the Infinispan 'events' cache");
 
     public static final Field LOG_MINING_BUFFER_INFINISPAN_CACHE_SCHEMA_CHANGES = Field.create("log.mining.buffer.infinispan.cache.schema_changes")
@@ -366,7 +366,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.LONG)
             .withImportance(Importance.LOW)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 26))
-            // .withValidation(YashanDBConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
+            // .withValidation(YashanDbConnectorConfig::validateLogMiningInfinispanCacheConfiguration)
             .withDescription("Specifies the XML configuration for the Infinispan 'schema-changes' cache");
 
     public static final Field LOG_MINING_BUFFER_DROP_ON_STOP = Field.create("log.mining.buffer.drop.on.stop")
@@ -429,7 +429,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
                     "The maximum number of milliseconds that a LogMiner session lives for before being restarted. Defaults to 0 (indefinite until a log switch occurs)");
 
     public static final Field LOG_MINING_RESTART_CONNECTION = Field.create("log.mining.restart.connection")
-            .withDisplayName("Restarts Oracle database connection when reaching maximum session time or database log switch")
+            .withDisplayName("Restarts YashanDB database connection when reaching maximum session time or database log switch")
             .withType(Type.BOOLEAN)
             .withWidth(Width.SHORT)
             .withImportance(Importance.LOW)
@@ -457,7 +457,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withDescription("Specifies how the filter configuration is applied to the LogMiner database query. " + System.lineSeparator() +
                     "none - The query does not apply any schema or table filters, all filtering is at runtime by the connector." + System.lineSeparator() +
                     "in - The query uses SQL in-clause expressions to specify the schema or table filters." + System.lineSeparator() +
-                    "regex - The query uses Oracle REGEXP_LIKE expressions to specify the schema or table filters." + System.lineSeparator());
+                    "regex - The query uses YashanDB REGEXP_LIKE expressions to specify the schema or table filters." + System.lineSeparator());
 
     public static final Field LOG_MINING_READ_ONLY = Field.createInternal("log.mining.read.only")
             .withDisplayName("Runs the connector in read-only mode")
@@ -465,7 +465,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.SHORT)
             .withImportance(Importance.LOW)
             .withDefault(Boolean.FALSE)
-            // .withValidation(YashanDBConnectorConfig::validateLogMiningReadOnly)
+            // .withValidation(YashanDbConnectorConfig::validateLogMiningReadOnly)
             .withDescription("When set to 'true', the connector will not attempt to flush the LGWR buffer to disk, allowing connecting to read-only databases.");
 
     public static final Field LOG_MINING_FLUSH_TABLE_NAME = Field.create("log.mining.flush.table.name")
@@ -474,11 +474,11 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.MEDIUM)
             .withImportance(Importance.LOW)
             .withDefault("LOG_MINING_FLUSH")
-            // .withValidation(YashanDBConnectorConfig::validateLogMiningFlushTableName)
+            // .withValidation(YashanDbConnectorConfig::validateLogMiningFlushTableName)
             .withDescription("The name of the flush table used by the connector, defaults to LOG_MINING_FLUSH.");
 
     public static final Field SOURCE_INFO_STRUCT_MAKER = CommonConnectorConfig.SOURCE_INFO_STRUCT_MAKER
-            .withDefault(YashanDBSourceInfoStructMaker.class.getName());
+            .withDefault(YashanDbSourceInfoStructMaker.class.getName());
 
     public static final Field QUERY_FETCH_SIZE = CommonConnectorConfig.QUERY_FETCH_SIZE
             .withDescription(
@@ -638,7 +638,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
     public static final List<String> EXCLUDED_SCHEMAS = Collections.unmodifiableList(Arrays.asList("SYS", "MDSYS",
             "XA_SYS"));
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBConnectorConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbConnectorConfig.class);
 
     private final String databaseName;
     private final IntervalHandlingMode intervalHandlingMode;
@@ -689,9 +689,9 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final boolean legacyDecimalHandlingStrategy;
     private final int snapshotRetryDatabaseErrorsMaxRetries;
 
-    public YashanDBConnectorConfig(Configuration config) {
+    public YashanDbConnectorConfig(Configuration config) {
         super(
-                YashanDBConnector.class, config,
+                YashanDbConnector.class, config,
                 new SystemTablesPredicate(config),
                 x -> x.schema() + "." + x.table(),
                 false,
@@ -1072,7 +1072,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         /**
          * Specifies that in-progress transactions that are available in the {@code V$TRANSACTION}
          * table will be captured and emitted when streaming begins. If a transaction is not in
-         * this view, and its changes were not captured by Oracle Flashback query based on the
+         * this view, and its changes were not captured by YashanDB Flashback query based on the
          * snapshot SCN, that transaction will not be captured.
          */
         TRANSACTION_VIEW_ONLY("transaction_view_only"),
@@ -1209,7 +1209,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         IN("in"),
 
         /**
-         * This filter mode adds predicates to the LogMiner query, using the Oracle REGEXP_LIKE
+         * This filter mode adds predicates to the LogMiner query, using the YashanDB REGEXP_LIKE
          * operator. This mode supports the include/exclude connector properties specifying
          * regular expressions.
          * <p>
@@ -1254,8 +1254,6 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
 
     /**
      * A {@link TableFilter} that excludes all YashanDB system tables.
-     *
-     * @author Gunnar Morling
      */
     private static class SystemTablesPredicate implements TableFilter {
 

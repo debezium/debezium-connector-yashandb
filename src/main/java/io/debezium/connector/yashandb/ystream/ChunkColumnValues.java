@@ -22,8 +22,6 @@ import io.debezium.DebeziumException;
 
 /**
  * A simple wrapper class around a collection of {@link YstreamChunk}s.
- *
- * @author Chris Cranford
  */
 public class ChunkColumnValues {
 

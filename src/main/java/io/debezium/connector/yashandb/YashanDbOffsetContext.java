@@ -28,9 +28,9 @@ import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.relational.TableId;
 import io.debezium.spi.schema.DataCollectionId;
 
-public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
+public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
 
-    private static final Logger log = LoggerFactory.getLogger(YashanDBOffsetContext.class);
+    private static final Logger log = LoggerFactory.getLogger(YashanDbOffsetContext.class);
 
     public static final String SNAPSHOT_COMPLETED_KEY = "snapshot_completed";
     public static final String SNAPSHOT_PENDING_TRANSACTIONS_KEY = "snapshot_pending_tx";
@@ -67,7 +67,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
      */
     private boolean snapshotCompleted;
 
-    public YashanDBOffsetContext(YashanDBConnectorConfig connectorConfig, Scn scn, CommitScn commitScn,
+    public YashanDbOffsetContext(YashanDbConnectorConfig connectorConfig, Scn scn, CommitScn commitScn,
                                  Scn snapshotScn, Scn ystreamStartScn, Position recoverPosition, Map<String, Scn> snapshotPendingTransactions,
                                  boolean snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
                                  IncrementalSnapshotContext<TableId> incrementalSnapshotContext, boolean isCreateServer) {
@@ -76,7 +76,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
         sourceInfo.setCommitScn(commitScn);
     }
 
-    public YashanDBOffsetContext(YashanDBConnectorConfig connectorConfig, Scn scn,
+    public YashanDbOffsetContext(YashanDbConnectorConfig connectorConfig, Scn scn,
                                  Scn snapshotScn, Scn ystreamStartScn, Position recoverPosition, Map<String, Scn> snapshotPendingTransactions,
                                  boolean snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
                                  IncrementalSnapshotContext<TableId> incrementalSnapshotContext, boolean isCreateServer) {
@@ -112,7 +112,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
 
     public static class Builder {
 
-        private YashanDBConnectorConfig connectorConfig;
+        private YashanDbConnectorConfig connectorConfig;
         private Scn scn;
         private String lcrPosition;
         private boolean snapshot;
@@ -124,7 +124,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
         private Scn ystreamStartScn;
         private Position recoverPosition;
 
-        public Builder logicalName(YashanDBConnectorConfig connectorConfig) {
+        public Builder logicalName(YashanDbConnectorConfig connectorConfig) {
             this.connectorConfig = connectorConfig;
             return this;
         }
@@ -179,8 +179,8 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
             return this;
         }
 
-        public YashanDBOffsetContext build() {
-            return new YashanDBOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
+        public YashanDbOffsetContext build() {
+            return new YashanDbOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
                     snapshotCompleted, transactionContext,
                     incrementalSnapshotContext, false);
         }
@@ -362,7 +362,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("YashanDBOffsetContext [scn=").append(getScn());
+        StringBuilder sb = new StringBuilder("YashanDbOffsetContext [scn=").append(getScn());
 
         if (sourceInfo.isSnapshot()) {
             sb.append(", snapshot=").append(sourceInfo.isSnapshot());

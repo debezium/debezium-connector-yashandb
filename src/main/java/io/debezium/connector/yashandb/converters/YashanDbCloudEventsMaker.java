@@ -17,7 +17,7 @@ import io.debezium.util.Collect;
 /**
  * CloudEvents maker implementation for YashanDB.
  */
-public class YashanDBCloudEventsMaker extends CloudEventsMaker {
+public class YashanDbCloudEventsMaker extends CloudEventsMaker {
 
     public static final String SCN_KEY = "scn";
     public static final String COMMIT_SCN_KEY = "commit_scn";
@@ -28,7 +28,7 @@ public class YashanDBCloudEventsMaker extends CloudEventsMaker {
             COMMIT_SCN_KEY,
             LCR_POSITION_KEY);
 
-    public YashanDBCloudEventsMaker(RecordAndMetadata recordAndMetadata, SerializerType dataContentType, String dataSchemaUriBase,
+    public YashanDbCloudEventsMaker(RecordAndMetadata recordAndMetadata, SerializerType dataContentType, String dataSchemaUriBase,
                                     String cloudEventsSchemaName) {
         super(recordAndMetadata, dataContentType, dataSchemaUriBase, cloudEventsSchemaName, Envelope.FieldName.BEFORE, Envelope.FieldName.AFTER);
     }

@@ -46,7 +46,7 @@ import io.debezium.time.ZonedTimestamp;
 import io.debezium.util.NumberConversions;
 import io.debezium.util.Strings;
 
-public class YashanDBValueConverters extends JdbcValueConverters {
+public class YashanDbValueConverters extends JdbcValueConverters {
 
     /**
      * Marker value indicating an unavilable column value.
@@ -98,14 +98,14 @@ public class YashanDBValueConverters extends JdbcValueConverters {
     private static final Pattern TO_DATE = Pattern.compile("TO_DATE\\('(.*)',[ ]*'(.*)'\\)", Pattern.CASE_INSENSITIVE);
     private static final BigDecimal MICROSECONDS_PER_SECOND = new BigDecimal(1_000_000);
 
-    private final YashanDBConnection connection;
+    private final YashanDbConnection connection;
     private final boolean lobEnabled;
     private final boolean legacyDecimalHandlingStrategy;
-    private final YashanDBConnectorConfig.IntervalHandlingMode intervalHandlingMode;
+    private final YashanDbConnectorConfig.IntervalHandlingMode intervalHandlingMode;
     private final byte[] unavailableValuePlaceholderBinary;
     private final String unavailableValuePlaceholderString;
 
-    public YashanDBValueConverters(YashanDBConnectorConfig config, YashanDBConnection connection) {
+    public YashanDbValueConverters(YashanDbConnectorConfig config, YashanDbConnection connection) {
         super(config.getDecimalMode(), config.getTemporalPrecisionMode(), ZoneOffset.UTC, null, null, config.binaryHandlingMode());
         this.connection = connection;
         this.lobEnabled = config.isLobEnabled();
@@ -141,7 +141,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                 return ZonedTimestamp.builder();
             case YasTypes.DS_INTERVAL:
             case YasTypes.YM_INTERVAL:
-                return intervalHandlingMode == YashanDBConnectorConfig.IntervalHandlingMode.STRING ? Interval.builder() : MicroDuration.builder();
+                return intervalHandlingMode == YashanDbConnectorConfig.IntervalHandlingMode.STRING ? Interval.builder() : MicroDuration.builder();
             case Types.STRUCT:
                 return SchemaBuilder.string();
             case YasTypes.ROWID:
@@ -502,7 +502,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
         return handleUnknownData(column, fieldDefn, data);
     }
 
-    protected Object fromOracleTimeClasses(Column column, Object data) {
+    protected Object fromYashanDbTimeClasses(Column column, Object data) {
         return data;
     }
 
@@ -511,7 +511,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
         if (data instanceof String) {
             data = resolveTimestampStringAsInstant((String) data);
         }
-        return super.convertTimestampToEpochMillisAsDate(column, fieldDefn, fromOracleTimeClasses(column, data));
+        return super.convertTimestampToEpochMillisAsDate(column, fieldDefn, fromYashanDbTimeClasses(column, data));
     }
 
     @Override
@@ -522,7 +522,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
         if (data instanceof String) {
             data = resolveTimestampStringAsInstant((String) data);
         }
-        return super.convertTimestampToEpochMicros(column, fieldDefn, fromOracleTimeClasses(column, data));
+        return super.convertTimestampToEpochMicros(column, fieldDefn, fromYashanDbTimeClasses(column, data));
     }
 
     @Override
@@ -530,7 +530,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
         if (data instanceof String) {
             data = resolveTimestampStringAsInstant((String) data);
         }
-        return super.convertTimestampToEpochMillis(column, fieldDefn, fromOracleTimeClasses(column, data));
+        return super.convertTimestampToEpochMillis(column, fieldDefn, fromYashanDbTimeClasses(column, data));
     }
 
     @Override
@@ -538,7 +538,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
         if (data instanceof String) {
             data = resolveTimestampStringAsInstant((String) data);
         }
-        return super.convertTimestampToEpochNanos(column, fieldDefn, fromOracleTimeClasses(column, data));
+        return super.convertTimestampToEpochNanos(column, fieldDefn, fromYashanDbTimeClasses(column, data));
     }
 
     private Instant resolveTimestampStringAsInstant(String data) {
@@ -575,7 +575,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
                 data = ZonedDateTime.from(TIMESTAMP_TZ_FORMATTER.parse(dateText.trim()));
             }
         }
-        final Object javaData = fromOracleTimeClasses(column, data);
+        final Object javaData = fromYashanDbTimeClasses(column, data);
         return convertValue(column, fieldDefn, javaData, fallbackTimestampWithTimeZone, (r) -> {
             try {
                 // Fractional width for zoned timestamp is set in scale if schema obtained via snapshot
@@ -593,7 +593,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
             if (data instanceof Number) {
                 // we expect to get back from the plugin a double value
                 final long micros = ((Number) data).longValue();
-                if (intervalHandlingMode == YashanDBConnectorConfig.IntervalHandlingMode.STRING) {
+                if (intervalHandlingMode == YashanDbConnectorConfig.IntervalHandlingMode.STRING) {
                     r.deliver(Interval.toIsoString(0, 0, 0, 0, 0, new BigDecimal(micros).divide(MICROSECONDS_PER_SECOND)));
                 }
                 else {
@@ -618,7 +618,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
             if (interval.charAt(i) == '-') {
                 final int year = sign * Integer.parseInt(interval.substring(start, i));
                 final int month = sign * Integer.parseInt(interval.substring(i + 1));
-                if (intervalHandlingMode == YashanDBConnectorConfig.IntervalHandlingMode.STRING) {
+                if (intervalHandlingMode == YashanDbConnectorConfig.IntervalHandlingMode.STRING) {
                     r.deliver(Interval.toIsoString(year, month, 0, 0, 0, BigDecimal.ZERO));
                 }
                 else {
@@ -634,7 +634,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
             if (data instanceof Number) {
                 // we expect to get back from the plugin a double value
                 final long micros = ((Number) data).longValue();
-                if (intervalHandlingMode == YashanDBConnectorConfig.IntervalHandlingMode.STRING) {
+                if (intervalHandlingMode == YashanDbConnectorConfig.IntervalHandlingMode.STRING) {
                     r.deliver(Interval.toIsoString(0, 0, 0, 0, 0, new BigDecimal(micros).divide(MICROSECONDS_PER_SECOND)));
                 }
                 else {
@@ -652,7 +652,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
         final Matcher m = INTERVAL_DAY_SECOND_PATTERN.matcher(interval);
         if (m.matches()) {
             final int sign = "-".equals(m.group(1)) ? -1 : 1;
-            if (intervalHandlingMode == YashanDBConnectorConfig.IntervalHandlingMode.STRING) {
+            if (intervalHandlingMode == YashanDbConnectorConfig.IntervalHandlingMode.STRING) {
                 double seconds = sign * ((double) (Integer.parseInt(m.group(5)))
                         + (double) Integer.parseInt(Strings.pad(m.group(6), 6, '0')) / 1_000_000D);
                 r.deliver(Interval.toIsoString(

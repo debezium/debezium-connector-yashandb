@@ -81,7 +81,7 @@ The distribution package includes:
 | Property | Description | Default |
 |----------|-------------|---------|
 | `name` | Unique name for the connector instance | - |
-| `connector.class` | Connector class name | `io.debezium.connector.yashandb.YashanDBConnector` |
+| `connector.class` | Connector class name | `io.debezium.connector.yashandb.YashanDbConnector` |
 | `database.hostname` | YashanDB server hostname | - |
 | `database.port` | YashanDB server port | `1688` |
 | `database.user` | Database user name | - |
@@ -124,7 +124,7 @@ The distribution package includes:
 ```json
 {
   "name": "yashandb-connector",
-  "connector.class": "io.debezium.connector.yashandb.YashanDBConnector",
+  "connector.class": "io.debezium.connector.yashandb.YashanDbConnector",
   "database.hostname": "localhost",
   "database.port": "1688",
   "database.user": "debezium",
@@ -220,9 +220,9 @@ io.debezium.connector.yashandb:type=connector-metrics,context=streaming,server=<
 
 ```
 src/main/java/io/debezium/connector/yashandb/
-├── YashanDBConnector.java           # Main connector class
-├── YashanDBConnectorConfig.java     # Configuration definitions
-├── YashanDBConnectorTask.java       # Task implementation
+├── YashanDbConnector.java           # Main connector class
+├── YashanDbConnectorConfig.java     # Configuration definitions
+├── YashanDbConnectorTask.java       # Task implementation
 ├── YashanDBConnection.java          # Database connection handling
 ├── YashanDBSnapshotChangeEventSource.java  # Snapshot processing
 ├── YashanDBOffsetContext.java       # Offset management

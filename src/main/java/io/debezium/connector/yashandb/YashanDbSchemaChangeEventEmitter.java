@@ -14,7 +14,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
+import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
 import io.debezium.connector.yashandb.ystream.TruncateReceiver;
 import io.debezium.pipeline.spi.SchemaChangeEventEmitter;
 import io.debezium.relational.Table;
@@ -33,27 +33,27 @@ import io.debezium.text.ParsingException;
 /**
  * {@link SchemaChangeEventEmitter} implementation based on YashanDB.
  */
-public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitter {
+public class YashanDbSchemaChangeEventEmitter implements SchemaChangeEventEmitter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBSchemaChangeEventEmitter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbSchemaChangeEventEmitter.class);
 
-    private final YashanDBPartition partition;
-    private final YashanDBOffsetContext offsetContext;
+    private final YashanDbPartition partition;
+    private final YashanDbOffsetContext offsetContext;
     private final TableId tableId;
-    private final YashanDBDatabaseSchema schema;
+    private final YashanDbDatabaseSchema schema;
     private final Instant changeTime;
     private final String sourceDatabaseName;
     private final String objectOwner;
     private final String ddlText;
     private final TableFilter filters;
-    private final YashanDBStreamingChangeEventSourceMetrics streamingMetrics;
+    private final YashanDbStreamingChangeEventSourceMetrics streamingMetrics;
     private final TruncateReceiver truncateReceiver;
-    private final YashanDBConnectorConfig connectorConfig;
+    private final YashanDbConnectorConfig connectorConfig;
 
-    public YashanDBSchemaChangeEventEmitter(YashanDBConnectorConfig connectorConfig, YashanDBPartition partition,
-                                            YashanDBOffsetContext offsetContext, TableId tableId, String sourceDatabaseName,
-                                            String objectOwner, String ddlText, YashanDBDatabaseSchema schema,
-                                            Instant changeTime, YashanDBStreamingChangeEventSourceMetrics streamingMetrics,
+    public YashanDbSchemaChangeEventEmitter(YashanDbConnectorConfig connectorConfig, YashanDbPartition partition,
+                                            YashanDbOffsetContext offsetContext, TableId tableId, String sourceDatabaseName,
+                                            String objectOwner, String ddlText, YashanDbDatabaseSchema schema,
+                                            Instant changeTime, YashanDbStreamingChangeEventSourceMetrics streamingMetrics,
                                             TruncateReceiver truncateReceiver) {
         this.partition = partition;
         this.offsetContext = offsetContext;
@@ -76,7 +76,7 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
         // todo: verify whether this is actually necessary in the emitted SchemaChangeEvent
         final Table tableBefore = schema.tableFor(tableId);
 
-        final YashanDBDdlParser parser = schema.getDdlParser();
+        final YashanDbDdlParser parser = schema.getDdlParser();
         final DdlChanges ddlChanges = parser.getAndResetDdlChanges();
         try {
             ddlChanges.reset();
@@ -139,7 +139,7 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
         }
     }
 
-    private SchemaChangeEvent createTableEvent(YashanDBPartition partition, TableCreatedEvent event) {
+    private SchemaChangeEvent createTableEvent(YashanDbPartition partition, TableCreatedEvent event) {
         offsetContext.tableEvent(tableId, changeTime);
         return SchemaChangeEvent.ofCreate(
                 partition,
@@ -151,7 +151,7 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
                 false);
     }
 
-    private SchemaChangeEvent alterTableEvent(YashanDBPartition partition, TableAlteredEvent event) {
+    private SchemaChangeEvent alterTableEvent(YashanDbPartition partition, TableAlteredEvent event) {
         final Set<TableId> tableIds = new LinkedHashSet<>();
         tableIds.add(tableId);
         tableIds.add(event.tableId());
@@ -178,7 +178,7 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
         }
     }
 
-    private SchemaChangeEvent dropTableEvent(YashanDBPartition partition, Table tableSchemaBeforeDrop, TableDroppedEvent event) {
+    private SchemaChangeEvent dropTableEvent(YashanDbPartition partition, Table tableSchemaBeforeDrop, TableDroppedEvent event) {
         offsetContext.tableEvent(tableId, changeTime);
         return SchemaChangeEvent.ofDrop(
                 partition,
@@ -189,7 +189,7 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
                 tableSchemaBeforeDrop);
     }
 
-    private SchemaChangeEvent truncateTableEvent(YashanDBPartition partition, TableTruncatedEvent event) {
+    private SchemaChangeEvent truncateTableEvent(YashanDbPartition partition, TableTruncatedEvent event) {
         offsetContext.tableEvent(tableId, changeTime);
         return SchemaChangeEvent.ofTruncate(
                 partition,
