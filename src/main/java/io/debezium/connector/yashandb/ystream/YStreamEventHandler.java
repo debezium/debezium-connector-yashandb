@@ -441,11 +441,6 @@ class YStreamEventHandler {
                     case YasTypes.NCLOB:
                         resolvedChunkValues.put(columnName, chunkValues.getStringValue(currentRecord.getTableMetadata()));
                         break;
-
-                    case YasTypes.SQLXML:
-                        resolvedChunkValues.put(columnName, chunkValues.getXmlValue());
-                        break;
-
                     case YasTypes.RAW:
                     case YasTypes.BLOB:
                         resolvedChunkValues.put(columnName, chunkValues.getByteArray());

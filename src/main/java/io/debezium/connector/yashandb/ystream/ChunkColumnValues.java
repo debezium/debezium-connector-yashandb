@@ -86,32 +86,6 @@ public class ChunkColumnValues {
     }
 
     /**
-     * @return the chunk data as XML, may be {@code null} if the length of the data is zero.
-     * @throws SQLException if there is a database exception accessing the raw chunk value
-     */
-    public String getXmlValue() throws SQLException {
-        if (size == 0) {
-            return null;
-        }
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-            for (YstreamChunk value : values) {
-                byteArrayOutputStream.write(value.getBytes());
-            }
-            // TODO: 这里应该有问题
-            return ((YasSQLXML) ChunkUtil.parseData(
-                    byteArrayOutputStream.toByteArray(),
-                    values.get(0).getColumn(),
-                    null, null)).getString();
-        }
-        catch (IOException e) {
-            throw new SQLException(e);
-        }
-        catch (YstreamSqlException e) {
-            throw new SQLException(e);
-        }
-    }
-
-    /**
      * @return the chunk data as a byte array, may be {@code null} if the length of the data is zero.
      * @throws SQLException if there is a database exception accessing the raw chunk value
      */
@@ -141,10 +115,8 @@ public class ChunkColumnValues {
         switch (chunkColumnValue.getColumn().getDataType()) {
             case YasTypes.CLOB:
             case YasTypes.NCLOB:
-            case YasTypes.SQLXML:
-                return chunkColumnValue.getSize();
-            case YasTypes.RAW:
-            case YasTypes.BLOB:
+            case YasTypes.SQLXML, YasTypes.VARCHAR,
+                 YasTypes.NVARCHAR, YasTypes.RAW, YasTypes.BLOB:
                 return chunkColumnValue.getSize();
             default:
                 return 0;
