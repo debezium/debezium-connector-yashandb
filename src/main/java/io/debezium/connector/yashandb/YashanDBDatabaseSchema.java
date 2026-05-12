@@ -9,9 +9,12 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import io.debezium.relational.Attribute;
+import io.debezium.util.LRUCacheMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +41,6 @@ import io.debezium.spi.topic.TopicNamingStrategy;
 public class YashanDBDatabaseSchema extends HistorizedRelationalDatabaseSchema {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBDatabaseSchema.class);
-
     private final YashanDBDdlParser ddlParser;
     private final ConcurrentMap<TableId, List<Column>> lobColumnsByTableId = new ConcurrentHashMap<>();
     private final YashanDBValueConverters valueConverters;

@@ -16,8 +16,6 @@ import io.debezium.transforms.outbox.EventRouterConfigurationProvider;
 
 /**
  * An implementation of the {@link EventRouterConfigurationProvider} for the YashanDB connector.
- *
- * @author Chris Cranford
  */
 public class YashanDBEventRouterConfigurationProvider implements EventRouterConfigurationProvider {
 
@@ -60,7 +58,7 @@ public class YashanDBEventRouterConfigurationProvider implements EventRouterConf
 
     private String getStringWithUpperCaseDefault(Field field) {
         if (configuration == null) {
-            throw new DebeziumException("Event router configuration for Oracle has not yet been configured");
+            throw new DebeziumException("Event router configuration for YashanDB has not yet been configured");
         }
 
         // Check if the configuration option is defined by the user and if so; use it.

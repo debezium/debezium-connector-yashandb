@@ -19,8 +19,6 @@ import io.debezium.util.Clock;
 
 /**
  * Contract that defines unique behavior for each possible {@code connection.adapter}.
- *
- * @author Chris Cranford
  */
 public interface StreamingAdapter {
 

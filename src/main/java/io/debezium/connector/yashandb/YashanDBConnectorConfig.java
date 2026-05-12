@@ -135,6 +135,16 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 11))
             .withDescription("A token to replace on snapshot predicate template");
 
+    public static final Field SNAPSHOT_DATABASE_ERRORS_MAX_RETRIES = Field.create("snapshot.database.errors.max.retries")
+            .withDisplayName("The maximum number of retries before snapshot database errors are not retried")
+            .withType(Type.INT)
+            .withDefault(0)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.LOW)
+            .withValidation(Field::isNonNegativeInteger)
+            .withDescription("The number of attempts to retry database errors during snapshots before failing.");
+
+
     @Deprecated
     public static final Field LOG_MINING_TRANSACTION_RETENTION = Field.create("log.mining.transaction.retention.hours")
             .withDisplayName("Log Mining long running transaction retention")
@@ -602,6 +612,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
                     LOG_MINING_SCN_GAP_DETECTION_TIME_INTERVAL_MAX_MS,
                     UNAVAILABLE_VALUE_PLACEHOLDER,
                     BINARY_HANDLING_MODE,
+                    SNAPSHOT_DATABASE_ERRORS_MAX_RETRIES,
                     SCHEMA_NAME_ADJUSTMENT_MODE,
                     LOG_MINING_LOG_BACKOFF_INITIAL_DELAY_MS,
                     LOG_MINING_LOG_BACKOFF_MAX_DELAY_MS,
@@ -677,6 +688,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final Boolean logicShardEnabled;
     private final int tableReadThreads;
     private final boolean legacyDecimalHandlingStrategy;
+    private final int snapshotRetryDatabaseErrorsMaxRetries;
 
     public YashanDBConnectorConfig(Configuration config) {
         super(
@@ -731,6 +743,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         // YStream
         this.yStreamPollTimeout = config.getInteger(YSTREAM_POLL_TIMEOUT);
         this.yStreamQueueSize = config.getInteger(YSTREAM_QUEUE_SIZE);
+        this.snapshotRetryDatabaseErrorsMaxRetries = config.getInteger(SNAPSHOT_DATABASE_ERRORS_MAX_RETRIES);
         this.yStreamClientResponseTimeout = config.getInteger(YSTREAM_CLIENT_RESPONSE_TIMEOUT);
 
         // Shard
@@ -788,6 +801,11 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
     public int getTableReadThreads() {
         return tableReadThreads;
     }
+
+    public int getSnapshotRetryDatabaseErrorsMaxRetries() {
+        return snapshotRetryDatabaseErrorsMaxRetries;
+    }
+
 
     /**
      * @return {@code true} if the legacy decimal handling behavior is used, {@code false} otherwise

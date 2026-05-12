@@ -6,11 +6,12 @@
 package io.debezium.connector.yashandb;
 
 import io.debezium.relational.TableId;
+import io.debezium.util.Strings;
+
+import java.util.List;
 
 /**
  * Specialized parser implementation for YashanDB {@link TableId} instances.
- *
- * @author Chris Cranford
  */
 public class YashanDBTableIdParser {
 
@@ -25,7 +26,27 @@ public class YashanDBTableIdParser {
             final String catalogName = resolveCatalogFromDomainName(parts);
             return new TableId(catalogName, schemaName, tableName);
         }
-        return TableId.parse(identifier);
+        return TableId.parse(identifier, false);
+    }
+
+    public static String quoteIfNeeded(TableId tableId, boolean useCatalog, boolean useSchema, List<String> keywords) {
+        final StringBuilder sb = new StringBuilder();
+        if (useCatalog) {
+            sb.append(quotePartIfNeeded(tableId.catalog(), keywords)).append(".");
+        }
+        else if (useSchema) {
+            sb.append(quotePartIfNeeded(tableId.schema(), keywords)).append(".");
+        }
+        return sb.append(quotePartIfNeeded(tableId.table(), keywords)).toString();
+    }
+
+    private static String quotePartIfNeeded(String part, List<String> keywords) {
+        if (!Strings.isNullOrEmpty(part)) {
+            if (part.startsWith("_") || keywords.stream().anyMatch(keyword -> keyword.equalsIgnoreCase(part))) {
+                return "\"" + part + "\"";
+            }
+        }
+        return part;
     }
 
     private static String resolveCatalogFromDomainName(String[] parts) {
@@ -35,5 +56,4 @@ public class YashanDBTableIdParser {
         }
         return catalogName.toString();
     }
-
 }

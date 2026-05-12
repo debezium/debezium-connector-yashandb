@@ -32,8 +32,6 @@ import io.debezium.text.ParsingException;
 
 /**
  * {@link SchemaChangeEventEmitter} implementation based on YashanDB.
- *
- * TODO: delete this?
  */
 public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitter {
 

@@ -12,9 +12,6 @@ import io.debezium.pipeline.metrics.DefaultChangeEventSourceMetricsFactory;
 import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetrics;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 
-/**
- * @author Chris Cranford
- */
 public class YashanDBChangeEventSourceMetricsFactory extends DefaultChangeEventSourceMetricsFactory<YashanDBPartition> {
 
     private final YashanDBStreamingChangeEventSourceMetrics streamingMetrics;

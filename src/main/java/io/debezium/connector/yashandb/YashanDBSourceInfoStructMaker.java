@@ -24,8 +24,10 @@ public class YashanDBSourceInfoStructMaker extends AbstractSourceInfoStructMaker
                 .field(SourceInfo.TABLE_NAME_KEY, Schema.STRING_SCHEMA)
                 .field(SourceInfo.TXID_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                 .field(SourceInfo.EVENT_SCN_KEY, Schema.OPTIONAL_STRING_SCHEMA)
+                .field(SourceInfo.SCN_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                 .field(SourceInfo.COMMIT_SCN_KEY, Schema.OPTIONAL_STRING_SCHEMA)
-                // .field(SourceInfo.LCR_POSITION_KEY, Schema.OPTIONAL_STRING_SCHEMA)
+                .field(SourceInfo.LCR_POSITION_KEY, Schema.OPTIONAL_STRING_SCHEMA)
+                .field(SourceInfo.SNAPSHOT_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                 .field(SourceInfo.BATCH_ROW_ID_KEY, Schema.OPTIONAL_INT32_SCHEMA)
                 .field(SourceInfo.POSITION_SCN_KEY, Schema.OPTIONAL_INT64_SCHEMA)
                 .field(SourceInfo.GROUP_LSN_KEY, Schema.OPTIONAL_INT64_SCHEMA)
@@ -52,7 +54,6 @@ public class YashanDBSourceInfoStructMaker extends AbstractSourceInfoStructMaker
                 .put(SourceInfo.EVENT_SCN_KEY, eventScn);
 
         if (sourceInfo.getLcrPosition() != null) {
-            // ret.put(SourceInfo.LCR_POSITION_KEY, String.valueOf(sourceInfo.getLcrPosition().getCommitScn().getScn()));
             ret.put(SourceInfo.POSITION_SCN_KEY, sourceInfo.getPositionScn());
             ret.put(SourceInfo.GROUP_LSN_KEY, sourceInfo.getGroupLsn());
             ret.put(SourceInfo.GROUP_OFFSET_KEY, sourceInfo.getGroupOffset());

@@ -14,6 +14,7 @@ import java.util.Map;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigValue;
 import org.apache.kafka.connect.connector.Task;
+import org.apache.kafka.connect.source.ExactlyOnceSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,5 +94,10 @@ public class YashanDBConnector extends RelationalBaseSourceConnector implements 
     @Override
     public Field.Set getConfigFields() {
         return YashanDBConnectorConfig.ALL_FIELDS;
+    }
+
+    @Override
+    public ExactlyOnceSupport exactlyOnceSupport(Map<String, String> connectorConfig) {
+        return ExactlyOnceSupport.SUPPORTED;
     }
 }

@@ -9,9 +9,7 @@ import java.math.BigInteger;
 import java.util.Objects;
 
 /**
- * YashanDB System Change Number implementation
- *
- * @author Chris Cranford
+ * YashanDB System Change Number implementation.
  */
 public class Scn implements Comparable<Scn> {
 
@@ -24,11 +22,6 @@ public class Scn implements Comparable<Scn> {
      * Represents an Scn without a value.
      */
     public static final Scn NULL = new Scn(null);
-
-    /**
-     * Represents an Scn with value 1, useful for playing with inclusive/exclusive query boundaries.
-     */
-    public static final Scn ONE = new Scn(BigInteger.valueOf(1));
 
     private final BigInteger scn;
 
