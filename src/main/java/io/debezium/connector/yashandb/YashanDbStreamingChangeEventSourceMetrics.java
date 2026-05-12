@@ -7,10 +7,7 @@ package io.debezium.connector.yashandb;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,7 +22,6 @@ import io.debezium.connector.common.CdcSourceTaskContext;
 import io.debezium.pipeline.metrics.CapturedTablesSupplier;
 import io.debezium.pipeline.metrics.DefaultStreamingChangeEventSourceMetrics;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
-import io.debezium.util.LRUCacheMap;
 
 /**
  * The metrics implementation for YashanDB connector streaming phase.
@@ -112,7 +108,6 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         return committedTransactions.get();
     }
 
-
     /**
      * {@inheritDoc}
      */
@@ -142,7 +137,6 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
     public void incrementUnparsableDdlCount() {
         unparsableDdlCount.incrementAndGet();
     }
-
 
     /** {@inheritDoc} */
     @Override

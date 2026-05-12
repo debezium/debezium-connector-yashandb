@@ -6,13 +6,11 @@
 package io.debezium.connector.yashandb;
 
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
@@ -36,7 +34,6 @@ import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.TableId;
 import io.debezium.relational.Tables.TableFilter;
 import io.debezium.relational.history.HistoryRecordComparator;
-import io.debezium.util.Strings;
 
 /**
  * Connector configuration for YashanDB.
@@ -954,8 +951,6 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         return snapshotEnhancementToken;
     }
 
-
-
     /**
      * Returns the streaming adapter.
      *
@@ -964,8 +959,6 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     public StreamingAdapter getAdapter() {
         return streamingAdapter;
     }
-
-
 
     /**
      * @return true if LOB fields are to be captured; false otherwise to not capture LOB fields.
@@ -978,7 +971,6 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     public boolean isLobEnabled() {
         return lobEnabled;
     }
-
 
     /** {@inheritDoc} */
     @Override
