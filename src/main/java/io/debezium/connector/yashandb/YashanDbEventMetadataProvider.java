@@ -21,7 +21,6 @@ import io.debezium.util.Collect;
  */
 class YashanDbEventMetadataProvider implements EventMetadataProvider {
 
-    /** {@inheritDoc} */
     @Override
     public Instant getEventTimestamp(DataCollectionId source, OffsetContext offset, Object key, Struct value) {
         if (value == null) {
@@ -35,7 +34,6 @@ class YashanDbEventMetadataProvider implements EventMetadataProvider {
         return timestamp == null ? null : Instant.ofEpochMilli(timestamp);
     }
 
-    /** {@inheritDoc} */
     @Override
     public Map<String, String> getEventSourcePosition(DataCollectionId source, OffsetContext offset, Object key, Struct value) {
         if (value == null) {
@@ -49,7 +47,6 @@ class YashanDbEventMetadataProvider implements EventMetadataProvider {
         return Collect.hashMapOf(SourceInfo.SCN_KEY, scn == null ? "null" : scn);
     }
 
-    /** {@inheritDoc} */
     @Override
     public String getTransactionId(DataCollectionId source, OffsetContext offset, Object key, Struct value) {
         if (value == null) {

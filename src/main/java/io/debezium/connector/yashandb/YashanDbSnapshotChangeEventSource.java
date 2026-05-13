@@ -80,14 +80,12 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
         this.databaseSchema = schema;
     }
 
-    /** {@inheritDoc} */
     @Override
     protected SnapshotContext<YashanDbPartition, YashanDbOffsetContext> prepare(YashanDbPartition partition, boolean onDemand) {
 
         return new YashanDbSnapshotContext(partition, connectorConfig.getDatabaseName(), onDemand);
     }
 
-    /** {@inheritDoc} */
     @Override
     protected Set<TableId> getAllTableIds(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx)
             throws Exception {
@@ -96,7 +94,6 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
         // return jdbcConnection.readTableNames(ctx.catalogName, null, null, new String[] {"TABLE"} );
     }
 
-    /** {@inheritDoc} */
     @Override
     protected void lockTablesForSchemaSnapshot(ChangeEventSourceContext sourceContext,
                                                RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext)
@@ -123,7 +120,6 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
         }
     }
 
-    /** {@inheritDoc} */
     @Override
     protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext)
             throws SQLException {
@@ -132,7 +128,6 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
         }
     }
 
-    /** {@inheritDoc} */
     @Override
     protected void determineSnapshotOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> ctx,
                                            YashanDbOffsetContext previousOffset)
@@ -147,7 +142,6 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
         ctx.offset = connectorConfig.getAdapter().determineSnapshotOffset(ctx, connectorConfig, jdbcConnection);
     }
 
-    /** {@inheritDoc} */
     @Override
     protected void readTableStructure(ChangeEventSourceContext sourceContext,
                                       RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
@@ -193,7 +187,6 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
         return connectorConfig.storeOnlyCapturedTables() ? connectorConfig.getTableFilters().dataCollectionFilter() : null;
     }
 
-    /** {@inheritDoc} */
     @Override
     protected String enhanceOverriddenSelect(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                              String overriddenSelect, TableId tableId) {
@@ -205,13 +198,11 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
         return overriddenSelect;
     }
 
-    /** {@inheritDoc} */
     @Override
     protected Collection<TableId> getTablesForSchemaChange(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext) {
         return snapshotContext.capturedSchemaTables;
     }
 
-    /** {@inheritDoc} */
     @Override
     protected SchemaChangeEvent getCreateTableEvent(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                                     Table table)
@@ -226,7 +217,6 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 true);
     }
 
-    /** {@inheritDoc} */
     @Override
     protected Instant getSnapshotSourceTimestamp(JdbcConnection jdbcConnection, YashanDbOffsetContext offset, TableId tableId) {
         try {
@@ -249,7 +239,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
      * @param tableId the table to generate a query for
      * @return a valid query string
      */
-    /** {@inheritDoc} */
+
     @Override
     protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                                  TableId tableId, List<String> columns) {
@@ -257,7 +247,6 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
         return snapshotterService.getSnapshotQuery().snapshotQuery(quote(tableId), columns);
     }
 
-    /** {@inheritDoc} */
     @Override
     protected List<Pattern> getSignalDataCollectionPattern(String signalingDataCollection) {
         // YashanDB expects this value to be supplied using "<database>.<schema>.<table>"; however the
@@ -283,7 +272,6 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
         }
     }
 
-    /** {@inheritDoc} */
     @Override
     protected YashanDbOffsetContext copyOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext) {
         return load(snapshotContext.offset.getOffset());
@@ -311,7 +299,6 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 SignalBasedIncrementalSnapshotContext.load(offset), isCreateServer);
     }
 
-    /** {@inheritDoc} */
     @Override
     protected Callable<Void> createDataEventsForTableCallable(ChangeEventSourceContext sourceContext,
                                                               RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,

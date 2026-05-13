@@ -33,25 +33,21 @@ public class YashanDbConnector extends RelationalBaseSourceConnector implements 
 
     private Map<String, String> properties;
 
-    /** {@inheritDoc} */
     @Override
     public String version() {
         return Module.version();
     }
 
-    /** {@inheritDoc} */
     @Override
     public void start(Map<String, String> props) {
         this.properties = Collections.unmodifiableMap(new HashMap<>(props));
     }
 
-    /** {@inheritDoc} */
     @Override
     public Class<? extends Task> taskClass() {
         return YashanDbConnectorTask.class;
     }
 
-    /** {@inheritDoc} */
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
         if (maxTasks > 1) {
@@ -61,18 +57,15 @@ public class YashanDbConnector extends RelationalBaseSourceConnector implements 
         return Collections.singletonList(properties);
     }
 
-    /** {@inheritDoc} */
     @Override
     public void stop() {
     }
 
-    /** {@inheritDoc} */
     @Override
     public ConfigDef config() {
         return YashanDbConnectorConfig.configDef();
     }
 
-    /** {@inheritDoc} */
     @Override
     protected void validateConnection(Map<String, ConfigValue> configValues, Configuration config) {
         final ConfigValue databaseValue = configValues.get(RelationalDatabaseConnectorConfig.DATABASE_NAME.name());
@@ -96,19 +89,16 @@ public class YashanDbConnector extends RelationalBaseSourceConnector implements 
         }
     }
 
-    /** {@inheritDoc} */
     @Override
     protected Map<String, ConfigValue> validateAllFields(Configuration config) {
         return config.validate(YashanDbConnectorConfig.ALL_FIELDS);
     }
 
-    /** {@inheritDoc} */
     @Override
     public Field.Set getConfigFields() {
         return YashanDbConnectorConfig.ALL_FIELDS;
     }
 
-    /** {@inheritDoc} */
     @Override
     public ExactlyOnceSupport exactlyOnceSupport(Map<String, String> connectorConfig) {
         return ExactlyOnceSupport.SUPPORTED;

@@ -18,7 +18,6 @@ public class YashanDbSourceInfoStructMaker extends AbstractSourceInfoStructMaker
 
     private Schema schema;
 
-    /** {@inheritDoc} */
     @Override
     public void init(String connector, String version, CommonConnectorConfig connectorConfig) {
         super.init(connector, version, connectorConfig);
@@ -42,13 +41,11 @@ public class YashanDbSourceInfoStructMaker extends AbstractSourceInfoStructMaker
                 .field(SourceInfo.USERNAME_KEY, Schema.OPTIONAL_STRING_SCHEMA).build();
     }
 
-    /** {@inheritDoc} */
     @Override
     public Schema schema() {
         return schema;
     }
 
-    /** {@inheritDoc} */
     @Override
     public Struct struct(SourceInfo sourceInfo) {
         final String eventScn = sourceInfo.getEventScn() == null ? null : sourceInfo.getEventScn().toString();
