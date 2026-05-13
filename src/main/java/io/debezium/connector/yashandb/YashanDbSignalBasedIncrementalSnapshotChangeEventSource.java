@@ -51,26 +51,22 @@ public class YashanDbSignalBasedIncrementalSnapshotChangeEventSource extends Sig
         this.connection = (YashanDbConnection) jdbcConnection;
     }
 
-    /** {@inheritDoc} */
     @Override
     protected String getSignalTableName(String dataCollectionId) {
         final TableId tableId = YashanDbTableIdParser.parse(dataCollectionId);
         return YashanDbTableIdParser.quoteIfNeeded(tableId, false, true, connection.getSQLKeywords());
     }
 
-    /** {@inheritDoc} */
     @Override
     protected void preReadChunk(IncrementalSnapshotContext<TableId> context) {
         super.preReadChunk(context);
     }
 
-    /** {@inheritDoc} */
     @Override
     protected void postReadChunk(IncrementalSnapshotContext<TableId> context) {
         super.postReadChunk(context);
     }
 
-    /** {@inheritDoc} */
     @Override
     protected void postIncrementalSnapshotCompleted() {
         super.postIncrementalSnapshotCompleted();

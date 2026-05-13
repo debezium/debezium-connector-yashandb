@@ -42,23 +42,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
 
     protected static final int DEFAULT_PORT = 1688;
 
-    protected final static int DEFAULT_BATCH_SIZE = 20_000;
-    protected final static int MIN_BATCH_SIZE = 1_000;
-    protected final static int MAX_BATCH_SIZE = 100_000;
-
-    protected final static int DEFAULT_SCN_GAP_SIZE = 1_000_000;
-    protected final static int DEFAULT_SCN_GAP_TIME_INTERVAL = 20_000;
-
-    protected final static int DEFAULT_TRANSACTION_EVENTS_THRESHOLD = 0;
-
-    protected final static int DEFAULT_QUERY_FETCH_SIZE = 10_000;
-
-    protected final static Duration MAX_SLEEP_TIME = Duration.ofMillis(3_000);
-    protected final static Duration DEFAULT_SLEEP_TIME = Duration.ofMillis(1_000);
-    protected final static Duration MIN_SLEEP_TIME = Duration.ZERO;
-    protected final static Duration SLEEP_TIME_INCREMENT = Duration.ofMillis(200);
-
-    protected final static Duration ARCHIVE_LOG_ONLY_POLL_TIME = Duration.ofMillis(10_000);
+    protected static final int DEFAULT_QUERY_FETCH_SIZE = 10_000;
 
     public static final Field PORT = RelationalDatabaseConnectorConfig.PORT
             .withDefault(DEFAULT_PORT);
@@ -454,9 +438,6 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     }
 
     /**
-     * @return {@code true} if the legacy decimal handling behavior is used, {@code false} otherwise
-     */
-    /**
      * Returns whether the legacy decimal handling strategy is used.
      *
      * @return true if legacy strategy is used, false otherwise
@@ -465,13 +446,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         return legacyDecimalHandlingStrategy;
     }
 
-    /** {@inheritDoc} */
     @Override
     public int getQueryFetchSize() {
         return queryFetchSize;
     }
 
-    /** {@inheritDoc} */
     @Override
     public HistoryRecordComparator getHistoryRecordComparator() {
         return streamingAdapter.getHistoryRecordComparator();
@@ -546,22 +525,22 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         /**
          * Performs a snapshot of data and schema upon each connector start.
          */
-        ALWAYS("always", true, true, true),
+        ALWAYS("always"),
 
         /**
          * Perform a snapshot of data and schema upon initial startup of a connector.
          */
-        INITIAL("initial", true, true, false),
+        INITIAL("initial"),
 
         /**
          * Perform a snapshot of data and schema upon initial startup of a connector and stop after initial consistent snapshot.
          */
-        INITIAL_ONLY("initial_only", true, false, false),
+        INITIAL_ONLY("initial_only"),
 
         /**
          * Perform a snapshot of the schema but no data upon initial startup of a connector.
          */
-        SCHEMA_ONLY("schema_only", false, true, false),
+        NO_DATA("no_data"),
 
         /**
          * Perform a snapshot of only the database schemas (without data) and then begin reading the redo log at the current redo log position.
@@ -569,45 +548,32 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
          * This recovery option should be used with care as it assumes there have been no schema changes since the connector last stopped,
          * otherwise some events during the gap may be processed with an incorrect schema and corrupted.
          */
-        SCHEMA_ONLY_RECOVERY("schema_only_recovery", false, true, true);
+        RECOVERY("recovery"),
+
+        /**
+         * Perform a snapshot when it is needed.
+         */
+        WHEN_NEEDED("when_needed"),
+
+        /**
+         * Allows control over snapshots by setting connectors properties prefixed with 'snapshot.mode.configuration.based'.
+         */
+        CONFIGURATION_BASED("configuration_based"),
+
+        /**
+         * Inject a custom snapshotter, which allows for more control over snapshots.
+         */
+        CUSTOM("custom");
 
         private final String value;
-        private final boolean includeData;
-        private final boolean shouldStream;
-        private final boolean shouldSnapshotOnSchemaError;
 
-        SnapshotMode(String value, boolean includeData, boolean shouldStream, boolean shouldSnapshotOnSchemaError) {
+        SnapshotMode(String value) {
             this.value = value;
-            this.includeData = includeData;
-            this.shouldStream = shouldStream;
-            this.shouldSnapshotOnSchemaError = shouldSnapshotOnSchemaError;
         }
 
         @Override
         public String getValue() {
             return value;
-        }
-
-        /**
-         * Whether this snapshotting mode should include the actual data or just the
-         * schema of captured tables.
-         */
-        public boolean includeData() {
-            return includeData;
-        }
-
-        /**
-         * Whether the snapshot mode is followed by streaming.
-         */
-        public boolean shouldStream() {
-            return shouldStream;
-        }
-
-        /**
-         * Whether the schema can be recovered if database schema history is corrupted.
-         */
-        public boolean shouldSnapshotOnSchemaError() {
-            return shouldSnapshotOnSchemaError;
         }
 
         /**
@@ -634,7 +600,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         /**
          * Determine if the supplied value is one of the predefined options.
          *
-         * @param value        the configuration property value; may not be null
+         * @param value the configuration property value; may not be null
          * @param defaultValue the default value; may be null
          * @return the matching option, or null if no match is found and the non-null default is invalid
          */
@@ -713,201 +679,6 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     }
 
     /**
-     * Controls how in-progress transactions that occur just before and at the snapshot boundary
-     * are to be handled by the connector when transitioning to the streaming phase.
-     */
-    public enum TransactionSnapshotBoundaryMode implements EnumeratedValue {
-        /**
-         * Specifies that the in-progress transaction support at the snapshot boundary should be
-         * skipped and that only transactions committed prior to the snapshot SCN and those that
-         * are started after the snapshot SCN will be captured.
-         */
-        SKIP("skip"),
-
-        /**
-         * Specifies that in-progress transactions that are available in the {@code V$TRANSACTION}
-         * table will be captured and emitted when streaming begins. If a transaction is not in
-         * this view, and its changes were not captured by YashanDB Flashback query based on the
-         * snapshot SCN, that transaction will not be captured.
-         */
-        TRANSACTION_VIEW_ONLY("transaction_view_only"),
-
-        /**
-         * Specifies that in-progress transactions identified in the {@code V$TRANSACTION} table as
-         * well as any in-progress transactions as of the current SCN that may have been committed
-         * immediately prior to or at the snapshot SCN will be captured. This is done by starting a
-         * special LogMiner session to gather these transactions prior to starting the snapshot.
-         */
-        ALL("all");
-
-        private final String value;
-
-        TransactionSnapshotBoundaryMode(String value) {
-            this.value = value;
-        }
-
-        @Override
-        public String getValue() {
-            return value;
-        }
-
-        /**
-         * Determine if the supplied value is one of the predefined options.
-         *
-         * @param value the configuration property value; may not be {@code null}
-         * @return the matching option, or null if no match is found
-         */
-        public static TransactionSnapshotBoundaryMode parse(String value) {
-            if (value == null) {
-                return null;
-            }
-            value = value.trim();
-            for (TransactionSnapshotBoundaryMode option : TransactionSnapshotBoundaryMode.values()) {
-                if (option.getValue().equalsIgnoreCase(value)) {
-                    return option;
-                }
-            }
-            return null;
-        }
-
-        /**
-         * Determine if the supplied value is one of the predefined options.
-         *
-         * @param value        the configuration property value; may not be {@code null}
-         * @param defaultValue the default value; may be {@code null}
-         * @return the matching option, or null if no match is found and the non-null default is invalid
-         */
-        public static TransactionSnapshotBoundaryMode parse(String value, String defaultValue) {
-            TransactionSnapshotBoundaryMode mode = parse(value);
-            if (mode == null && defaultValue != null) {
-                mode = parse(defaultValue);
-            }
-            return mode;
-        }
-    }
-
-    public enum LogMiningStrategy implements EnumeratedValue {
-
-        /**
-         * This strategy uses LogMiner with data dictionary in online catalog.
-         * This option will not capture DDL , but acts fast on REDO LOG switch events
-         * This option does not use CONTINUOUS_MINE option
-         */
-        ONLINE_CATALOG("online_catalog"),
-
-        /**
-         * This strategy uses LogMiner with data dictionary in REDO LOG files.
-         * This option will capture DDL, but will develop some lag on REDO LOG switch event and will eventually catch up
-         * This option does not use CONTINUOUS_MINE option
-         * This is default value
-         */
-        CATALOG_IN_REDO("redo_log_catalog");
-
-        private final String value;
-
-        LogMiningStrategy(String value) {
-            this.value = value;
-        }
-
-        @Override
-        public String getValue() {
-            return value;
-        }
-
-        /**
-         * Determine if the supplied value is one of the predefined options.
-         *
-         * @param value the configuration property value; may not be null
-         * @return the matching option, or null if no match is found
-         */
-        public static LogMiningStrategy parse(String value) {
-            if (value == null) {
-                return null;
-            }
-            value = value.trim();
-            for (LogMiningStrategy adapter : LogMiningStrategy.values()) {
-                if (adapter.getValue().equalsIgnoreCase(value)) {
-                    return adapter;
-                }
-            }
-            return null;
-        }
-
-        public static LogMiningStrategy parse(String value, String defaultValue) {
-            LogMiningStrategy mode = parse(value);
-
-            if (mode == null && defaultValue != null) {
-                mode = parse(defaultValue);
-            }
-
-            return mode;
-        }
-    }
-
-    public enum LogMiningQueryFilterMode implements EnumeratedValue {
-        /**
-         * This filter mode does not add any predicates to the LogMiner query, all filtering of
-         * change data is done at runtime in the connector's Java code. This is the default
-         * mode.
-         */
-        NONE("none"),
-
-        /**
-         * This filter mode adds predicates to the LogMiner query, using standard SQL in-clause
-         * semantics. This mode expects that the include/exclude connector properties specify
-         * schemas and tables without regular expressions.
-         * <p>
-         * This option may be the best performing option when there is substantially more data in
-         * the redo logs compared to the data wanting to be captured at the trade-off that the
-         * connector configuration is a bit more verbose with include/exclude filters.
-         */
-        IN("in"),
-
-        /**
-         * This filter mode adds predicates to the LogMiner query, using the YashanDB REGEXP_LIKE
-         * operator. This mode supports the include/exclude connector properties specifying
-         * regular expressions.
-         * <p>
-         * For the best performance, it's generally a good idea to limit the number of REGEXP_LIKE
-         * operators in the query as it's treated similar to the LIKE operator which often does
-         * not perform well on large data sets. The number of REGEXP_LIKE operators can be reduced
-         * by specifying complex regular expressions where a single expression can potentially
-         * match multiple schemas or tables.
-         */
-        REGEX("regex");
-
-        private final String value;
-
-        LogMiningQueryFilterMode(String value) {
-            this.value = value;
-        }
-
-        @Override
-        public String getValue() {
-            return value;
-        }
-
-        /**
-         * Determine if the supplied value is one of the predefined options.
-         *
-         * @param value the configuration property value; may not be null
-         * @return the matching option, or null if no match is found
-         */
-        public static LogMiningQueryFilterMode parse(String value) {
-            if (value == null) {
-                return null;
-            }
-            value = value.trim();
-            for (LogMiningQueryFilterMode mode : LogMiningQueryFilterMode.values()) {
-                if (mode.getValue().equalsIgnoreCase(value)) {
-                    return mode;
-                }
-            }
-            return null;
-        }
-    }
-
-    /**
      * A {@link TableFilter} that excludes all YashanDB system tables.
      */
     private static class SystemTablesPredicate implements TableFilter {
@@ -940,9 +711,6 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     }
 
     /**
-     * @return String token to replace
-     */
-    /**
      * Returns the token to replace in snapshot predicate.
      *
      * @return the replacement token
@@ -961,9 +729,6 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     }
 
     /**
-     * @return true if LOB fields are to be captured; false otherwise to not capture LOB fields.
-     */
-    /**
      * Returns whether LOB fields are to be captured.
      *
      * @return true if LOB capture is enabled, false otherwise
@@ -972,7 +737,6 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         return lobEnabled;
     }
 
-    /** {@inheritDoc} */
     @Override
     public String getConnectorName() {
         return Module.name();

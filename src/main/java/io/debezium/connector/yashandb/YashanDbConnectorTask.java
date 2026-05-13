@@ -49,6 +49,7 @@ import io.debezium.relational.TableId;
 import io.debezium.schema.SchemaFactory;
 import io.debezium.schema.SchemaNameAdjuster;
 import io.debezium.snapshot.SnapshotterService;
+import io.debezium.spi.snapshot.Snapshotter;
 import io.debezium.spi.topic.TopicNamingStrategy;
 import io.debezium.util.Clock;
 
@@ -72,13 +73,11 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
     private Partition.Provider<YashanDbPartition> partitionProvider = null;
     private OffsetContext.Loader<YashanDbOffsetContext> offsetContextLoader = null;
 
-    /** {@inheritDoc} */
     @Override
     public String version() {
         return Module.version();
     }
 
-    /** {@inheritDoc} */
     @Override
     public CdcSourceTaskContext<? extends CommonConnectorConfig> preStart(Configuration config) {
 
@@ -88,7 +87,6 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         return taskContext;
     }
 
-    /** {@inheritDoc} */
     @Override
     public ChangeEventSourceCoordinator<YashanDbPartition, YashanDbOffsetContext> start(Configuration config) {
         partitionProvider = new YashanDbPartition.Provider(connectorConfig);
@@ -133,7 +131,7 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         YashanDbOffsetContext previousOffset = previousOffsets.getTheOnlyOffset();
 
         try {
-            validateAndLoadSchemaHistory(connectorConfig, partition, previousOffset, schema);
+            validateAndLoadSchemaHistory(connectorConfig, partition, previousOffset, schema, snapshotterService.getSnapshotter());
         }
         catch (InterruptedException e) {
             throw new DebeziumException(e);
@@ -207,7 +205,6 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         return coordinator;
     }
 
-    /** {@inheritDoc} */
     @Override
     protected String connectorName() {
         return Module.name();
@@ -217,7 +214,6 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         return new YashanDbConnection(jdbcConfig);
     }
 
-    /** {@inheritDoc} */
     @Override
     public List<SourceRecord> doPoll() throws InterruptedException {
         List<DataChangeEvent> records = queue.poll();
@@ -227,13 +223,11 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
                 .collect(Collectors.toList());
     }
 
-    /** {@inheritDoc} */
     @Override
     protected Optional<ErrorHandler> getErrorHandler() {
         return Optional.ofNullable(errorHandler);
     }
 
-    /** {@inheritDoc} */
     @Override
     public void doStop() {
         try {
@@ -259,13 +253,11 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         }
     }
 
-    /** {@inheritDoc} */
     @Override
     protected Iterable<Field> getAllConfigurationFields() {
         return YashanDbConnectorConfig.ALL_FIELDS;
     }
 
-    /** {@inheritDoc} */
     @Override
     public void performCommit() {
 
@@ -327,32 +319,58 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         }
     }
 
-    private void validateAndLoadSchemaHistory(YashanDbConnectorConfig config, YashanDbPartition partition, YashanDbOffsetContext offset, YashanDbDatabaseSchema schema)
+    private void validateAndLoadSchemaHistory(YashanDbConnectorConfig config, YashanDbPartition partition, YashanDbOffsetContext offset, YashanDbDatabaseSchema schema,
+                                              Snapshotter snapshotter)
             throws InterruptedException {
         if (offset == null) {
-            if (config.getSnapshotMode().shouldSnapshotOnSchemaError() && config.getSnapshotMode() != YashanDbConnectorConfig.SnapshotMode.ALWAYS) {
+            if (snapshotter.shouldSnapshotOnSchemaError()) {
                 // We are in schema only recovery mode, use the existing redo log position
                 // would like to also verify redo log position exists, but it defaults to 0 which is technically valid
                 throw new DebeziumException("Could not find existing redo log information while attempting schema only recovery snapshot");
             }
             LOGGER.info("Connector started for the first time, database schema history recovery will not be executed");
-            schema.initializeStorage();
+            if (schema.isHistorized()) {
+                if (schema.getSchemaHistory().storageExists()) {
+                    LOGGER.info("Database schema history storage was found. Connector will use the pre-existing storage. Checking settings for the same.");
+                    schema.getSchemaHistory().checkStorageSettings();
+                }
+                else {
+                    schema.initializeStorage();
+                }
+            }
             return;
         }
-        if (!schema.historyExists()) {
-            LOGGER.warn("Database schema history was not found but was expected");
-            if (config.getSnapshotMode().shouldSnapshotOnSchemaError()) {
-                LOGGER.info("The db-history topic is missing but we are in {} snapshot mode. " +
-                        "Attempting to snapshot the current schema and then begin reading the redo log from the last recorded offset.",
-                        YashanDbConnectorConfig.SnapshotMode.SCHEMA_ONLY_RECOVERY);
+        if (offset.isInitialSnapshotRunning()) {
+            // The last offset was an incomplete snapshot and now the snapshot was disabled
+            if (!snapshotter.shouldSnapshotData(true, true) &&
+                    !snapshotter.shouldSnapshotSchema(true, true)) {
+                // No snapshots are allowed
+                throw new DebeziumException("The connector previously stopped while taking a snapshot, but now the connector is configured "
+                        + "to never allow snapshots. Reconfigure the connector to use snapshots initially or when needed.");
             }
-            else {
-                throw new DebeziumException("The db history topic is missing. You may attempt to recover it by reconfiguring the connector to "
-                        + YashanDbConnectorConfig.SnapshotMode.SCHEMA_ONLY_RECOVERY);
-            }
-            schema.initializeStorage();
-            return;
         }
-        schema.recover(Offsets.of(partition, offset));
+        else {
+
+            if (schema.isHistorized() && !schema.getSchemaHistory().exists()) {
+
+                LOGGER.warn("Database schema history was not found but was expected");
+
+                if (snapshotter.shouldSnapshotOnSchemaError()) {
+
+                    LOGGER.info("The db-history topic is missing but we are in {} snapshot mode. " +
+                            "Attempting to snapshot the current schema and then begin reading the redo log from the last recorded offset.",
+                            snapshotter.name());
+                    if (schema.isHistorized()) {
+                        schema.initializeStorage();
+                    }
+                    return;
+                }
+                else {
+                    throw new DebeziumException("The db history topic is missing. You may attempt to recover it by reconfiguring the connector to recovery.");
+                }
+            }
+
+            // Log position check unsupported
+        }
     }
 }

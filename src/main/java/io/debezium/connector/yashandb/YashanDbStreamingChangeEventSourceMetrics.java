@@ -87,7 +87,6 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         reset();
     }
 
-    /** {@inheritDoc} */
     @Override
     public void reset() {
         totalCapturedDmlCount.set(0);
@@ -102,7 +101,6 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         warningCount.set(0);
     }
 
-    /** {@inheritDoc} */
     @Override
     public long getNumberOfCommittedTransactions() {
         return committedTransactions.get();
@@ -138,7 +136,6 @@ public class YashanDbStreamingChangeEventSourceMetrics extends DefaultStreamingC
         unparsableDdlCount.incrementAndGet();
     }
 
-    /** {@inheritDoc} */
     @Override
     public String toString() {
         return "YashanDbStreamingChangeEventSourceMetrics{" +

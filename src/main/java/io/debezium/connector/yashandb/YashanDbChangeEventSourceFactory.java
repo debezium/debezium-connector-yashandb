@@ -69,7 +69,6 @@ public class YashanDbChangeEventSourceFactory implements ChangeEventSourceFactor
         this.snapshotterService = snapshotterService;
     }
 
-    /** {@inheritDoc} */
     @Override
     public SnapshotChangeEventSource<YashanDbPartition, YashanDbOffsetContext> getSnapshotChangeEventSource(SnapshotProgressListener<YashanDbPartition> snapshotProgressListener,
                                                                                                             NotificationService<YashanDbPartition, YashanDbOffsetContext> notificationService) {
@@ -77,7 +76,6 @@ public class YashanDbChangeEventSourceFactory implements ChangeEventSourceFactor
                 snapshotterService);
     }
 
-    /** {@inheritDoc} */
     @Override
     public StreamingChangeEventSource<YashanDbPartition, YashanDbOffsetContext> getStreamingChangeEventSource() {
         return configuration.getAdapter().getSource(
@@ -91,7 +89,6 @@ public class YashanDbChangeEventSourceFactory implements ChangeEventSourceFactor
                 streamingMetrics);
     }
 
-    /** {@inheritDoc} */
     @Override
     public Optional<IncrementalSnapshotChangeEventSource<YashanDbPartition, ? extends DataCollectionId>> getIncrementalSnapshotChangeEventSource(
                                                                                                                                                  YashanDbOffsetContext offsetContext,

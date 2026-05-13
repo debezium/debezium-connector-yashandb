@@ -103,13 +103,11 @@ public class YashanDbDatabaseSchema extends HistorizedRelationalDatabaseSchema {
         return valueConverters;
     }
 
-    /** {@inheritDoc} */
     @Override
     public YashanDbDdlParser getDdlParser() {
         return ddlParser;
     }
 
-    /** {@inheritDoc} */
     @Override
     public void applySchemaChange(SchemaChangeEvent schemaChange) {
         LOGGER.debug("Applying schema change event {}", schemaChange);
@@ -135,7 +133,6 @@ public class YashanDbDatabaseSchema extends HistorizedRelationalDatabaseSchema {
         }
     }
 
-    /** {@inheritDoc} */
     @Override
     public void initializeStorage() {
         super.initializeStorage();
