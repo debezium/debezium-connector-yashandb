@@ -21,37 +21,12 @@
         <debezium.version>${project.version}</debezium.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <kafka.version>3.6.1</kafka.version>
         <slf4j.version>2.0.9</slf4j.version>
         <junit.version>5.10.1</junit.version>
     </properties>
-
-<!--    <repositories>-->
-<!--        <repository>-->
-<!--            <id>sics</id>-->
-<!--            <name>sics</name>-->
-<!--            <url>https://maven.yasdb.com/repository/maven-public/</url>-->
-<!--            &lt;!&ndash;            <layout>default</layout>&ndash;&gt;-->
-<!--            &lt;!&ndash;            <snapshots>&ndash;&gt;-->
-<!--            &lt;!&ndash;                <enabled>true</enabled>&ndash;&gt;-->
-<!--            &lt;!&ndash;            </snapshots>&ndash;&gt;-->
-<!--        </repository>-->
-<!--    </repositories>-->
-
-<!--    &lt;!&ndash; Configure plugin repository &ndash;&gt;-->
-<!--    <pluginRepositories>-->
-<!--        <pluginRepository>-->
-<!--            <id>sics</id>-->
-<!--            <name>sics</name>-->
-<!--            <url>https://maven.yasdb.com/repository/maven-public/</url>-->
-<!--            <layout>default</layout>-->
-<!--            <snapshots>-->
-<!--                <enabled>true</enabled>-->
-<!--            </snapshots>-->
-<!--        </pluginRepository>-->
-<!--    </pluginRepositories>-->
 
     <!-- Managing versions here to ensure the right ones are applied during releases -->
     <dependencyManagement>
@@ -152,13 +127,10 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- TODO: Revert to Maven repository dependency loading in the future -->
         <dependency>
-            <groupId>com.sics.ystream</groupId>
+            <groupId>com.yashandb</groupId>
             <artifactId>Ystream</artifactId>
-            <version>1.9.24-5-ga1d21dc-SNAPSHOT</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/Ystream-1.9.24-5-ga1d21dc-SNAPSHOT.jar</systemPath>
+            <version>1.9.27</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -169,7 +141,7 @@
         <dependency>
             <groupId>com.yashandb</groupId>
             <artifactId>yashandb-jdbc</artifactId>
-            <version>1.9.24</version>
+            <version>1.9.27</version>
         </dependency>
         <dependency>
             <groupId>io.debezium</groupId>
