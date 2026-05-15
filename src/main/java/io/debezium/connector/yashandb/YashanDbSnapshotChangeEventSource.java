@@ -70,13 +70,13 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
      * @param notificationService the notification service
      * @param snapshotterService the snapshotter service
      */
-    public YashanDbSnapshotChangeEventSource(YashanDbConnectorConfig connectorConfig, MainConnectionProvidingConnectionFactory connectionFactory,
+    public YashanDbSnapshotChangeEventSource(YashanDbConnectorConfig connectorConfig, MainConnectionProvidingConnectionFactory<YashanDbConnection> connectionFactory,
                                              YashanDbDatabaseSchema schema, EventDispatcher<YashanDbPartition, TableId> dispatcher, Clock clock,
                                              SnapshotProgressListener<YashanDbPartition> snapshotProgressListener,
                                              NotificationService<YashanDbPartition, YashanDbOffsetContext> notificationService, SnapshotterService snapshotterService) {
         super(connectorConfig, connectionFactory, schema, dispatcher, clock, snapshotProgressListener, notificationService, snapshotterService);
         this.connectorConfig = connectorConfig;
-        this.jdbcConnection = (YashanDbConnection) connectionFactory.mainConnection();
+        this.jdbcConnection = connectionFactory.mainConnection();
         this.databaseSchema = schema;
     }
 

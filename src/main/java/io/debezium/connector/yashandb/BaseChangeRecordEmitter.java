@@ -166,7 +166,7 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
     }
 
     @Override
-    protected void emitUpdateAsPrimaryKeyChangeRecord(Receiver receiver, TableSchema tableSchema, Struct oldKey,
+    protected void emitUpdateAsPrimaryKeyChangeRecord(Receiver<YashanDbPartition> receiver, TableSchema tableSchema, Struct oldKey,
                                                       Struct newKey, Struct oldValue, Struct newValue)
             throws InterruptedException {
         if (connectorConfig.isLobEnabled()) {
