@@ -48,7 +48,7 @@ jobs:
         run: |
           cd core
           mvn clean install \
-            -pl debezium-bom,debezium-connector-common,debezium-config,debezium-util,debezium-embedded,debezium-storage,debezium-connect-plugins -am \
+            -pl debezium-assembly-descriptors,debezium-bom,debezium-connector-common,debezium-config,debezium-util,debezium-embedded,debezium-storage,debezium-ddl-parser,debezium-connect-plugins -am \
             -DskipTests -DskipITs \
             -Dhttp.keepAlive=false \
             -Dmaven.wagon.http.pool=false \
