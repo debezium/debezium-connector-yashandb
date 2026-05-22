@@ -69,10 +69,14 @@ public class ChunkColumnValues {
             for (YstreamChunk value : values) {
                 byteArrayOutputStream.write(value.getBytes());
             }
-            return (String) ChunkUtil.parseData(
+            Object object = ChunkUtil.parseData(
                     byteArrayOutputStream.toByteArray(),
                     values.get(0).getColumn(),
                     metadata.getCharset(), metadata.getNationalCharset());
+            if (object != null) {
+                return object.toString();
+            }
+            return null;
         }
         catch (IOException e) {
             throw new SQLException(e);
@@ -112,7 +116,8 @@ public class ChunkColumnValues {
         switch (chunkColumnValue.getColumn().getDataType()) {
             case YasTypes.CLOB:
             case YasTypes.NCLOB:
-            case YasTypes.SQLXML, YasTypes.VARCHAR,
+            case YasTypes.SQLXML,
+                    YasTypes.VARCHAR, YasTypes.JSON,
                     YasTypes.NVARCHAR, YasTypes.RAW, YasTypes.BLOB:
                 return chunkColumnValue.getSize();
             default:

@@ -143,7 +143,12 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
                     Column column = table.columnWithName(columnValue.getColumn().getColumnName());
                     if (column != null) {
                         int index = column.position() - 1;
-                        values[index] = columnValue.getData();
+                        if (columnValue.isOutRow()) {
+                            values[index] = chunkValues.get(column.name());
+                        }
+                        else {
+                            values[index] = columnValue.getData();
+                        }
                     }
                     else {
                         throw new IllegalStateException("The schema metadata is different from event,maybe NPE");
