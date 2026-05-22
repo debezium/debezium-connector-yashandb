@@ -26,9 +26,17 @@ class ModuleTest {
 
     @Test
     void shouldReturnModuleVersion() {
+        // Given & When: get module version
         String version = Module.version();
-        // Version is loaded from build.version resource file
-        // May be null/${project.version} if not built with Maven
+
+        // Then: verify version format follows SemVer or Maven version spec
+        // version should not contain placeholders (e.g., ${project.version})
         assertThat(version).isNotNull();
+        assertThat(version).isNotEmpty()
+                .describedAs("Version should not be empty");
+        assertThat(version).matches("^\\d+\\.\\d+.*")
+                .describedAs("Version should follow SemVer format (e.g., 1.0.0)");
+        assertThat(version).doesNotContain("${")
+                .describedAs("Version should not contain Maven placeholder");
     }
 }

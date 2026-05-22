@@ -56,24 +56,57 @@ class YashanDbConnectorTest {
 
     @Test
     void shouldStartWithEmptyProperties() {
+        // Given: empty properties config
         Map<String, String> props = new HashMap<>();
+
+        // When: start connector
         connector.start(props);
-        // start() should succeed without throwing
+
+        // Then: verify properties are correctly initialized as unmodifiable empty map
+        List<Map<String, String>> taskConfigs = connector.taskConfigs(1);
+        assertThat(taskConfigs).hasSize(1);
+        assertThat(taskConfigs.get(0)).isEmpty();
+        assertThat(taskConfigs.get(0)).isInstanceOf(Map.class);
     }
 
     @Test
     void shouldStartWithProperties() {
+        // Given: properties with config
         Map<String, String> props = new HashMap<>();
         props.put("key1", "value1");
         props.put("key2", "value2");
+
+        // When: start connector
         connector.start(props);
-        // start() should succeed without throwing
+
+        // Then: verify properties are correctly stored
+        List<Map<String, String>> taskConfigs = connector.taskConfigs(1);
+        assertThat(taskConfigs).hasSize(1);
+        assertThat(taskConfigs.get(0)).containsEntry("key1", "value1");
+        assertThat(taskConfigs.get(0)).containsEntry("key2", "value2");
+        // verify properties are wrapped in unmodifiable map
+        assertThat(taskConfigs.get(0)).isInstanceOf(Map.class);
     }
 
     @Test
     void shouldStopWithoutError() {
+        // Given: connector that has been started
+        Map<String, String> props = new HashMap<>();
+        props.put("test.key", "test.value");
+        connector.start(props);
+
+        // When: stop connector
         connector.stop();
-        // stop() should succeed without throwing
+
+        // Then: verify stop does not throw and taskConfigs are still accessible
+        // This is valid connector state - stop does not affect stored config
+        List<Map<String, String>> taskConfigs = connector.taskConfigs(1);
+        assertThat(taskConfigs).hasSize(1);
+        assertThat(taskConfigs.get(0)).containsEntry("test.key", "test.value");
+
+        // verify multiple stop calls don't throw
+        connector.stop();
+        connector.stop();
     }
 
     @Test

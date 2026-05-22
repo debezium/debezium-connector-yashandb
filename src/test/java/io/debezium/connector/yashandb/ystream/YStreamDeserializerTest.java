@@ -28,8 +28,15 @@ class YStreamDeserializerTest {
     }
 
     @Test
-    void shouldCreateDeserializer() {
+    void shouldCreateDeserializer() throws YstreamException {
+        // Given: deserializer created with default constructor
+
+        // Then: verify deserializer not only exists but can handle various inputs
         assertThat(deserializer).isNotNull();
+        // Core functionality verification: can handle all input combinations
+        assertThat(deserializer.deserialize(null, null)).isNotNull();
+        assertThat(deserializer.deserialize(mock(YstreamLcrInterface.class), null)).isNotNull();
+        assertThat(deserializer.deserialize(null, mock(TableMetadata.class))).isNotNull();
     }
 
     @Test
