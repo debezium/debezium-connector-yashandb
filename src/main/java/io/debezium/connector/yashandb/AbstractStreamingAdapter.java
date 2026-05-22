@@ -5,9 +5,9 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -68,8 +68,11 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
             return false;
         }
 
-        final String query = "SELECT 1 FROM DUAL WHERE SCN_TO_TIMESTAMP(" + scn1 + ")=SCN_TO_TIMESTAMP(" + scn2 + ")";
-        try (Statement s = connection.connection().createStatement(); ResultSet rs = s.executeQuery(query)) {
+        final String query = "SELECT 1 FROM DUAL WHERE SCN_TO_TIMESTAMP(?)=SCN_TO_TIMESTAMP(?)";
+        try (PreparedStatement ps = connection.connection().prepareStatement(query)) {
+            ps.setString(1, scn1.toString());
+            ps.setString(2, scn2.toString());
+            ResultSet rs = ps.executeQuery();
             return rs.next();
         }
     }
@@ -93,12 +96,17 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
                 .append(" WHERE");
 
         for (TableId table : ctx.capturedTables) {
-            lastDdlScnQuery.append(" (owner = '" + table.schema() + "' AND object_name = '" + table.table() + "') OR");
+            lastDdlScnQuery.append(" (owner = ? AND object_name = ?) OR");
         }
 
         String query = lastDdlScnQuery.substring(0, lastDdlScnQuery.length() - 3).toString();
-        try (Statement statement = connection.connection().createStatement();
-                ResultSet rs = statement.executeQuery(query)) {
+        try (PreparedStatement stmt = connection.connection().prepareStatement(query)) {
+            int paramIndex = 1;
+            for (TableId table : ctx.capturedTables) {
+                stmt.setString(paramIndex++, table.schema());
+                stmt.setString(paramIndex++, table.table());
+            }
+            ResultSet rs = stmt.executeQuery();
 
             if (!rs.next()) {
                 throw new IllegalStateException("Couldn't get latest table DDL SCN");

@@ -127,21 +127,19 @@ public class YashanDbConnection extends JdbcConnection {
      * @throws SQLException if the query fails
      */
     public String getTableMetadataDdl(TableId tableId) throws SQLException {
-        final String schema = tableId.schema();
-        final String table = tableId.table();
-        final String fqtn = schema + "." + table;
-        try {
-            final String sql = "SELECT dbms_metadata.get_ddl('TABLE','" + table + "','" + schema + "') FROM DUAL";
-            return queryAndMap(sql, rs -> {
-                if (!rs.next()) {
-                    throw new DebeziumException("Could not get DDL metadata for table: " + fqtn);
-                }
-                return rs.getString(1);
-            });
-        }
-        catch (SQLException e) {
-            throw new SQLException("Failed to get table DDL via dbms_metadata.get_ddl('TABLE') for " + fqtn, e);
-        }
+        return prepareQueryAndMap(
+                "SELECT dbms_metadata.get_ddl('TABLE',?,?) FROM DUAL",
+                ps -> {
+                    ps.setString(1, tableId.table());
+                    ps.setString(2, tableId.schema());
+                },
+                rs -> {
+                    if (!rs.next()) {
+                        throw new DebeziumException("Could not get DDL metadata for table: " + tableId);
+                    }
+
+                    return rs.getString(1);
+                });
     }
 
     @Override

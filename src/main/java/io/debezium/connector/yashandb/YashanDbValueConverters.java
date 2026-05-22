@@ -254,8 +254,8 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     @Override
     protected Object convertReal(Column column, Field fieldDefn, Object data) {
         return convertValue(column, fieldDefn, data, 0.0f, (r) -> {
-            if (data instanceof String) {
-                r.deliver(Float.valueOf((String) data));
+            if (data instanceof String str) {
+                r.deliver(Float.valueOf(str));
             }
             else {
                 super.convertReal(column, fieldDefn, data);
@@ -336,10 +336,13 @@ public class YashanDbValueConverters extends JdbcValueConverters {
 
     @Override
     protected Object convertString(Column column, Field fieldDefn, Object data) {
-        if (data instanceof String) {
-            return data;
+        if (data instanceof String str) {
+            if (str.isEmpty() || EMPTY_CLOB_FUNCTION.equals(str)) {
+                return column.isOptional() ? null : "";
+            }
+            return str;
         }
-        if (data instanceof Clob) {
+        if (data instanceof Clob clob) {
             if (!lobEnabled) {
                 if (column.isOptional()) {
                     return null;
@@ -347,7 +350,6 @@ public class YashanDbValueConverters extends JdbcValueConverters {
                 return "";
             }
             try {
-                Clob clob = (Clob) data;
                 // Note that java.sql.Clob specifies that the first character starts at 1
                 // and that length must be greater-than or equal to 0. So for an empty
                 // clob field, a call to getSubString(1, 0) is perfectly valid.
@@ -355,12 +357,6 @@ public class YashanDbValueConverters extends JdbcValueConverters {
             }
             catch (SQLException e) {
                 throw new DebeziumException("Couldn't convert value for column " + column.name(), e);
-            }
-        }
-        if (data instanceof String) {
-            String s = (String) data;
-            if (EMPTY_CLOB_FUNCTION.equals(s)) {
-                return column.isOptional() ? null : "";
             }
         }
 
@@ -374,8 +370,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
     @Override
     protected Object convertBinary(Column column, Field fieldDefn, Object data, BinaryHandlingMode mode) {
         try {
-            if (data instanceof String) {
-                String str = (String) data;
+            if (data instanceof String str) {
                 if (EMPTY_BLOB_FUNCTION.equals(str)) {
                     if (column.isOptional()) {
                         return null;
@@ -383,7 +378,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
                     data = "";
                 }
             }
-            else if (data instanceof Blob) {
+            else if (data instanceof Blob blob) {
                 if (!lobEnabled) {
                     if (column.isOptional()) {
                         return null;
@@ -393,7 +388,6 @@ public class YashanDbValueConverters extends JdbcValueConverters {
                     }
                 }
                 else {
-                    Blob blob = (Blob) data;
                     data = blob.getBytes(1, Long.valueOf(blob.length()).intValue());
                 }
             }

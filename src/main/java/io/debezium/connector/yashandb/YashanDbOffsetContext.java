@@ -14,8 +14,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.connect.data.Schema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.sics.ystream.result.LogPosition;
 import com.sics.ystream.result.Position;
@@ -32,8 +30,6 @@ import io.debezium.spi.schema.DataCollectionId;
  * Tracks the offset context for the YashanDB connector during both snapshot and streaming operations, maintaining SCN positions, transaction state, and incremental snapshot context.
  */
 public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
-
-    private static final Logger log = LoggerFactory.getLogger(YashanDbOffsetContext.class);
 
     public static final String SNAPSHOT_COMPLETED_KEY = "snapshot_completed";
     public static final String SNAPSHOT_PENDING_TRANSACTIONS_KEY = "snapshot_pending_tx";
@@ -724,8 +720,8 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      */
     public static Scn getScnFromOffsetMapByKey(Map<String, ?> offset, String key) {
         Object scn = offset.get(key);
-        if (scn instanceof String) {
-            return Scn.valueOf((String) scn);
+        if (scn instanceof String str) {
+            return Scn.valueOf(str);
         }
         else if (scn != null) {
             return Scn.valueOf((Long) scn);

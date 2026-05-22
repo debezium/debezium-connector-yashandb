@@ -216,8 +216,8 @@ public class CommitScn implements Comparable<Scn> {
      */
     public static CommitScn load(Map<String, ?> offset) {
         Object value = offset.get(SourceInfo.COMMIT_SCN_KEY);
-        if (value instanceof String) {
-            return CommitScn.valueOf((String) value);
+        if (value instanceof String str) {
+            return CommitScn.valueOf(str);
         }
         else if (value != null) {
             return CommitScn.valueOf((Long) value);
