@@ -32,7 +32,6 @@ import com.yashandb.json.YasonObject;
 
 import io.debezium.DebeziumException;
 import io.debezium.config.CommonConnectorConfig.BinaryHandlingMode;
-import io.debezium.data.Json;
 import io.debezium.data.SpecialValueDecimal;
 import io.debezium.data.VariableScaleDecimal;
 import io.debezium.jdbc.JdbcValueConverters;
@@ -155,7 +154,7 @@ public class YashanDbValueConverters extends JdbcValueConverters {
             case Types.NUMERIC:
                 return getNumericSchema(column);
             case YasTypes.JSON:
-                return Json.builder();
+                return SchemaBuilder.string();
             case YasTypes.TIMESTAMP_TZ:
                 return ZonedTimestamp.builder();
             case YasTypes.DS_INTERVAL:
@@ -278,8 +277,15 @@ public class YashanDbValueConverters extends JdbcValueConverters {
             if (data instanceof YasonObject) {
                 r.deliver(data.toString());
             }
-            else {
+            else if (data instanceof String) {
                 r.deliver(data);
+            }
+            else if (data == null) {
+                r.deliver(data);
+            }
+            else {
+                // JSON Object is null, un support json type.
+                r.deliver(null);
             }
 
         });
