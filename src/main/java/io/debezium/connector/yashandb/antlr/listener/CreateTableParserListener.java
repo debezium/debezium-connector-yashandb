@@ -150,8 +150,7 @@ public class CreateTableParserListener extends BaseParserListener {
     @Override
     public void exitInline_constraint(YashanDbParser.Inline_constraintContext ctx) {
         if (ctx.PRIMARY() != null) {
-            if (ctx.getParent() instanceof YashanDbParser.Column_definitionContext) {
-                YashanDbParser.Column_definitionContext columnCtx = (YashanDbParser.Column_definitionContext) ctx.getParent();
+            if (ctx.getParent() instanceof YashanDbParser.Column_definitionContext columnCtx) {
                 inlinePrimaryKey = getColumnName(columnCtx.column_name());
             }
         }

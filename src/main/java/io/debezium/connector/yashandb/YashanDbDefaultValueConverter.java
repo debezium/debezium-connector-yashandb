@@ -47,7 +47,7 @@ import io.debezium.util.Strings;
  */
 public class YashanDbDefaultValueConverter implements DefaultValueConverter {
 
-    private static Logger LOGGER = LoggerFactory.getLogger(YashanDbDefaultValueConverter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbDefaultValueConverter.class);
 
     private final YashanDbValueConverters valueConverters;
     private final Map<Integer, DefaultValueMapper> defaultValueMappers;
@@ -105,9 +105,9 @@ public class YashanDbDefaultValueConverter implements DefaultValueConverter {
                 final ValueConverter valueConverter = valueConverters.converter(column, field);
 
                 Object result = valueConverter.convert(defaultValue);
-                if ((result instanceof BigDecimal) && column.scale().isPresent() && column.scale().get() > ((BigDecimal) result).scale()) {
+                if (result instanceof BigDecimal bd && column.scale().isPresent() && column.scale().get() > bd.scale()) {
                     // Note as the scale is increased only, the rounding is more cosmetic.
-                    result = ((BigDecimal) result).setScale(column.scale().get(), RoundingMode.HALF_EVEN);
+                    result = bd.setScale(column.scale().get(), RoundingMode.HALF_EVEN);
                 }
                 return result;
             }

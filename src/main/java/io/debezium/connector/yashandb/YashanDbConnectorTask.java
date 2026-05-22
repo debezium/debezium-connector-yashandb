@@ -5,9 +5,9 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -288,9 +288,10 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
     }
 
     private void validateYStreamServer(YashanDbConnectorConfig config) {
-        try (Statement statement = jdbcConnection.connection().createStatement()) {
-            ResultSet resultSet = statement.executeQuery(
-                    String.format("select SERVER_ID,SERVER_NAME,STATUS from SYS.V_$YSTREAM_SERVER where SERVER_NAME = '%s'", config.getYstreamServerName()));
+        try (PreparedStatement stmt = jdbcConnection.connection().prepareStatement(
+                "select SERVER_ID,SERVER_NAME,STATUS from SYS.V_$YSTREAM_SERVER where SERVER_NAME = ?")) {
+            stmt.setString(1, config.getYstreamServerName());
+            ResultSet resultSet = stmt.executeQuery();
             if (resultSet.next()) {
                 String status = resultSet.getString(3);
                 if (!(Objects.equals(status, "RUNNING") || Objects.equals(status, "STARTED"))) {
@@ -306,7 +307,7 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
             }
         }
         catch (SQLException e) {
-            throw new DebeziumException("Query 'select SERVER_ID,SERVER_NAME,STATUS from SYS.V_$YSTREAM_SERVE' fail, please check database status or user Permissions",
+            throw new DebeziumException("Query 'select SERVER_ID,SERVER_NAME,STATUS from SYS.V_$YSTREAM_SERVER' fail, please check database status or user Permissions",
                     e);
         }
     }
