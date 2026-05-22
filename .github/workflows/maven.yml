@@ -1,0 +1,48 @@
+#
+# Copyright Debezium Authors
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+name: Maven CI
+
+on:
+  push:
+    branches:
+      - main
+      - 1.*
+      - 2.*
+      - 3.*
+      - 4.*
+    paths-ignore:
+        - '*.md'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout core repository
+        uses: actions/checkout@v6
+        with:
+          repository: debezium/debezium
+          ref: ${{ github.ref }}
+          path: core
+      - name: Checkout YashanDB connector
+        uses: actions/checkout@v6
+        with:
+          path: yashandb
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+      - name: Cache Maven packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Maven build core
+        run: ./yashandb/mvnw clean install -f core/pom.xml -pl debezium-bom,debezium-connector-common,debezium-util,debezium-config,debezium-embedded,debezium-storage,debezium-connect-plugins -am -DskipTests -DskipITs -Dformat.formatter.goal=validate -Dformat.imports.goal=check -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=120
+      - name: Maven build YashanDB
+        run: ./yashandb/mvnw clean install -f yashandb/pom.xml -Passembly -Dformat.formatter.goal=validate -Dformat.imports.goal=check -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 -DfailFlakyTests=false -Ddebezium.test.records.waittime=5

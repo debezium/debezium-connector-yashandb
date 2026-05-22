@@ -1,24 +1,44 @@
-# Compiled class file
-*.class
+activemq-data/
+.idea/
+*.iml
+*.ipr
+*.iws
+.metadata/
+.recommenders/
+.classpath
+.project
+.cache
+.settings/
+.factorypath
+.checkstyle
+.gradle/
+.vscode/
+# AI assistant configuration (local only, not for version control)
+.bob/
+build/
+debezium-ddl-parser/gen
+deploy/
+target/
+mods/
+*.swp
+.tags
+epom
+log
+npm-debug.log
+.DS_Store
+phantomjsdriver.log
 
-# Log file
-*.log
+generated-sources/
 
-# BlueJ files
-*.ctxt
+/state/
+bin/
+gen/
+*.tokens
 
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
+jenkins-jobs/docker/rhel_kafka/plugins
+jenkins-jobs/docker/artifact-server/plugins
 
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-replay_pid*
+# AI assistant rules (local only)
+.bob/
+.mvn/wrapper/maven-wrapper.jar
