@@ -27,40 +27,26 @@ mvn clean package -DskipTests
 # Build connector with distribution package (recommended for deployment)
 mvn clean package -Passembly -DskipTests
 
-# Build and run all tests (unit + integration)
+# Build and run all tests
 mvn install
 ```
 
 ### Testing
 
-This module contains both unit tests and integration tests.
+This module contains unit tests. A *unit test* is a JUnit test class named `*Test.java` or `Test*.java` that never requires or uses external services, though it can use the file system and can run any components within the same JVM process. They should run very quickly, be independent of each other, and clean up after itself.
 
-A *unit test* is a JUnit test class named `*Test.java` or `Test*.java` that never requires or uses external services, though it can use the file system and can run any components within the same JVM process. They should run very quickly, be independent of each other, and clean up after itself.
+Running unit tests:
 
-An *integration test* is a JUnit test class named `*IT.java` or `IT*.java` that uses a YashanDB database server. The build will automatically set up the test environment before the integration tests are run.
+```bash
+# Run unit tests
+mvn test
 
-Running `mvn install` will compile all code and run the unit and integration tests. If there are any compile problems or any of the unit tests fail, the build will stop immediately.
+# Run a specific test class
+mvn test -Dtest=YashanDbConnectorTest
 
-You should always default to using `mvn install`, especially prior to committing changes to Git. However, there are a few situations where you may want to run a different Maven command.
-
-#### Running some tests
-
-If you are trying to get the test methods in a single test class to pass and would rather not run *all* of the tests, you can instruct Maven to just run that one test class and to skip all of the others. For example, use the following command to run the tests in the `YashanDbConnectorTest` class:
-
-    $ mvn test -Dtest=YashanDbConnectorTest
-
-Of course, wildcards also work:
-
-    $ mvn test -Dtest=YashanDb*Test
-
-#### Building just the artifacts, without running tests
-
-You can skip all non-essential plug-ins (tests, CheckStyle, formatter, etc.) using the "quick" build profile:
-
-    $ mvn clean verify -Dquick
-
-This provides the fastest way for solely producing the output artifacts, without running any of the QA related Maven plug-ins.
-This comes in handy for producing connector JARs and/or archives as quickly as possible, e.g. for manual testing in Kafka Connect.
+# Run tests matching a pattern
+mvn test -Dtest=YashanDb*Test
+```
 
 ## Deployment
 
