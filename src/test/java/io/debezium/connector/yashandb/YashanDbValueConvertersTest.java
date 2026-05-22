@@ -302,10 +302,8 @@ class YashanDbValueConvertersTest {
     }
 
     @Test
-    void shouldPassThroughEmptyClobFunctionString() {
-        // Note: The current implementation has a bug where EMPTY_CLOB_FUNCTION check
-        // is unreachable because the code returns early for String type at line 333-335.
-        // This test verifies current behavior: string values are passed through as-is.
+    void shouldHandleEmptyClobFunction() {
+        // Given: CLOB column config, EMPTY_CLOB_FUNCTION is a database special marker
         final Column column = Column.editor()
                 .name("clob_data")
                 .type("CLOB")
@@ -315,9 +313,14 @@ class YashanDbValueConvertersTest {
 
         final Field field = new Field("clob_data", 0, SchemaBuilder.string().build());
 
+        // When: convert EMPTY_CLOB_FUNCTION
         Object result = converters.convertString(column, field, YashanDbValueConverters.EMPTY_CLOB_FUNCTION);
-        // Currently returns the string as-is due to early return for String type
-        assertThat(result).isEqualTo(YashanDbValueConverters.EMPTY_CLOB_FUNCTION);
+
+        // Then: verify the actual behavior (note: code has a known bug - returns raw string instead of converting)
+        // This test verifies current behavior to prevent regression
+        assertThat(result).isNotNull();
+        assertThat(result).isEqualTo(YashanDbValueConverters.EMPTY_CLOB_FUNCTION)
+                .describedAs("Current implementation passes through EMPTY_CLOB_FUNCTION as-is");
     }
 
     // ==================== convertBinary tests ====================
