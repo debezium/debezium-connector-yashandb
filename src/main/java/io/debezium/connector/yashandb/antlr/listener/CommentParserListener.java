@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParser;
+import io.debezium.ddl.parser.yashandb.generated.YashanDbParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableEditor;

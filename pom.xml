@@ -22,6 +22,9 @@
         <!-- YashanDB driver versions -->
         <yashandb.ystream.version>1.9.27</yashandb.ystream.version>
         <yashandb.jdbc.version>1.9.27</yashandb.jdbc.version>
+
+        <!-- ANTLR configuration -->
+        <antlr.source.directory>${project.basedir}/src/main/java/antlr4</antlr.source.directory>
     </properties>
 
     <!-- Managing versions here to ensure the right ones are applied during releases -->
@@ -273,6 +276,24 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/antlr4</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4-maven-plugin</artifactId>

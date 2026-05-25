@@ -5,8 +5,8 @@
  */
 package io.debezium.connector.yashandb.antlr.listener;
 
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParser;
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParserBaseListener;
+import io.debezium.ddl.parser.yashandb.generated.YashanDbParser;
+import io.debezium.ddl.parser.yashandb.generated.YashanDbParserBaseListener;
 
 /**
  * This class contains common methods for all listeners.
