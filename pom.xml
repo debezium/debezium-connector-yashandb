@@ -276,7 +276,6 @@
             <plugin>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4-maven-plugin</artifactId>
-                <version>${version.antlr}</version>
                 <configuration>
                     <sourceDirectory>${antlr.source.directory}</sourceDirectory>
                 </configuration>
@@ -289,7 +288,6 @@
                 </executions>
             </plugin>
 
-            <!-- Override maven-checkstyle-plugin configuration to ignore ANTLR generated sources -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
