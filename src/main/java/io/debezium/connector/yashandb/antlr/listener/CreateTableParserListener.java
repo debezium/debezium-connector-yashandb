@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParser;
+import io.debezium.ddl.parser.yashandb.generated.YashanDbParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.Table;

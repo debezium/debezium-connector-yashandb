@@ -16,7 +16,7 @@ import org.antlr.v4.runtime.tree.ParseTreeListener;
 import io.debezium.antlr.AntlrDdlParserListener;
 import io.debezium.antlr.ProxyParseTreeListenerUtil;
 import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
-import io.debezium.connector.yashandb.ddl.parser.gen.YashanDbParserBaseListener;
+import io.debezium.ddl.parser.yashandb.generated.YashanDbParserBaseListener;
 import io.debezium.text.ParsingException;
 
 /**
