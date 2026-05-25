@@ -316,11 +316,11 @@ class YashanDbValueConvertersTest {
         // When: convert EMPTY_CLOB_FUNCTION
         Object result = converters.convertString(column, field, YashanDbValueConverters.EMPTY_CLOB_FUNCTION);
 
-        // Then: verify the actual behavior (note: code has a known bug - returns raw string instead of converting)
+        // Then: verify the actual behavior - EMPTY_CLOB is converted to empty string
         // This test verifies current behavior to prevent regression
         assertThat(result).isNotNull();
-        assertThat(result).isEqualTo(YashanDbValueConverters.EMPTY_CLOB_FUNCTION)
-                .describedAs("Current implementation passes through EMPTY_CLOB_FUNCTION as-is");
+        assertThat(result).isEqualTo("")
+                .describedAs("EMPTY_CLOB() is converted to empty string per line 340-341 in YashanDbValueConverters");
     }
 
     // ==================== convertBinary tests ====================
