@@ -114,13 +114,12 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         CustomConverterRegistry customConverterRegistry = connectorConfig.getServiceRegistry().tryGetService(CustomConverterRegistry.class);
         this.schema = new YashanDbDatabaseSchema(connectorConfig, valueConverters, defaultValueConverter, schemaNameAdjuster,
                 topicNamingStrategy, tableNameCaseSensitivity, customConverterRegistry, taskContext);
-        final SnapshotterService snapshotterService = connectorConfig.getServiceRegistry().tryGetService(SnapshotterService.class);
 
         Offsets<YashanDbPartition, YashanDbOffsetContext> previousOffsets = getPreviousOffsets(new YashanDbPartition.Provider(connectorConfig),
                 connectorConfig.getAdapter().getOffsetContextLoader());
 
         beanRegistryJdbcConnection = connectionFactory.newConnection();
-        // Manual Bean Registration
+        // Manual Bean Registration - must be done before any service that requires it is created (e.g. SnapshotterService)
         connectorConfig.getBeanRegistry().add(StandardBeanNames.CONFIGURATION, config);
         connectorConfig.getBeanRegistry().add(StandardBeanNames.CONNECTOR_CONFIG, connectorConfig);
         connectorConfig.getBeanRegistry().add(StandardBeanNames.DATABASE_SCHEMA, schema);
@@ -128,6 +127,8 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         connectorConfig.getBeanRegistry().add(StandardBeanNames.VALUE_CONVERTER, valueConverters);
         connectorConfig.getBeanRegistry().add(StandardBeanNames.OFFSETS, previousOffsets);
         connectorConfig.getBeanRegistry().add(StandardBeanNames.CDC_SOURCE_TASK_CONTEXT, taskContext);
+
+        final SnapshotterService snapshotterService = connectorConfig.getServiceRegistry().tryGetService(SnapshotterService.class);
 
         YashanDbPartition partition = previousOffsets.getTheOnlyPartition();
         YashanDbOffsetContext previousOffset = previousOffsets.getTheOnlyOffset();
