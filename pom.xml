@@ -18,7 +18,7 @@
 
     <properties>
         <!-- Debezium version - required for dependencyManagement -->
-        <debezium.version>${project.version}</debezium.version>
+        <version.debezium>${project.version}</version.debezium>
         <!-- YashanDB driver versions -->
         <yashandb.ystream.version>1.9.27</yashandb.ystream.version>
         <yashandb.jdbc.version>1.9.27</yashandb.jdbc.version>
@@ -34,62 +34,67 @@
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-util</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-connector-common</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-config</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-embedded</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-storage-kafka</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-storage-file</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-connect-plugins</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.debezium</groupId>
+                <artifactId>debezium-ddl-parser</artifactId>
+                <version>${version.debezium}</version>
             </dependency>
 
             <!-- Building -->
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-ide-configs</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-checkstyle</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-assembly-descriptors</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-revapi</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
                 <scope>provided</scope>
             </dependency>
 
@@ -97,28 +102,28 @@
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-connector-common</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
                 <type>test-jar</type>
                 <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-util</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
                 <type>test-jar</type>
                 <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-connect-plugins</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
                 <type>test-jar</type>
                 <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>io.debezium</groupId>
                 <artifactId>debezium-embedded</artifactId>
-                <version>${debezium.version}</version>
+                <version>${version.debezium}</version>
                 <type>test-jar</type>
                 <scope>test</scope>
             </dependency>
@@ -297,6 +302,7 @@
             <plugin>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4-maven-plugin</artifactId>
+                <version>${version.antlr}</version>
                 <configuration>
                     <sourceDirectory>${antlr.source.directory}</sourceDirectory>
                 </configuration>
