@@ -1,0 +1,1 @@
+io.debezium.connector.yashandb.snapshot.query.SelectAllSnapshotQuery

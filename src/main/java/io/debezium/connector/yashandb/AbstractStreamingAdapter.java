@@ -70,8 +70,8 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
 
         final String query = "SELECT 1 FROM DUAL WHERE SCN_TO_TIMESTAMP(?)=SCN_TO_TIMESTAMP(?)";
         try (PreparedStatement ps = connection.connection().prepareStatement(query)) {
-            ps.setString(1, scn1.toString());
-            ps.setString(2, scn2.toString());
+            ps.setLong(1, scn1.longValue());
+            ps.setLong(2, scn2.longValue());
             ResultSet rs = ps.executeQuery();
             return rs.next();
         }

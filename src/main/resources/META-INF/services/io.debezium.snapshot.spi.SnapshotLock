@@ -1,0 +1,2 @@
+io.debezium.connector.yashandb.snapshot.lock.NoSnapshotLock
+io.debezium.connector.yashandb.snapshot.lock.SharedSnapshotLock
