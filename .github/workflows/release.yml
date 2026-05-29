@@ -74,7 +74,7 @@ jobs:
           ls -la yashandb/target/*.jar || echo "No jar files found"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: Debezium YashanDB Connector v${{ steps.get_version.outputs.VERSION }}
           body: |
