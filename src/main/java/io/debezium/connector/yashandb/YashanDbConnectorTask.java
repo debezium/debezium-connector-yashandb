@@ -26,7 +26,7 @@ import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
-import io.debezium.connector.base.DefaultQueueProvider;
+import io.debezium.connector.base.QueueProviderService;
 import io.debezium.connector.common.BaseSourceTask;
 import io.debezium.connector.common.CdcSourceTaskContext;
 import io.debezium.connector.common.DebeziumHeaderProducer;
@@ -104,11 +104,13 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
 
         validateRedoLogConfiguration(connectorConfig);
 
-        registerServiceProviders(connectorConfig.getServiceRegistry());
-
         YashanDbValueConverters valueConverters = new YashanDbValueConverters(connectorConfig, jdbcConnection);
         YashanDbDefaultValueConverter defaultValueConverter = new YashanDbDefaultValueConverter(valueConverters, jdbcConnection);
         StreamingAdapter.TableNameCaseSensitivity tableNameCaseSensitivity = connectorConfig.getAdapter().getTableNameCaseSensitivity(jdbcConnection);
+
+        // Service providers
+        registerServiceProviders(connectorConfig.getServiceRegistry());
+
         CustomConverterRegistry customConverterRegistry = connectorConfig.getServiceRegistry().tryGetService(CustomConverterRegistry.class);
         this.schema = new YashanDbDatabaseSchema(connectorConfig, valueConverters, defaultValueConverter, schemaNameAdjuster,
                 topicNamingStrategy, tableNameCaseSensitivity, customConverterRegistry, taskContext);
@@ -145,7 +147,7 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
                 .maxBatchSize(connectorConfig.getMaxBatchSize())
                 .maxQueueSize(connectorConfig.getMaxQueueSize())
                 .maxQueueSizeInBytes(connectorConfig.getMaxQueueSizeInBytes())
-                .queueProvider(new DefaultQueueProvider<>(connectorConfig.getMaxQueueSize()))
+                .queueProvider(connectorConfig.getServiceRegistry().tryGetService(QueueProviderService.class).getQueueProvider())
                 .loggingContextSupplier(() -> taskContext.configureLoggingContext(CONTEXT_NAME))
                 .build();
 
