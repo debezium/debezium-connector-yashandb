@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
-An incubating Debezium CDC (Change Data Capture) connector for [YashanDB](https://www.yasdb.com/). This connector enables real-time data streaming from YashanDB databases to Apache Kafka.
+An incubating Debezium CDC (Change Data Capture) connector for [YashanDB](https://yashandb.com/). This connector enables real-time data streaming from YashanDB databases to Apache Kafka.
 
 ## Overview
 
