@@ -55,20 +55,6 @@ class YashanDbOffsetContextTest {
         assertThat(scn.longValue()).isEqualTo(99999);
     }
 
-    @Test
-    void shouldResolveCommitScnFromOffsetMap() {
-        // Given: offset map with commit SCN
-        Map<String, Object> offset = new HashMap<>();
-        offset.put(SourceInfo.COMMIT_SCN_KEY, "54321");
-
-        // When: resolve commit SCN from offset map
-        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.COMMIT_SCN_KEY);
-
-        // Then: verify SCN is correctly parsed
-        assertThat(scn).isNotNull();
-        assertThat(scn.longValue()).isEqualTo(54321);
-    }
-
     // ==================== Null/Empty Input Tests ====================
 
     @Test

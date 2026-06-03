@@ -33,10 +33,6 @@ public class SourceInfo extends BaseSourceInfo {
 
     public static final String TXID_KEY = "txId";
     public static final String SCN_KEY = "scn";
-    public static final String EVENT_SCN_KEY = "scn";
-    public static final String COMMIT_SCN_KEY = "commit_scn";
-    public static final String LCR_POSITION_KEY = "lcr_position";
-    public static final String SNAPSHOT_KEY = "snapshot";
     public static final String USERNAME_KEY = "user_name";
 
     public static final String POSITION_SCN_KEY = "position_scn";
@@ -46,16 +42,9 @@ public class SourceInfo extends BaseSourceInfo {
     public static final String BATCH_ROW_ID_KEY = "batch_row_id";
 
     private Scn scn;
-    private CommitScn commitScn;
-    private Scn eventScn;
-    private Position lcrPosition;
     private String transactionId;
-    private String userName;
     private Instant sourceTime;
     private Set<TableId> tableIds;
-    private Integer redoThread;
-    private String rsId;
-    private long ssn;
 
     // YStream position
     private long positionScn;
@@ -83,48 +72,12 @@ public class SourceInfo extends BaseSourceInfo {
     }
 
     /**
-     * Returns the commit SCN tracking the high-watermark across redo threads.
-     *
-     * @return the commit SCN
-     */
-    public CommitScn getCommitScn() {
-        return commitScn;
-    }
-
-    /**
-     * Returns the SCN for the current change event.
-     *
-     * @return the event SCN
-     */
-    public Scn getEventScn() {
-        return eventScn;
-    }
-
-    /**
      * Sets the current system change number.
      *
      * @param scn the SCN to set
      */
     public void setScn(Scn scn) {
         this.scn = scn;
-    }
-
-    /**
-     * Sets the commit SCN for redo thread tracking.
-     *
-     * @param commitScn the commit SCN to set
-     */
-    public void setCommitScn(CommitScn commitScn) {
-        this.commitScn = commitScn;
-    }
-
-    /**
-     * Sets the SCN for the current change event.
-     *
-     * @param eventScn the event SCN to set
-     */
-    public void setEventScn(Scn eventScn) {
-        this.eventScn = eventScn;
     }
 
     /**
@@ -213,60 +166,6 @@ public class SourceInfo extends BaseSourceInfo {
     }
 
     /**
-     * Returns the database user name associated with the current event.
-     *
-     * @return the user name
-     */
-    public String getUserName() {
-        return userName;
-    }
-
-    /**
-     * Sets the database user name for the current event.
-     *
-     * @param userName the user name to set
-     */
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
-
-    /**
-     * Returns the redo record segment identifier for the current event.
-     *
-     * @return the RS ID
-     */
-    public String getRsId() {
-        return rsId;
-    }
-
-    /**
-     * Sets the redo record segment identifier for the current event.
-     *
-     * @param rsId the RS ID to set
-     */
-    public void setRsId(String rsId) {
-        this.rsId = rsId;
-    }
-
-    /**
-     * Returns the SQL sequence number for the current event.
-     *
-     * @return the SSN
-     */
-    public long getSsn() {
-        return ssn;
-    }
-
-    /**
-     * Sets the SQL sequence number for the current event.
-     *
-     * @param ssn the SSN to set
-     */
-    public void setSsn(long ssn) {
-        this.ssn = ssn;
-    }
-
-    /**
      * Returns the source timestamp of the current event.
      *
      * @return the source time instant
@@ -327,24 +226,6 @@ public class SourceInfo extends BaseSourceInfo {
      */
     public void tableEvent(TableId tableId) {
         this.tableIds = Collections.singleton(tableId);
-    }
-
-    /**
-     * Returns the redo thread number for the current event.
-     *
-     * @return the redo thread number
-     */
-    public Integer getRedoThread() {
-        return redoThread;
-    }
-
-    /**
-     * Sets the redo thread number for the current event.
-     *
-     * @param redoThread the redo thread number to set
-     */
-    public void setRedoThread(Integer redoThread) {
-        this.redoThread = redoThread;
     }
 
     /**

@@ -46,23 +46,15 @@ public class YStreamOffsetContextLoader implements OffsetContext.Loader<YashanDb
     public YashanDbOffsetContext load(Map<String, ?> offset) {
         boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
         boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY));
-        boolean isCreateServer = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.YSTREAM_SERVER_CREATE));
-        String lcrPosition = (String) offset.get(SourceInfo.LCR_POSITION_KEY);
 
-        final Scn scn;
-        if (lcrPosition != null) {
-            scn = YStreamPosition.valueOf(lcrPosition).getScn();
-        }
-        else {
-            scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
-        }
+        final Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
 
         final Map<String, Scn> snapshotPendingTransactions = YashanDbOffsetContext.loadSnapshotPendingTransactions(offset);
         final Scn snapshotScn = YashanDbOffsetContext.loadSnapshotScn(offset);
         final Scn ystreamStartScn = YashanDbOffsetContext.loadYstreamStartScn(offset);
         final Position recoverPosition = YashanDbOffsetContext.loadRecoverPosition(offset);
-        LOGGER.debug("loader offset context isCreateServer:{}, position:{}", isCreateServer, recoverPosition);
+        LOGGER.debug("loader offset context position:{}", recoverPosition);
         return new YashanDbOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions,
-                snapshot, snapshotCompleted, TransactionContext.load(offset), SignalBasedIncrementalSnapshotContext.load(offset), isCreateServer);
+                snapshot, snapshotCompleted, TransactionContext.load(offset), SignalBasedIncrementalSnapshotContext.load(offset));
     }
 }

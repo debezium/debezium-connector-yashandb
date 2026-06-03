@@ -124,7 +124,6 @@ class YStreamEventHandler {
                     return;
                 }
                 offsetContext.setScn(yStreamPosition.getScn());
-                offsetContext.setEventScn(yStreamPosition.getScn());
                 offsetContext.setLcrPosition(yStreamPosition.getRawPosition());
                 offsetContext.setTransactionId(String.valueOf(record.getYstreamLcrInterface().getTransactionId()));
             }

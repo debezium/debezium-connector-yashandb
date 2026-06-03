@@ -46,28 +46,6 @@ class SourceInfoTest {
     }
 
     @Test
-    void shouldSetAndGetCommitScn() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
-        SourceInfo sourceInfo = new TestableSourceInfo(config);
-
-        CommitScn commitScn = CommitScn.valueOf("100:1:tx1");
-        sourceInfo.setCommitScn(commitScn);
-
-        assertThat(sourceInfo.getCommitScn()).isEqualTo(commitScn);
-    }
-
-    @Test
-    void shouldSetAndGetEventScn() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
-        SourceInfo sourceInfo = new TestableSourceInfo(config);
-
-        Scn eventScn = Scn.valueOf(99999);
-        sourceInfo.setEventScn(eventScn);
-
-        assertThat(sourceInfo.getEventScn()).isEqualTo(eventScn);
-    }
-
-    @Test
     void shouldSetAndGetTransactionId() {
         YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
         SourceInfo sourceInfo = new TestableSourceInfo(config);
@@ -79,39 +57,6 @@ class SourceInfoTest {
     }
 
     @Test
-    void shouldSetAndGetUserName() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
-        SourceInfo sourceInfo = new TestableSourceInfo(config);
-
-        String userName = "TEST_USER";
-        sourceInfo.setUserName(userName);
-
-        assertThat(sourceInfo.getUserName()).isEqualTo(userName);
-    }
-
-    @Test
-    void shouldSetAndGetRsId() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
-        SourceInfo sourceInfo = new TestableSourceInfo(config);
-
-        String rsId = "0x0001";
-        sourceInfo.setRsId(rsId);
-
-        assertThat(sourceInfo.getRsId()).isEqualTo(rsId);
-    }
-
-    @Test
-    void shouldSetAndGetSsn() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
-        SourceInfo sourceInfo = new TestableSourceInfo(config);
-
-        long ssn = 1234567890L;
-        sourceInfo.setSsn(ssn);
-
-        assertThat(sourceInfo.getSsn()).isEqualTo(ssn);
-    }
-
-    @Test
     void shouldSetAndGetSourceTime() {
         YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
         SourceInfo sourceInfo = new TestableSourceInfo(config);
@@ -120,25 +65,6 @@ class SourceInfoTest {
         sourceInfo.setSourceTime(timestamp);
 
         assertThat(sourceInfo.getSourceTime()).isEqualTo(timestamp);
-    }
-
-    @Test
-    void shouldSetAndGetRedoThread() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
-        SourceInfo sourceInfo = new TestableSourceInfo(config);
-
-        Integer redoThread = 1;
-        sourceInfo.setRedoThread(redoThread);
-
-        assertThat(sourceInfo.getRedoThread()).isEqualTo(redoThread);
-    }
-
-    @Test
-    void shouldReturnNullRedoThreadWhenNotSet() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
-        SourceInfo sourceInfo = new TestableSourceInfo(config);
-
-        assertThat(sourceInfo.getRedoThread()).isNull();
     }
 
     @Test
@@ -286,10 +212,7 @@ class SourceInfoTest {
         SourceInfo sourceInfo = new TestableSourceInfo(config);
 
         assertThat(sourceInfo.getScn()).isNull();
-        assertThat(sourceInfo.getCommitScn()).isNull();
-        assertThat(sourceInfo.getEventScn()).isNull();
         assertThat(sourceInfo.getTransactionId()).isNull();
-        assertThat(sourceInfo.getUserName()).isNull();
     }
 
     @Test
