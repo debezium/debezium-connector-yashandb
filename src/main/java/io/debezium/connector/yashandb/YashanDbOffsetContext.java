@@ -35,7 +35,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     public static final String SNAPSHOT_PENDING_TRANSACTIONS_KEY = "snapshot_pending_tx";
     public static final String SNAPSHOT_SCN_KEY = "snapshot_scn";
     public static final String YSTREAM_START_SCN_KEY = "ystream_start_scn";
-    public static final String YSTREAM_SERVER_CREATE = "ystream_server_create";
 
     private final Schema sourceInfoSchema;
 
@@ -53,7 +52,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
 
     private final Scn ystreamStartScn;
     private final Position recoverPosition;
-    private boolean isCreateServer = false;
 
     /**
      * Map of (txid, start SCN) for all transactions in progress at the time the
@@ -67,81 +65,29 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     private boolean snapshotCompleted;
 
     /**
-     * Creates a YashanDbOffsetContext instance with an additional CommitScn parameter for tracking the high-watermark across redo threads.
+     * Creates a YashanDbOffsetContext instance initialized with the given parameters for tracking offset state.
      *
      * @param connectorConfig the connector configuration
-     *
      * @param scn the current SCN
-     *
-     * @param commitScn the commit SCN for redo threads
-     *
      * @param snapshotScn the snapshot SCN
-     *
      * @param ystreamStartScn the YStream start SCN
-     *
      * @param recoverPosition the recover position
-     *
      * @param snapshotPendingTransactions the pending transactions map
-     *
      * @param snapshot whether a snapshot is in progress
-     *
      * @param snapshotCompleted whether the snapshot is completed
-     *
      * @param transactionContext the transaction context
-     *
      * @param incrementalSnapshotContext the incremental snapshot context
-     *
-     * @param isCreateServer whether the YStream server was created
-     */
-    public YashanDbOffsetContext(YashanDbConnectorConfig connectorConfig, Scn scn, CommitScn commitScn,
-                                 Scn snapshotScn, Scn ystreamStartScn, Position recoverPosition, Map<String, Scn> snapshotPendingTransactions,
-                                 boolean snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
-                                 IncrementalSnapshotContext<TableId> incrementalSnapshotContext, boolean isCreateServer) {
-        this(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot, snapshotCompleted, transactionContext,
-                incrementalSnapshotContext, isCreateServer);
-        sourceInfo.setCommitScn(commitScn);
-    }
-
-    /**
-     * Creates a YashanDbOffsetContext instance initialized with the given parameters for tracking offset state without an explicit CommitScn.
-     *
-     * @param connectorConfig the connector configuration
-     *
-     * @param scn the current SCN
-     *
-     * @param snapshotScn the snapshot SCN
-     *
-     * @param ystreamStartScn the YStream start SCN
-     *
-     * @param recoverPosition the recover position
-     *
-     * @param snapshotPendingTransactions the pending transactions map
-     *
-     * @param snapshot whether a snapshot is in progress
-     *
-     * @param snapshotCompleted whether the snapshot is completed
-     *
-     * @param transactionContext the transaction context
-     *
-     * @param incrementalSnapshotContext the incremental snapshot context
-     *
-     * @param isCreateServer whether the YStream server was created
      */
     public YashanDbOffsetContext(YashanDbConnectorConfig connectorConfig, Scn scn,
                                  Scn snapshotScn, Scn ystreamStartScn, Position recoverPosition, Map<String, Scn> snapshotPendingTransactions,
                                  boolean snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
-                                 IncrementalSnapshotContext<TableId> incrementalSnapshotContext, boolean isCreateServer) {
+                                 IncrementalSnapshotContext<TableId> incrementalSnapshotContext) {
         super(new SourceInfo(connectorConfig));
         this.recoverPosition = recoverPosition;
         this.ystreamStartScn = ystreamStartScn;
         sourceInfo.setScn(scn);
-        // It is safe to set this value to the supplied SCN, specifically for snapshots.
-        // During streaming this value will be updated by the current event handler.
-        sourceInfo.setEventScn(scn);
         sourceInfo.setLcrPosition(recoverPosition);
-        sourceInfo.setCommitScn(CommitScn.valueOf((String) null));
         sourceInfoSchema = sourceInfo.schema();
-        this.isCreateServer = isCreateServer;
 
         // Snapshot SCN is a new field and may be null in cases where the offsets are being read from
         // and older version of Debezium. In this case, we need to explicitly enforce Scn#NULL usage
@@ -168,7 +114,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
 
         private YashanDbConnectorConfig connectorConfig;
         private Scn scn;
-        private String lcrPosition;
         private boolean snapshot;
         private boolean snapshotCompleted;
         private TransactionContext transactionContext;
@@ -223,18 +168,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
          */
         public Builder scn(Scn scn) {
             this.scn = scn;
-            return this;
-        }
-
-        /**
-         * Sets the LCR position string.
-         *
-         * @param lcrPosition the LCR position string
-         *
-         * @return this builder for method chaining
-         */
-        public Builder lcrPosition(String lcrPosition) {
-            this.lcrPosition = lcrPosition;
             return this;
         }
 
@@ -318,7 +251,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         public YashanDbOffsetContext build() {
             return new YashanDbOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
                     snapshotCompleted, transactionContext,
-                    incrementalSnapshotContext, false);
+                    incrementalSnapshotContext);
         }
     }
 
@@ -354,7 +287,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
             }
             offset.put(SNAPSHOT_SCN_KEY, snapshotScn != null ? snapshotScn.isNull() ? null : snapshotScn.toString() : null);
             offset.put(YSTREAM_START_SCN_KEY, ystreamStartScn != null ? ystreamStartScn.isNull() ? null : ystreamStartScn.toString() : null);
-            offset.put(YSTREAM_SERVER_CREATE, isCreateServer);
             offset.put(SourceInfo.POSITION_SCN_KEY, recoverPosition.getCommitScn().getScn());
             offset.put(SourceInfo.GROUP_LSN_KEY, recoverPosition.getLogPosition().getGroupLsn());
             offset.put(SourceInfo.GROUP_OFFSET_KEY, recoverPosition.getLogPosition().getGroupOffset());
@@ -377,7 +309,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
                 // has not lcr position, use recoverPosition.
                 final Scn scn = sourceInfo.getScn();
                 offset.put(SourceInfo.SCN_KEY, scn != null ? scn.toString() : null);
-                sourceInfo.getCommitScn().store(offset);
                 offset.put(SourceInfo.POSITION_SCN_KEY, recoverPosition.getCommitScn().getScn());
                 offset.put(SourceInfo.GROUP_LSN_KEY, recoverPosition.getLogPosition().getGroupLsn());
                 offset.put(SourceInfo.GROUP_OFFSET_KEY, recoverPosition.getLogPosition().getGroupOffset());
@@ -392,7 +323,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
             }
             offset.put(SNAPSHOT_SCN_KEY, snapshotScn != null ? snapshotScn.isNull() ? null : snapshotScn.toString() : null);
             offset.put(YSTREAM_START_SCN_KEY, ystreamStartScn != null ? ystreamStartScn.isNull() ? null : ystreamStartScn.toString() : null);
-            offset.put(YSTREAM_SERVER_CREATE, isCreateServer);
             return incrementalSnapshotContext.store(transactionContext.store(offset));
         }
     }
@@ -417,39 +347,12 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     }
 
     /**
-     * Sets the event SCN for the current change event.
-     *
-     * @param eventScn the event SCN to set
-     */
-    public void setEventScn(Scn eventScn) {
-        sourceInfo.setEventScn(eventScn);
-    }
-
-    /**
      * Returns the current SCN.
      *
      * @return the SCN
      */
     public Scn getScn() {
         return sourceInfo.getScn();
-    }
-
-    /**
-     * Returns the commit SCN tracking the high-watermark for streaming changes.
-     *
-     * @return the commit SCN
-     */
-    public CommitScn getCommitScn() {
-        return sourceInfo.getCommitScn();
-    }
-
-    /**
-     * Returns the event SCN for the current change event.
-     *
-     * @return the event SCN
-     */
-    public Scn getEventScn() {
-        return sourceInfo.getEventScn();
     }
 
     /**
@@ -525,15 +428,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     }
 
     /**
-     * Sets the database user name for the current event.
-     *
-     * @param userName the user name to set
-     */
-    public void setUserName(String userName) {
-        sourceInfo.setUserName(userName);
-    }
-
-    /**
      * Sets the source time for the current event.
      *
      * @param instant the source time instant to set
@@ -549,60 +443,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      */
     public void setTableId(TableId tableId) {
         sourceInfo.tableEvent(tableId);
-    }
-
-    /**
-     * Returns the redo thread number for the current event.
-     *
-     * @return the redo thread number
-     */
-    public Integer getRedoThread() {
-        return sourceInfo.getRedoThread();
-    }
-
-    /**
-     * Sets the redo thread number for the current event.
-     *
-     * @param redoThread the redo thread number to set
-     */
-    public void setRedoThread(Integer redoThread) {
-        sourceInfo.setRedoThread(redoThread);
-    }
-
-    /**
-     * Sets the redo record segment identifier for the current event.
-     *
-     * @param rsId the redo record segment identifier to set
-     */
-    public void setRsId(String rsId) {
-        sourceInfo.setRsId(rsId);
-    }
-
-    /**
-     * Sets the SQL sequence number for the current event.
-     *
-     * @param ssn the SQL sequence number to set
-     */
-    public void setSsn(long ssn) {
-        sourceInfo.setSsn(ssn);
-    }
-
-    /**
-     * Returns whether the YStream server was created.
-     *
-     * @return the server creation flag
-     */
-    public boolean isCreateServer() {
-        return isCreateServer;
-    }
-
-    /**
-     * Sets whether the YStream server was created.
-     *
-     * @param createServer the server creation flag
-     */
-    public void setCreateServer(boolean createServer) {
-        isCreateServer = createServer;
     }
 
     /**
@@ -647,8 +487,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
             sb.append(", snapshot=").append(sourceInfo.isSnapshot());
             sb.append(", snapshot_completed=").append(snapshotCompleted);
         }
-
-        sb.append(", commit_scn=").append(sourceInfo.getCommitScn().toLoggableFormat());
 
         sb.append("]");
 
@@ -715,7 +553,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      * Helper method to resolve a {@link Scn} by key from the offset map.
      *
      * @param offset the offset map
-     * @param key    the entry key, either {@link SourceInfo#SCN_KEY} or {@link SourceInfo#COMMIT_SCN_KEY}.
+     * @param key    the entry key, either {@link SourceInfo#SCN_KEY}.
      * @return the {@link Scn} or null if not found
      */
     public static Scn getScnFromOffsetMapByKey(Map<String, ?> offset, String key) {

@@ -286,17 +286,15 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     public YashanDbOffsetContext load(Map<String, ?> offset) {
         boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
         boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY));
-        boolean isCreateServer = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.YSTREAM_SERVER_CREATE));
         Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
-        CommitScn commitScn = CommitScn.load(offset);
         Map<String, Scn> snapshotPendingTransactions = YashanDbOffsetContext.loadSnapshotPendingTransactions(offset);
         Scn snapshotScn = YashanDbOffsetContext.loadSnapshotScn(offset);
         Scn ystreamStartScn = YashanDbOffsetContext.loadYstreamStartScn(offset);
         Position recoverPosition = YashanDbOffsetContext.loadRecoverPosition(offset);
-        return new YashanDbOffsetContext(connectorConfig, scn, commitScn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
+        return new YashanDbOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
                 snapshotCompleted,
                 TransactionContext.load(offset),
-                SignalBasedIncrementalSnapshotContext.load(offset), isCreateServer);
+                SignalBasedIncrementalSnapshotContext.load(offset));
     }
 
     @Override
