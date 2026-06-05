@@ -47,14 +47,11 @@ public class YStreamOffsetContextLoader implements OffsetContext.Loader<YashanDb
         boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
         boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY));
 
-        final Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
-
         final Map<String, Scn> snapshotPendingTransactions = YashanDbOffsetContext.loadSnapshotPendingTransactions(offset);
         final Scn snapshotScn = YashanDbOffsetContext.loadSnapshotScn(offset);
-        final Scn ystreamStartScn = YashanDbOffsetContext.loadYstreamStartScn(offset);
         final Position recoverPosition = YashanDbOffsetContext.loadRecoverPosition(offset);
         LOGGER.debug("loader offset context position:{}", recoverPosition);
-        return new YashanDbOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions,
+        return new YashanDbOffsetContext(connectorConfig, snapshotScn, recoverPosition, snapshotPendingTransactions,
                 snapshot, snapshotCompleted, TransactionContext.load(offset), SignalBasedIncrementalSnapshotContext.load(offset));
     }
 }

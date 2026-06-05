@@ -31,10 +31,10 @@ class YashanDbOffsetContextTest {
     void shouldResolveScnFromStringFromOffsetMap() {
         // Given: offset map with String SCN
         Map<String, Object> offset = new HashMap<>();
-        offset.put(SourceInfo.SCN_KEY, "12345");
+        offset.put(YashanDbOffsetContext.SNAPSHOT_SCN_KEY, "12345");
 
         // When: resolve SCN from offset map
-        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
+        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, YashanDbOffsetContext.SNAPSHOT_SCN_KEY);
 
         // Then: verify SCN is correctly parsed
         assertThat(scn).isNotNull();
@@ -45,10 +45,10 @@ class YashanDbOffsetContextTest {
     void shouldResolveScnFromLongFromOffsetMap() {
         // Given: offset map with Long SCN
         Map<String, Object> offset = new HashMap<>();
-        offset.put(SourceInfo.SCN_KEY, 99999L);
+        offset.put(SourceInfo.POSITION_SCN_KEY, 99999L);
 
         // When: resolve SCN from offset map
-        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
+        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.POSITION_SCN_KEY);
 
         // Then: verify SCN is correctly parsed
         assertThat(scn).isNotNull();
@@ -63,7 +63,7 @@ class YashanDbOffsetContextTest {
         Map<String, Object> offset = new HashMap<>();
 
         // When: resolve SCN from offset map
-        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
+        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, YashanDbOffsetContext.SNAPSHOT_SCN_KEY);
 
         // Then: verify null is returned
         assertThat(scn).isNull();
@@ -81,28 +81,16 @@ class YashanDbOffsetContextTest {
         assertThat(txns).isEmpty();
     }
 
-    @Test
-    void shouldLoadYstreamStartScnNullWhenMissing() {
-        // Given: offset map without YSTREAM_START_SCN key
-        Map<String, Object> offset = new HashMap<>();
-
-        // When: load YSTREAM start SCN
-        Scn scn = YashanDbOffsetContext.loadYstreamStartScn(offset);
-
-        // Then: verify null is returned
-        assertThat(scn).isNull();
-    }
-
     // ==================== Boundary Value Tests ====================
 
     @Test
     void shouldResolveScnFromZero() {
         // Given: offset map with zero SCN (boundary value)
         Map<String, Object> offset = new HashMap<>();
-        offset.put(SourceInfo.SCN_KEY, "0");
+        offset.put(YashanDbOffsetContext.SNAPSHOT_SCN_KEY, "0");
 
         // When: resolve SCN from offset map
-        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
+        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, YashanDbOffsetContext.SNAPSHOT_SCN_KEY);
 
         // Then: verify zero is correctly handled
         assertThat(scn).isNotNull();
@@ -113,10 +101,10 @@ class YashanDbOffsetContextTest {
     void shouldResolveScnFromMaxLongValue() {
         // Given: offset map with MAX_LONG value (boundary value)
         Map<String, Object> offset = new HashMap<>();
-        offset.put(SourceInfo.SCN_KEY, String.valueOf(Long.MAX_VALUE));
+        offset.put(YashanDbOffsetContext.SNAPSHOT_SCN_KEY, String.valueOf(Long.MAX_VALUE));
 
         // When: resolve SCN from offset map
-        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
+        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, YashanDbOffsetContext.SNAPSHOT_SCN_KEY);
 
         // Then: verify MAX_LONG is correctly parsed
         assertThat(scn).isNotNull();
@@ -325,19 +313,6 @@ class YashanDbOffsetContextTest {
 
         // Then: verify snapshot SCN is correctly parsed
         assertThat(scn.longValue()).isEqualTo(777);
-    }
-
-    @Test
-    void shouldLoadYstreamStartScn() {
-        // Given: offset map with YSTREAM start SCN
-        Map<String, Object> offset = new HashMap<>();
-        offset.put(YashanDbOffsetContext.YSTREAM_START_SCN_KEY, "888");
-
-        // When: load YSTREAM start SCN
-        Scn scn = YashanDbOffsetContext.loadYstreamStartScn(offset);
-
-        // Then: verify YSTREAM start SCN is correctly parsed
-        assertThat(scn.longValue()).isEqualTo(888);
     }
 
     @Test

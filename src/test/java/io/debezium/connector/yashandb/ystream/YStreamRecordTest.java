@@ -9,8 +9,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-import io.debezium.connector.yashandb.Scn;
-
 /**
  * Unit tests for YStream wrapper classes and adapters.
  */
@@ -30,7 +28,7 @@ class YStreamRecordTest {
 
         YStreamPosition yStreamPosition = new YStreamPosition(position);
         assertThat(yStreamPosition).isNotNull();
-        assertThat(yStreamPosition.getScn()).isEqualTo(Scn.valueOf(1000L));
+        assertThat(yStreamPosition.getLcrPosition().getCommitScn().getScn()).isEqualTo(1000L);
     }
 
     @Test
@@ -47,7 +45,7 @@ class YStreamRecordTest {
         com.sics.ystream.result.Position position1 = new com.sics.ystream.result.Position(scn1, logPos1);
 
         YStreamPosition yStreamPosition1 = new YStreamPosition(position1);
-        assertThat(yStreamPosition1.getScn().longValue()).isEqualTo(0L);
+        assertThat(yStreamPosition1.getLcrPosition().getCommitScn().getScn()).isEqualTo(0L);
 
         // Test with larger SCN
         com.sics.ystream.result.SystemChangeNumber scn2 = new com.sics.ystream.result.SystemChangeNumber(Long.MAX_VALUE);
@@ -55,7 +53,7 @@ class YStreamRecordTest {
         com.sics.ystream.result.Position position2 = new com.sics.ystream.result.Position(scn2, logPos2);
 
         YStreamPosition yStreamPosition2 = new YStreamPosition(position2);
-        assertThat(yStreamPosition2.getScn().longValue()).isEqualTo(Long.MAX_VALUE);
+        assertThat(yStreamPosition2.getLcrPosition().getCommitScn().getScn()).isEqualTo(Long.MAX_VALUE);
     }
 
     @Test

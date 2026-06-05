@@ -5,7 +5,6 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
-import java.math.BigInteger;
 import java.util.Map;
 import java.util.Objects;
 
@@ -27,18 +26,16 @@ public class YStreamPosition implements Comparable<YStreamPosition> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(YStreamPosition.class);
 
-    private final Position rawPosition;
-    private Scn scn;
+    private final Position lcrPosition;
 
     /**
-     * Creates a YStreamPosition from the given raw LCR position, deriving the SCN from it.
+     * Creates a YStreamPosition from the given LCR position, deriving the SCN from it.
      *
-     * @param rawPosition the raw LCR position
+     * @param lcrPosition the LCR position
      */
-    public YStreamPosition(Position rawPosition) {
-        this.rawPosition = rawPosition;
-        this.scn = new Scn(BigInteger.valueOf(rawPosition.getCommitScn().getScn()));
-        LOGGER.trace("LCR position {} converted to SCN", rawPosition);
+    public YStreamPosition(Position lcrPosition) {
+        this.lcrPosition = lcrPosition;
+        LOGGER.trace("LCR position {} converted to SCN", lcrPosition);
     }
 
     /**
@@ -80,20 +77,13 @@ public class YStreamPosition implements Comparable<YStreamPosition> {
     /**
      * @return the raw LCR position
      */
-    public Position getRawPosition() {
-        return rawPosition;
-    }
-
-    /**
-     * @return the system change number
-     */
-    public Scn getScn() {
-        return scn;
+    public Position getLcrPosition() {
+        return lcrPosition;
     }
 
     @Override
     public int hashCode() {
-        return rawPosition != null ? rawPosition.hashCode() : 0;
+        return lcrPosition != null ? lcrPosition.hashCode() : 0;
     }
 
     @Override
@@ -107,12 +97,12 @@ public class YStreamPosition implements Comparable<YStreamPosition> {
 
         YStreamPosition that = (YStreamPosition) o;
 
-        return Objects.equals(rawPosition, that.rawPosition);
+        return Objects.equals(lcrPosition, that.lcrPosition);
     }
 
     @Override
     public String toString() {
-        return rawPosition.toString();
+        return lcrPosition.toString();
     }
 
     @Override
@@ -121,6 +111,6 @@ public class YStreamPosition implements Comparable<YStreamPosition> {
             return 1;
         }
 
-        return this.rawPosition.compareTo(o.rawPosition);
+        return this.lcrPosition.compareTo(o.lcrPosition);
     }
 }

@@ -13,7 +13,6 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.document.Document;
 import io.debezium.relational.RelationalSnapshotChangeEventSource.RelationalSnapshotContext;
 import io.debezium.relational.TableId;
 
@@ -33,22 +32,6 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
      */
     public AbstractStreamingAdapter(YashanDbConnectorConfig connectorConfig) {
         this.connectorConfig = connectorConfig;
-    }
-
-    /**
-     * Resolves a System Change Number from the given document, handling both string and legacy long-based SCN representations.
-     *
-     * @param document the document containing the SCN value
-     *
-     * @return the resolved Scn instance
-     */
-    protected Scn resolveScn(Document document) {
-        final String scn = document.getString(SourceInfo.SCN_KEY);
-        if (scn == null) {
-            Long scnValue = document.getLong(SourceInfo.SCN_KEY);
-            return Scn.valueOf(scnValue == null ? 0 : scnValue);
-        }
-        return Scn.valueOf(scn);
     }
 
     /**
@@ -99,7 +82,7 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
             lastDdlScnQuery.append(" (owner = ? AND object_name = ?) OR");
         }
 
-        String query = lastDdlScnQuery.substring(0, lastDdlScnQuery.length() - 3).toString();
+        String query = lastDdlScnQuery.substring(0, lastDdlScnQuery.length() - 3);
         try (PreparedStatement stmt = connection.connection().prepareStatement(query)) {
             int paramIndex = 1;
             for (TableId table : ctx.capturedTables) {
@@ -121,13 +104,6 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
             }
 
             return Optional.of(Scn.valueOf(latestDdlTime));
-        }
-        catch (SQLException e) {
-            if (e.getErrorCode() == 8180) {
-                LOGGER.info("No latest table SCN could be resolved, defaulting to current SCN");
-                return Optional.empty();
-            }
-            throw e;
         }
     }
 }

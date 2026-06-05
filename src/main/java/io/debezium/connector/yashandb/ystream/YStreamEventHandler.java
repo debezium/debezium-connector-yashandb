@@ -117,14 +117,13 @@ class YStreamEventHandler {
                         final YStreamPosition recPosition = offsetLcrPosition;
                         LOGGER.debug("Ignoring change event with already processed SCN/LCR Position {}/{}, last recorded {}/{}",
                                 yStreamPosition,
-                                yStreamPosition.getRawPosition().getCommitScn().getScn(),
+                                yStreamPosition.getLcrPosition().getCommitScn().getScn(),
                                 recPosition,
-                                recPosition.getRawPosition().getCommitScn().getScn());
+                                recPosition.getLcrPosition().getCommitScn().getScn());
                     }
                     return;
                 }
-                offsetContext.setScn(yStreamPosition.getScn());
-                offsetContext.setLcrPosition(yStreamPosition.getRawPosition());
+                offsetContext.setLcrPosition(yStreamPosition.getLcrPosition());
                 offsetContext.setTransactionId(String.valueOf(record.getYstreamLcrInterface().getTransactionId()));
             }
             switch (record.getYstreamLcrInterface().getLcrType()) {
@@ -410,27 +409,16 @@ class YStreamEventHandler {
         if (eventSource.getYstreamClientBoot() == null) {
             return;
         }
-        final YStreamStreamingChangeEventSource.PositionAndScn message = eventSource.receivePublishedPosition();
+        final YStreamPosition message = eventSource.receivePublishedPosition();
         if (message == null) {
             return;
         }
         LOGGER.debug("Recording offsets to YashanDB");
-        if (message.position != null) {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Recording position {}", message.position);
-            }
-            eventSource.getYstreamClientBoot().setAppliedPosition(
-                    message.position.getRawPosition());
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Recording position {}", message);
         }
-        else if (message.scn != null) {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Recording position with SCN {}", message.scn);
-            }
-        }
-        else {
-            LOGGER.warn("Nothing in offsets could be recorded to YashanDB");
-            return;
-        }
+        eventSource.getYstreamClientBoot().setAppliedPosition(
+                message.getLcrPosition());
         LOGGER.trace("Offsets recorded to YashanDB");
     }
 

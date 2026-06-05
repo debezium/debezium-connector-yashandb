@@ -26,7 +26,6 @@ public class YashanDbSourceInfoStructMaker extends AbstractSourceInfoStructMaker
                 .field(SourceInfo.SCHEMA_NAME_KEY, Schema.STRING_SCHEMA)
                 .field(SourceInfo.TABLE_NAME_KEY, Schema.STRING_SCHEMA)
                 .field(SourceInfo.TXID_KEY, Schema.OPTIONAL_STRING_SCHEMA)
-                .field(SourceInfo.SCN_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                 .field(SourceInfo.BATCH_ROW_ID_KEY, Schema.OPTIONAL_INT32_SCHEMA)
                 .field(SourceInfo.POSITION_SCN_KEY, Schema.OPTIONAL_INT64_SCHEMA)
                 .field(SourceInfo.GROUP_LSN_KEY, Schema.OPTIONAL_INT64_SCHEMA)
@@ -42,13 +41,10 @@ public class YashanDbSourceInfoStructMaker extends AbstractSourceInfoStructMaker
 
     @Override
     public Struct struct(SourceInfo sourceInfo) {
-        final String scn = sourceInfo.getScn() == null ? null : sourceInfo.getScn().toString();
-
         final Struct ret = super.commonStruct(sourceInfo)
                 .put(SourceInfo.SCHEMA_NAME_KEY, sourceInfo.tableSchema())
                 .put(SourceInfo.TABLE_NAME_KEY, sourceInfo.table())
-                .put(SourceInfo.TXID_KEY, sourceInfo.getTransactionId())
-                .put(SourceInfo.SCN_KEY, scn);
+                .put(SourceInfo.TXID_KEY, sourceInfo.getTransactionId());
 
         if (sourceInfo.getLcrPosition() != null) {
             ret.put(SourceInfo.POSITION_SCN_KEY, sourceInfo.getPositionScn());

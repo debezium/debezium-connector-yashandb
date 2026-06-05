@@ -22,14 +22,14 @@ class YStreamPositionTest {
     void shouldCreatePositionFromLong() {
         YStreamPosition pos = YStreamPosition.valueOf(1000L);
         assertThat(pos).isNotNull();
-        assertThat(pos.getScn().longValue()).isEqualTo(1000);
+        assertThat(pos.getLcrPosition().getCommitScn().getScn()).isEqualTo(1000);
     }
 
     @Test
     void shouldCreatePositionFromString() {
         YStreamPosition pos = YStreamPosition.valueOf("2000");
         assertThat(pos).isNotNull();
-        assertThat(pos.getScn().longValue()).isEqualTo(2000);
+        assertThat(pos.getLcrPosition().getCommitScn().getScn()).isEqualTo(2000);
     }
 
     @Test
@@ -41,7 +41,7 @@ class YStreamPositionTest {
     @Test
     void shouldGetRawPosition() {
         YStreamPosition pos = YStreamPosition.valueOf(3000L);
-        Position raw = pos.getRawPosition();
+        Position raw = pos.getLcrPosition();
         assertThat(raw).isNotNull();
         assertThat(raw.getCommitScn().getScn()).isEqualTo(3000);
     }
@@ -107,6 +107,6 @@ class YStreamPositionTest {
     void shouldDeriveScnFromRawPosition() {
         Position rawPosition = new Position(new SystemChangeNumber(5555L), new LogPosition());
         YStreamPosition pos = new YStreamPosition(rawPosition);
-        assertThat(pos.getScn().longValue()).isEqualTo(5555);
+        assertThat(pos.getLcrPosition().getCommitScn().getScn()).isEqualTo(5555);
     }
 }

@@ -43,8 +43,8 @@ class YashanDbEventMetadataProvider implements EventMetadataProvider {
         if (source == null) {
             return null;
         }
-        final String scn = sourceInfo.getString(SourceInfo.SCN_KEY);
-        return Collect.hashMapOf(SourceInfo.SCN_KEY, scn == null ? "null" : scn);
+        final Long positionScn = sourceInfo.getInt64(SourceInfo.POSITION_SCN_KEY);
+        return Collect.hashMapOf(SourceInfo.POSITION_SCN_KEY, positionScn == null ? "null" : String.valueOf(positionScn));
     }
 
     @Override

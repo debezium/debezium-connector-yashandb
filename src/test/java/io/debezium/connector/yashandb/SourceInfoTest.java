@@ -34,18 +34,6 @@ class SourceInfoTest {
     }
 
     @Test
-    void shouldSetAndGetScn() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
-        SourceInfo sourceInfo = new TestableSourceInfo(config);
-
-        Scn scn = Scn.valueOf(12345);
-        sourceInfo.setScn(scn);
-
-        assertThat(sourceInfo.getScn()).isEqualTo(scn);
-        assertThat(sourceInfo.getScn().longValue()).isEqualTo(12345);
-    }
-
-    @Test
     void shouldSetAndGetTransactionId() {
         YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
         SourceInfo sourceInfo = new TestableSourceInfo(config);
@@ -207,15 +195,6 @@ class SourceInfoTest {
     }
 
     @Test
-    void shouldInitializeWithNullScn() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
-        SourceInfo sourceInfo = new TestableSourceInfo(config);
-
-        assertThat(sourceInfo.getScn()).isNull();
-        assertThat(sourceInfo.getTransactionId()).isNull();
-    }
-
-    @Test
     void shouldHandleAllLcrPositionComponents() {
         YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
         SourceInfo sourceInfo = new TestableSourceInfo(config);
@@ -254,17 +233,6 @@ class SourceInfoTest {
         assertThat(sourceInfo.getGroupLsn()).isEqualTo(0L);
         assertThat(sourceInfo.getGroupOffset()).isEqualTo(0);
         assertThat(sourceInfo.getBatchRowId()).isEqualTo(0);
-    }
-
-    @Test
-    void shouldSetScnToNull() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
-        SourceInfo sourceInfo = new TestableSourceInfo(config);
-
-        sourceInfo.setScn(Scn.valueOf(100));
-        sourceInfo.setScn(null);
-
-        assertThat(sourceInfo.getScn()).isNull();
     }
 
     @Test
