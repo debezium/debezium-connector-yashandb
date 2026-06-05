@@ -190,7 +190,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     @Override
     protected String enhanceOverriddenSelect(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                              String overriddenSelect, TableId tableId) {
-        String snapshotOffset = (String) snapshotContext.offset.getOffset().get(SourceInfo.SCN_KEY);
+        String snapshotOffset = (String) snapshotContext.offset.getOffset().get(YashanDbOffsetContext.SNAPSHOT_SCN_KEY);
         String token = connectorConfig.getTokenToReplaceInSnapshotPredicate();
         if (token != null) {
             return overriddenSelect.replaceAll(token, " AS OF SCN " + snapshotOffset);
@@ -221,7 +221,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     protected Instant getSnapshotSourceTimestamp(JdbcConnection jdbcConnection, YashanDbOffsetContext offset, TableId tableId) {
         try {
             final YashanDbConnection connection = (YashanDbConnection) jdbcConnection;
-            return connection.getScnToTimestamp(offset.getScn())
+            return connection.getScnToTimestamp(offset.getSnapshotScn())
                     .orElseThrow(() -> new ConnectException("Failed reading SCN timestamp from database"))
                     // Database host timezone adjustment
                     .minusSeconds(connection.getScnToTimestamp(offset.getSnapshotScn()).get().toEpochMilli())
@@ -286,12 +286,10 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     public YashanDbOffsetContext load(Map<String, ?> offset) {
         boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
         boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY));
-        Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
         Map<String, Scn> snapshotPendingTransactions = YashanDbOffsetContext.loadSnapshotPendingTransactions(offset);
         Scn snapshotScn = YashanDbOffsetContext.loadSnapshotScn(offset);
-        Scn ystreamStartScn = YashanDbOffsetContext.loadYstreamStartScn(offset);
         Position recoverPosition = YashanDbOffsetContext.loadRecoverPosition(offset);
-        return new YashanDbOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
+        return new YashanDbOffsetContext(connectorConfig, snapshotScn, recoverPosition, snapshotPendingTransactions, snapshot,
                 snapshotCompleted,
                 TransactionContext.load(offset),
                 SignalBasedIncrementalSnapshotContext.load(offset));

@@ -9,7 +9,6 @@ import java.sql.SQLException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +17,6 @@ import com.sics.ystream.result.LogPosition;
 import com.sics.ystream.result.Position;
 import com.sics.ystream.result.SystemChangeNumber;
 
-import io.debezium.DebeziumException;
 import io.debezium.config.Configuration;
 import io.debezium.connector.yashandb.AbstractStreamingAdapter;
 import io.debezium.connector.yashandb.Scn;
@@ -85,12 +83,7 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
             public boolean isPositionAtOrBefore(Document recorded, Document desired) {
                 final YStreamPosition recordedPosition = documentToPosition(recorded);
                 final YStreamPosition desiredPosition = documentToPosition(desired);
-                final Scn recordedScn = recordedPosition != null ? recordedPosition.getScn() : resolveScn(recorded);
-                final Scn desiredScn = desiredPosition != null ? desiredPosition.getScn() : resolveScn(desired);
-                if (recordedPosition != null && desiredPosition != null) {
-                    return recordedPosition.compareTo(desiredPosition) < 1;
-                }
-                return recordedScn.compareTo(desiredScn) < 1;
+                return recordedPosition.compareTo(desiredPosition) < 1;
             }
         };
     }
@@ -218,35 +211,23 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
 
         final Optional<Scn> latestTableDdlScn = getLatestTableDdlScn(ctx, connection);
 
-        // The oldest transaction SCN serves as the starting point for creation, and the second current SCN serves as the flashback point.
-        Scn currentScn1;
+        // The timestamp of this SCN must be later than the timestamp of the latest DDL change of any captured table.
+        Scn currentScn;
         do {
-            currentScn1 = connection.getCurrentScn();
-        } while (areSameTimestamp(latestTableDdlScn.orElse(null), currentScn1, connection));
-        Scn flashPointScn;
-        try {
-            TimeUnit.SECONDS.sleep(3);
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new DebeziumException("Interrupted in query earliestActiveTxnScn and current Scn2.");
-        }
+            currentScn = connection.getCurrentScn();
+        } while (areSameTimestamp(latestTableDdlScn.orElse(null), currentScn, connection));
 
-        do {
-            flashPointScn = connection.getCurrentScn();
-        } while (areSameTimestamp(latestTableDdlScn.orElse(null), flashPointScn, connection));
+        // The recoverPosition here is used as the starting point for the YStream service.
+        // It must be set to currentScn + 1 to ensure no data loss and no data duplication.
+        Position recoverPosition = new Position(
+                new SystemChangeNumber(currentScn.add(Scn.valueOf(1)).longValue()), new LogPosition());
 
-        Position position = new Position(
-                new SystemChangeNumber(flashPointScn.add(Scn.valueOf(1)).longValue()), new LogPosition());
-
-        LOGGER.info("\tCurrent SCN resolved as {}", flashPointScn);
+        LOGGER.info("\tCurrent SCN resolved as {}", currentScn);
 
         return YashanDbOffsetContext.create()
                 .logicalName(connectorConfig)
-                .ystreamStartScn(currentScn1)
-                .recoverPosition(position)
-                .scn(flashPointScn)
-                .snapshotScn(flashPointScn)
+                .recoverPosition(recoverPosition)
+                .snapshotScn(currentScn)
                 .snapshotPendingTransactions(Collections.emptyMap())
                 .transactionContext(new TransactionContext())
                 .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>())

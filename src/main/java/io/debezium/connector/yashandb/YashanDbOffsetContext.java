@@ -34,7 +34,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     public static final String SNAPSHOT_COMPLETED_KEY = "snapshot_completed";
     public static final String SNAPSHOT_PENDING_TRANSACTIONS_KEY = "snapshot_pending_tx";
     public static final String SNAPSHOT_SCN_KEY = "snapshot_scn";
-    public static final String YSTREAM_START_SCN_KEY = "ystream_start_scn";
 
     private final Schema sourceInfoSchema;
 
@@ -50,7 +49,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      */
     private final Scn snapshotScn;
 
-    private final Scn ystreamStartScn;
     private final Position recoverPosition;
 
     /**
@@ -68,9 +66,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      * Creates a YashanDbOffsetContext instance initialized with the given parameters for tracking offset state.
      *
      * @param connectorConfig the connector configuration
-     * @param scn the current SCN
      * @param snapshotScn the snapshot SCN
-     * @param ystreamStartScn the YStream start SCN
      * @param recoverPosition the recover position
      * @param snapshotPendingTransactions the pending transactions map
      * @param snapshot whether a snapshot is in progress
@@ -78,14 +74,12 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      * @param transactionContext the transaction context
      * @param incrementalSnapshotContext the incremental snapshot context
      */
-    public YashanDbOffsetContext(YashanDbConnectorConfig connectorConfig, Scn scn,
-                                 Scn snapshotScn, Scn ystreamStartScn, Position recoverPosition, Map<String, Scn> snapshotPendingTransactions,
+    public YashanDbOffsetContext(YashanDbConnectorConfig connectorConfig,
+                                 Scn snapshotScn, Position recoverPosition, Map<String, Scn> snapshotPendingTransactions,
                                  boolean snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
                                  IncrementalSnapshotContext<TableId> incrementalSnapshotContext) {
         super(new SourceInfo(connectorConfig));
         this.recoverPosition = recoverPosition;
-        this.ystreamStartScn = ystreamStartScn;
-        sourceInfo.setScn(scn);
         sourceInfo.setLcrPosition(recoverPosition);
         sourceInfoSchema = sourceInfo.schema();
 
@@ -113,14 +107,12 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     public static class Builder {
 
         private YashanDbConnectorConfig connectorConfig;
-        private Scn scn;
         private boolean snapshot;
         private boolean snapshotCompleted;
         private TransactionContext transactionContext;
         private IncrementalSnapshotContext<TableId> incrementalSnapshotContext;
         private Map<String, Scn> snapshotPendingTransactions;
         private Scn snapshotScn;
-        private Scn ystreamStartScn;
         private Position recoverPosition;
 
         /**
@@ -136,18 +128,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         }
 
         /**
-         * Sets the YStream start SCN.
-         *
-         * @param scn the YStream start SCN
-         *
-         * @return this builder for method chaining
-         */
-        public Builder ystreamStartScn(Scn scn) {
-            this.ystreamStartScn = scn;
-            return this;
-        }
-
-        /**
          * Sets the recover position.
          *
          * @param recoverPosition the recover position
@@ -156,18 +136,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
          */
         public Builder recoverPosition(Position recoverPosition) {
             this.recoverPosition = recoverPosition;
-            return this;
-        }
-
-        /**
-         * Sets the SCN.
-         *
-         * @param scn the SCN value
-         *
-         * @return this builder for method chaining
-         */
-        public Builder scn(Scn scn) {
-            this.scn = scn;
             return this;
         }
 
@@ -249,7 +217,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
          * @return the built YashanDbOffsetContext instance
          */
         public YashanDbOffsetContext build() {
-            return new YashanDbOffsetContext(connectorConfig, scn, snapshotScn, ystreamStartScn, recoverPosition, snapshotPendingTransactions, snapshot,
+            return new YashanDbOffsetContext(connectorConfig, snapshotScn, recoverPosition, snapshotPendingTransactions, snapshot,
                     snapshotCompleted, transactionContext,
                     incrementalSnapshotContext);
         }
@@ -274,8 +242,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         if (sourceInfo.isSnapshot()) {
             Map<String, Object> offset = new HashMap<>();
 
-            final Scn scn = sourceInfo.getScn();
-            offset.put(SourceInfo.SCN_KEY, scn != null ? scn.toString() : null);
             offset.put(SourceInfo.SNAPSHOT_KEY, true);
             offset.put(SNAPSHOT_COMPLETED_KEY, snapshotCompleted);
 
@@ -286,7 +252,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
                 offset.put(SNAPSHOT_PENDING_TRANSACTIONS_KEY, encoded);
             }
             offset.put(SNAPSHOT_SCN_KEY, snapshotScn != null ? snapshotScn.isNull() ? null : snapshotScn.toString() : null);
-            offset.put(YSTREAM_START_SCN_KEY, ystreamStartScn != null ? ystreamStartScn.isNull() ? null : ystreamStartScn.toString() : null);
             offset.put(SourceInfo.POSITION_SCN_KEY, recoverPosition.getCommitScn().getScn());
             offset.put(SourceInfo.GROUP_LSN_KEY, recoverPosition.getLogPosition().getGroupLsn());
             offset.put(SourceInfo.GROUP_OFFSET_KEY, recoverPosition.getLogPosition().getGroupOffset());
@@ -298,7 +263,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         else {
             final Map<String, Object> offset = new HashMap<>();
             if (sourceInfo.getLcrPosition() != null) {
-                // offset.put(SourceInfo.LCR_POSITION_KEY, sourceInfo.getLcrPosition());
                 offset.put(SourceInfo.POSITION_SCN_KEY, sourceInfo.getPositionScn());
                 offset.put(SourceInfo.GROUP_LSN_KEY, sourceInfo.getGroupLsn());
                 offset.put(SourceInfo.GROUP_OFFSET_KEY, sourceInfo.getGroupOffset());
@@ -307,8 +271,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
             }
             else {
                 // has not lcr position, use recoverPosition.
-                final Scn scn = sourceInfo.getScn();
-                offset.put(SourceInfo.SCN_KEY, scn != null ? scn.toString() : null);
                 offset.put(SourceInfo.POSITION_SCN_KEY, recoverPosition.getCommitScn().getScn());
                 offset.put(SourceInfo.GROUP_LSN_KEY, recoverPosition.getLogPosition().getGroupLsn());
                 offset.put(SourceInfo.GROUP_OFFSET_KEY, recoverPosition.getLogPosition().getGroupOffset());
@@ -322,7 +284,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
                 offset.put(SNAPSHOT_PENDING_TRANSACTIONS_KEY, encoded);
             }
             offset.put(SNAPSHOT_SCN_KEY, snapshotScn != null ? snapshotScn.isNull() ? null : snapshotScn.toString() : null);
-            offset.put(YSTREAM_START_SCN_KEY, ystreamStartScn != null ? ystreamStartScn.isNull() ? null : ystreamStartScn.toString() : null);
             return incrementalSnapshotContext.store(transactionContext.store(offset));
         }
     }
@@ -335,33 +296,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     @Override
     public Schema getSourceInfoSchema() {
         return sourceInfoSchema;
-    }
-
-    /**
-     * Sets the current SCN.
-     *
-     * @param scn the SCN to set
-     */
-    public void setScn(Scn scn) {
-        sourceInfo.setScn(scn);
-    }
-
-    /**
-     * Returns the current SCN.
-     *
-     * @return the SCN
-     */
-    public Scn getScn() {
-        return sourceInfo.getScn();
-    }
-
-    /**
-     * Returns the YStream start SCN.
-     *
-     * @return the YStream start SCN
-     */
-    public Scn getYstreamStartScn() {
-        return ystreamStartScn;
     }
 
     /**
@@ -481,7 +415,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      */
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("YashanDbOffsetContext [scn=").append(getScn());
+        StringBuilder sb = new StringBuilder("YashanDbOffsetContext [positionScn=").append(sourceInfo.getPositionScn());
 
         if (sourceInfo.isSnapshot()) {
             sb.append(", snapshot=").append(sourceInfo.isSnapshot());
@@ -553,7 +487,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      * Helper method to resolve a {@link Scn} by key from the offset map.
      *
      * @param offset the offset map
-     * @param key    the entry key, either {@link SourceInfo#SCN_KEY}.
+     * @param key    the entry key in the offset map.
      * @return the {@link Scn} or null if not found
      */
     public static Scn getScnFromOffsetMapByKey(Map<String, ?> offset, String key) {
@@ -598,17 +532,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      */
     public static Scn loadSnapshotScn(Map<String, ?> offset) {
         return getScnFromOffsetMapByKey(offset, SNAPSHOT_SCN_KEY);
-    }
-
-    /**
-     * Loads the YStream start SCN from the offset map.
-     *
-     * @param offset the offset map
-     *
-     * @return the YStream start SCN, or null if not found
-     */
-    public static Scn loadYstreamStartScn(Map<String, ?> offset) {
-        return getScnFromOffsetMapByKey(offset, YSTREAM_START_SCN_KEY);
     }
 
     /**

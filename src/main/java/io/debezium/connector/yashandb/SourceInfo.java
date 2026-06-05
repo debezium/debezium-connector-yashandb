@@ -32,7 +32,6 @@ import io.debezium.relational.TableId;
 public class SourceInfo extends BaseSourceInfo {
 
     public static final String TXID_KEY = "txId";
-    public static final String SCN_KEY = "scn";
     public static final String USERNAME_KEY = "user_name";
 
     public static final String POSITION_SCN_KEY = "position_scn";
@@ -41,7 +40,6 @@ public class SourceInfo extends BaseSourceInfo {
     public static final String GROUP_OFFSET_KEY = "group_offset";
     public static final String BATCH_ROW_ID_KEY = "batch_row_id";
 
-    private Scn scn;
     private String transactionId;
     private Instant sourceTime;
     private Set<TableId> tableIds;
@@ -60,24 +58,6 @@ public class SourceInfo extends BaseSourceInfo {
      */
     protected SourceInfo(YashanDbConnectorConfig connectorConfig) {
         super(connectorConfig);
-    }
-
-    /**
-     * Returns the current system change number.
-     *
-     * @return the current SCN
-     */
-    public Scn getScn() {
-        return scn;
-    }
-
-    /**
-     * Sets the current system change number.
-     *
-     * @param scn the SCN to set
-     */
-    public void setScn(Scn scn) {
-        this.scn = scn;
     }
 
     /**

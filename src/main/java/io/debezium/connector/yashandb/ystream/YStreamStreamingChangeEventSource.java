@@ -16,8 +16,6 @@ import com.sics.ystream.YstreamClientBoot;
 import com.sics.ystream.conf.StartMode;
 import com.sics.ystream.conf.YstreamConfig;
 
-import io.debezium.connector.yashandb.Scn;
-import io.debezium.connector.yashandb.SourceInfo;
 import io.debezium.connector.yashandb.YashanDbConnection;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig;
 import io.debezium.connector.yashandb.YashanDbDatabaseSchema;
@@ -56,7 +54,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
      * This is important as setting watermark in a concurrent thread can lead to a deadlock due to an
      * internal YashanDB code locking.
      */
-    private final AtomicReference<PositionAndScn> lcrMessage = new AtomicReference<>();
+    private final AtomicReference<YStreamPosition> lcrMessage = new AtomicReference<>();
     private YashanDbOffsetContext effectiveOffset;
 
     /**
@@ -181,10 +179,9 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         if (ystreamClientBoot != null) {
             LOGGER.debug("Sending message to request recording of offsets to YashanDB");
             final YStreamPosition lcrPosition = YStreamPosition.valueOf(offset);
-            final Scn scn = YashanDbOffsetContext.getScnFromOffsetMapByKey(offset, SourceInfo.SCN_KEY);
             // We can safely overwrite the message even if it was not processed. The watermarked will be set to the highest
             // (last) delivered value in a single step instead of incrementally
-            sendPublishedPosition(lcrPosition, scn);
+            sendPublishedPosition(lcrPosition);
         }
     }
 
@@ -197,25 +194,6 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     }
 
     /**
-     * A simple container holding a YStream position and an SCN value.
-     */
-    public static class PositionAndScn {
-        public final YStreamPosition position;
-        public final Scn scn;
-
-        /**
-         * Creates a PositionAndScn with the given position and SCN.
-         *
-         * @param position the YStream position
-         * @param scn the system change number
-         */
-        public PositionAndScn(YStreamPosition position, Scn scn) {
-            this.position = position;
-            this.scn = scn;
-        }
-    }
-
-    /**
      * @return the YStream client boot instance
      */
     public YstreamClientBoot<YStreamRecord> getYstreamClientBoot() {
@@ -223,14 +201,13 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     }
 
     /**
-     * Sends the published position and SCN to the message box for the YStream thread to process.
+     * Sends the published position to the message box for the YStream thread to process.
      *
      * @param lcrPosition the LCR position to publish
-     * @param scn the system change number to publish
      */
-    private void sendPublishedPosition(final YStreamPosition lcrPosition, final Scn scn) {
-        if (lcrPosition.getRawPosition().compareTo(this.effectiveOffset.getRecoverPosition()) > 0) {
-            lcrMessage.set(new PositionAndScn(lcrPosition, scn));
+    private void sendPublishedPosition(final YStreamPosition lcrPosition) {
+        if (lcrPosition.getLcrPosition().compareTo(this.effectiveOffset.getRecoverPosition()) > 0) {
+            lcrMessage.set(lcrPosition);
         }
     }
 
@@ -239,7 +216,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
      *
      * @return the published position and SCN, or null if none pending
      */
-    PositionAndScn receivePublishedPosition() {
+    YStreamPosition receivePublishedPosition() {
         return lcrMessage.getAndSet(null);
     }
 }

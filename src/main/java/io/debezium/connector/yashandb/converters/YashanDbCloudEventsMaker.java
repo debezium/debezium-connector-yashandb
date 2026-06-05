@@ -8,6 +8,7 @@ package io.debezium.connector.yashandb.converters;
 import java.util.Set;
 
 import io.debezium.connector.AbstractSourceInfo;
+import io.debezium.connector.yashandb.SourceInfo;
 import io.debezium.converters.recordandmetadata.RecordAndMetadata;
 import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.converters.spi.SerializerType;
@@ -19,12 +20,12 @@ import io.debezium.util.Collect;
  */
 public class YashanDbCloudEventsMaker extends CloudEventsMaker {
 
-    public static final String SCN_KEY = "scn";
+    public static final String POSITION_SCN_KEY = SourceInfo.POSITION_SCN_KEY;
     public static final String COMMIT_SCN_KEY = "commit_scn";
     public static final String LCR_POSITION_KEY = "lcr_position";
 
     static final Set<String> YASHANDB_SOURCE_FIELDS = Collect.unmodifiableSet(
-            SCN_KEY,
+            POSITION_SCN_KEY,
             COMMIT_SCN_KEY,
             LCR_POSITION_KEY);
 
@@ -49,7 +50,7 @@ public class YashanDbCloudEventsMaker extends CloudEventsMaker {
     @Override
     public String ceId() {
         return "name:" + sourceField(AbstractSourceInfo.SERVER_NAME_KEY)
-                + ";scn:" + sourceField(SCN_KEY)
+                + ";position_scn:" + sourceField(POSITION_SCN_KEY)
                 + ";commit_scn:" + sourceField(COMMIT_SCN_KEY)
                 + ";lcr_position:" + sourceField(LCR_POSITION_KEY);
     }
