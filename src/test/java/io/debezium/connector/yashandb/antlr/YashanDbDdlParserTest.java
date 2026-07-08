@@ -12,7 +12,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
 
+import io.debezium.config.Configuration;
+import io.debezium.connector.yashandb.YashanDbConnectorConfig;
 import io.debezium.connector.yashandb.YashanDbValueConverters;
+import io.debezium.relational.Tables;
 import io.debezium.relational.Tables.TableFilter;
 
 /**
@@ -136,5 +139,15 @@ class YashanDbDdlParserTest {
         assertThatThrownBy(() -> parser.systemVariables())
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessage("Not implemented yet");
+    }
+
+    @Test
+    public void shouldParseAlterTableDropColumn() {
+        String sql = "ALTER TABLE DBZ.A drop column col3";
+        YashanDbDdlParser ddlParser = new YashanDbDdlParser(false, new YashanDbValueConverters(new YashanDbConnectorConfig(Configuration.create().build()),
+                null), Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println();
     }
 }
