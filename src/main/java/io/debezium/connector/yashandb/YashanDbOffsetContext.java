@@ -41,15 +41,15 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     private final IncrementalSnapshotContext<TableId> incrementalSnapshotContext;
 
     /**
-     * SCN that was used for the initial consistent snapshot.
+     * SCN that was used for the initial consistent snapshot. This value is refreshed with each event.
+     * Initially, this value differs from sourceInfo.getLcrPosition by 1 to ensure data consistency
+     * between full snapshot and incremental (CDC) data.
      * <p>
      * We keep track of this field because it's a cutoff for emitting DDL statements,
      * in case we start mining _before_ the snapshot SCN to cover transactions that were
      * ongoing at the time the snapshot was taken.
      */
-    private final Scn snapshotScn;
-
-    private final Position recoverPosition;
+    private Scn snapshotScn;
 
     /**
      * Map of (txid, start SCN) for all transactions in progress at the time the
@@ -79,7 +79,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
                                  boolean snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
                                  IncrementalSnapshotContext<TableId> incrementalSnapshotContext) {
         super(new SourceInfo(connectorConfig));
-        this.recoverPosition = recoverPosition;
         sourceInfo.setLcrPosition(recoverPosition);
         sourceInfoSchema = sourceInfo.schema();
 
@@ -239,10 +238,11 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      */
     @Override
     public Map<String, ?> getOffset() {
-        if (sourceInfo.isSnapshot()) {
+        Position lcrPosition = sourceInfo.getLcrPosition();
+        if (getSnapshot().isPresent()) {
             Map<String, Object> offset = new HashMap<>();
 
-            offset.put(SourceInfo.SNAPSHOT_KEY, true);
+            offset.put(SourceInfo.SNAPSHOT_KEY, getSnapshot().get().toString());
             offset.put(SNAPSHOT_COMPLETED_KEY, snapshotCompleted);
 
             if (snapshotPendingTransactions != null && !snapshotPendingTransactions.isEmpty()) {
@@ -252,31 +252,21 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
                 offset.put(SNAPSHOT_PENDING_TRANSACTIONS_KEY, encoded);
             }
             offset.put(SNAPSHOT_SCN_KEY, snapshotScn != null ? snapshotScn.isNull() ? null : snapshotScn.toString() : null);
-            offset.put(SourceInfo.POSITION_SCN_KEY, recoverPosition.getCommitScn().getScn());
-            offset.put(SourceInfo.GROUP_LSN_KEY, recoverPosition.getLogPosition().getGroupLsn());
-            offset.put(SourceInfo.GROUP_OFFSET_KEY, recoverPosition.getLogPosition().getGroupOffset());
-            offset.put(SourceInfo.BATCH_ROW_ID_KEY, recoverPosition.getLogPosition().getBatchRowId());
-            offset.put(SourceInfo.INSTANCE_ID_KEY, String.valueOf(recoverPosition.getLogPosition().getInstanceId()));
+            offset.put(SourceInfo.POSITION_SCN_KEY, lcrPosition.getCommitScn().getScn());
+            offset.put(SourceInfo.GROUP_LSN_KEY, lcrPosition.getLogPosition().getGroupLsn());
+            offset.put(SourceInfo.GROUP_OFFSET_KEY, lcrPosition.getLogPosition().getGroupOffset());
+            offset.put(SourceInfo.BATCH_ROW_ID_KEY, lcrPosition.getLogPosition().getBatchRowId());
+            offset.put(SourceInfo.INSTANCE_ID_KEY, String.valueOf(lcrPosition.getLogPosition().getInstanceId()));
 
             return offset;
         }
         else {
             final Map<String, Object> offset = new HashMap<>();
-            if (sourceInfo.getLcrPosition() != null) {
-                offset.put(SourceInfo.POSITION_SCN_KEY, sourceInfo.getPositionScn());
-                offset.put(SourceInfo.GROUP_LSN_KEY, sourceInfo.getGroupLsn());
-                offset.put(SourceInfo.GROUP_OFFSET_KEY, sourceInfo.getGroupOffset());
-                offset.put(SourceInfo.INSTANCE_ID_KEY, sourceInfo.getInstanceId());
-                offset.put(SourceInfo.BATCH_ROW_ID_KEY, sourceInfo.getBatchRowId());
-            }
-            else {
-                // has not lcr position, use recoverPosition.
-                offset.put(SourceInfo.POSITION_SCN_KEY, recoverPosition.getCommitScn().getScn());
-                offset.put(SourceInfo.GROUP_LSN_KEY, recoverPosition.getLogPosition().getGroupLsn());
-                offset.put(SourceInfo.GROUP_OFFSET_KEY, recoverPosition.getLogPosition().getGroupOffset());
-                offset.put(SourceInfo.INSTANCE_ID_KEY, String.valueOf(recoverPosition.getLogPosition().getInstanceId()));
-                offset.put(SourceInfo.BATCH_ROW_ID_KEY, recoverPosition.getLogPosition().getBatchRowId());
-            }
+            offset.put(SourceInfo.POSITION_SCN_KEY, lcrPosition.getCommitScn().getScn());
+            offset.put(SourceInfo.GROUP_LSN_KEY, lcrPosition.getLogPosition().getGroupLsn());
+            offset.put(SourceInfo.GROUP_OFFSET_KEY, lcrPosition.getLogPosition().getGroupOffset());
+            offset.put(SourceInfo.BATCH_ROW_ID_KEY, lcrPosition.getLogPosition().getBatchRowId());
+            offset.put(SourceInfo.INSTANCE_ID_KEY, String.valueOf(lcrPosition.getLogPosition().getInstanceId()));
             if (snapshotPendingTransactions != null && !snapshotPendingTransactions.isEmpty()) {
                 String encoded = snapshotPendingTransactions.entrySet().stream()
                         .map(e -> e.getKey() + ":" + e.getValue().toString())
@@ -304,7 +294,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      * @return the recover position
      */
     public Position getRecoverPosition() {
-        return recoverPosition;
+        return sourceInfo.getLcrPosition();
     }
 
     /**
@@ -313,6 +303,8 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      * @param lcrPosition the LCR position to set
      */
     public void setLcrPosition(Position lcrPosition) {
+        // reset snapshotScn, because of will used for blocking snapshot
+        snapshotScn = Scn.valueOf(lcrPosition.getCommitScn().getScn());
         sourceInfo.setLcrPosition(lcrPosition);
     }
 
