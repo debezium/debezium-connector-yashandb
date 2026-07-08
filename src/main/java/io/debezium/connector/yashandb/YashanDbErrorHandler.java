@@ -31,7 +31,9 @@ public class YashanDbErrorHandler extends ErrorHandler {
      * The error check uses case-insensitive contains semantics
      */
     @Immutable
-    private static final Set<String> RETRIABLE_ERROR_MESSAGES = Collect.unmodifiableSet();
+    private static final Set<String> RETRIABLE_ERROR_MESSAGES = Collect.unmodifiableSet(
+            "YAS-02094" // current session has been killed or canceled
+    );
 
     /**
      * Creates a new error handler for YashanDB.
