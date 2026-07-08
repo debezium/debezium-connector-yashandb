@@ -100,9 +100,6 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
                 () -> new YashanDbConnection(jdbcConfig));
 
         jdbcConnection = connectionFactory.mainConnection();
-        validateYStreamServer(connectorConfig);
-
-        validateRedoLogConfiguration(connectorConfig);
 
         YashanDbValueConverters valueConverters = new YashanDbValueConverters(connectorConfig, jdbcConnection);
         YashanDbDefaultValueConverter defaultValueConverter = new YashanDbDefaultValueConverter(valueConverters, jdbcConnection);
@@ -129,6 +126,10 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         connectorConfig.getBeanRegistry().add(StandardBeanNames.CDC_SOURCE_TASK_CONTEXT, taskContext);
 
         final SnapshotterService snapshotterService = connectorConfig.getServiceRegistry().tryGetService(SnapshotterService.class);
+        if (snapshotterService.getSnapshotter().shouldStream()) {
+            validateYStreamServer(connectorConfig);
+        }
+        validateRedoLogConfiguration(connectorConfig);
 
         YashanDbPartition partition = previousOffsets.getTheOnlyPartition();
         YashanDbOffsetContext previousOffset = previousOffsets.getTheOnlyOffset();
