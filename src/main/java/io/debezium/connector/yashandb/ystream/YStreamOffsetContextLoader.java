@@ -52,6 +52,7 @@ public class YStreamOffsetContextLoader implements OffsetContext.Loader<YashanDb
         final Position recoverPosition = YashanDbOffsetContext.loadRecoverPosition(offset);
         LOGGER.debug("loader offset context position:{}", recoverPosition);
         return new YashanDbOffsetContext(connectorConfig, snapshotScn, recoverPosition, snapshotPendingTransactions,
-                snapshot, snapshotCompleted, TransactionContext.load(offset), SignalBasedIncrementalSnapshotContext.load(offset));
+                snapshot, snapshotCompleted, TransactionContext.load(offset),
+                SignalBasedIncrementalSnapshotContext.load(offset, false));
     }
 }
