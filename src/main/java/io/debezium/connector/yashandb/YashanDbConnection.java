@@ -5,6 +5,7 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Arrays;
@@ -17,6 +18,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yashandb.jdbc.YasRowID;
 import com.yashandb.jdbc.YasTypes;
 
 import io.debezium.DebeziumException;
@@ -24,8 +26,10 @@ import io.debezium.config.Field;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.pipeline.source.snapshot.incremental.ChunkQueryBuilder;
+import io.debezium.relational.Column;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.spi.schema.DataCollectionId;
 
@@ -69,6 +73,21 @@ public class YashanDbConnection extends JdbcConnection {
      */
     protected YashanDbConnection(JdbcConfiguration config, ConnectionFactory connectionFactory, Operations initialOperations) {
         super(config, connectionFactory, initialOperations, QUOTED_CHARACTER, QUOTED_CHARACTER);
+    }
+
+    /**
+     * Creates a {@link TableId} with an empty catalog.
+     * YashanDB does not use catalog to identify tables — only schema and table name matter.
+     * This ensures consistency between schema registration and lookup.
+     *
+     * @param databaseName the database name (ignored for YashanDB)
+     * @param schemaName the schema name
+     * @param tableName the table name
+     * @return a TableId with empty catalog
+     */
+    @Override
+    public TableId createTableId(String databaseName, String schemaName, String tableName) {
+        return new TableId("", schemaName, tableName);
     }
 
     /**
@@ -140,6 +159,13 @@ public class YashanDbConnection extends JdbcConnection {
 
                     return rs.getString(1);
                 });
+    }
+
+    @Override
+    public Optional<Boolean> nullsSortLast() {
+        // "NULLS LAST is the default for ascending order"
+        // https://doc.yashandb.com/yashandb/23.4/zh/All-Manuals/Development-Guide/SQL-Reference-Manual/SQL-Statements/SELECT.html
+        return Optional.of(true);
     }
 
     @Override
@@ -233,6 +259,22 @@ public class YashanDbConnection extends JdbcConnection {
     public Optional<Instant> getCurrentTimestamp() throws SQLException {
         return queryAndMap("SELECT CURRENT_TIMESTAMP FROM DUAL",
                 rs -> rs.next() ? Optional.of(rs.getTimestamp(1).toInstant()) : Optional.empty());
+    }
+
+    @Override
+    public Object getColumnValue(ResultSet rs, int columnIndex, Column column, Table table) throws SQLException {
+        // YashanDB JDBC driver returns YasRowID (not Serializable) for ROWID columns via rs.getObject().
+        // Incremental snapshot serializes key arrays to offset storage using ObjectOutputStream,
+        // which fails with NotSerializableException on YasRowID.
+        // Convert to String here so the value flows correctly through:
+        // - offset serialization (String is Serializable)
+        // - SQL binding via PreparedStatement.setObject() (ROWID string comparison)
+        // - change event emission (YashanDbValueConverters already maps ROWID to STRING schema)
+        final Object value = super.getColumnValue(rs, columnIndex, column, table);
+        if (value instanceof YasRowID) {
+            return value.toString();
+        }
+        return value;
     }
 
     @Override
