@@ -1,0 +1,251 @@
+/*
+ * Copyright Debezium Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.debezium.connector.yashandb;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+
+import io.debezium.config.CommonConnectorConfig;
+import io.debezium.config.Configuration;
+import io.debezium.connector.yashandb.util.TestHelper;
+import io.debezium.jdbc.JdbcConnection;
+import io.debezium.pipeline.source.snapshot.incremental.AbstractIncrementalSnapshotTest;
+import io.debezium.relational.RelationalDatabaseConnectorConfig;
+import io.debezium.relational.history.SchemaHistory;
+
+public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<YashanDbConnector> {
+
+    private static final String A = "A";
+    private static final String B = "B";
+    private static final String A42 = "A42";
+    private static final String SIGNAL = "DEBEZIUM_SIGNAL";
+
+    private YashanDbConnection connection;
+
+    @BeforeAll
+    static void beforeAll() throws Exception {
+        TestHelper.dropTestUser();
+        TestHelper.createTestUser();
+        TestHelper.createYStreamServer();
+    }
+
+    @BeforeEach
+    void before() throws Exception {
+        connection = TestHelper.connectedConnection();
+
+        TestHelper.stopYStreamIfRunning();
+
+        TestHelper.dropTables(connection, A, B, A42, SIGNAL);
+
+        TestHelper.createTableIgnoreExists(connection,
+                "CREATE TABLE " + A + " (pk INT NOT NULL, aa INT, PRIMARY KEY (pk))");
+        TestHelper.createTableIgnoreExists(connection,
+                "CREATE TABLE " + B + " (pk INT NOT NULL, aa INT, PRIMARY KEY (pk))");
+        TestHelper.createTableIgnoreExists(connection,
+                "CREATE TABLE " + A42 + " (pk1 INT, pk2 INT, pk3 INT, pk4 INT, aa INT)");
+        TestHelper.createTableIgnoreExists(connection,
+                "CREATE TABLE " + SIGNAL + " (id VARCHAR(64), type VARCHAR(32), data VARCHAR(2048))");
+
+        // Register data tables AND signal table with YStream so signal INSERTs are captured by CDC
+        TestHelper.addYStreamTables(A + "," + B + "," + A42 + "," + SIGNAL);
+
+        setConsumeTimeout(30, TimeUnit.SECONDS);
+        initializeConnectorTestFramework();
+    }
+
+    @AfterEach
+    void after() throws Exception {
+        stopConnector();
+        TestHelper.stopYStreamIfRunning();
+        if (connection != null) {
+            TestHelper.dropTables(connection, A, B, A42, SIGNAL);
+            connection.close();
+        }
+    }
+
+    @Override
+    protected void waitForConnectorToStart() {
+        super.waitForConnectorToStart();
+        try {
+            waitForStreamingRunning(connector(), server());
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    protected Class<YashanDbConnector> connectorClass() {
+        return YashanDbConnector.class;
+    }
+
+    @Override
+    protected JdbcConnection databaseConnection() {
+        return TestHelper.connectedConnection();
+    }
+
+    @Override
+    protected String topicName() {
+        return TestHelper.topicName(A.toUpperCase(Locale.ROOT));
+    }
+
+    @Override
+    protected List<String> topicNames() {
+        return List.of(TestHelper.topicName(A.toUpperCase(Locale.ROOT)), TestHelper.topicName(B.toUpperCase(Locale.ROOT)));
+    }
+
+    @Override
+    protected String tableName() {
+        return TestHelper.qualifiedTableName(A);
+    }
+
+    @Override
+    protected String noPKTopicName() {
+        return TestHelper.topicName(A42.toUpperCase(Locale.ROOT));
+    }
+
+    @Override
+    protected String noPKTableName() {
+        return TestHelper.qualifiedTableName(A42);
+    }
+
+    @Override
+    protected List<String> tableNames() {
+        return List.of(TestHelper.qualifiedTableName(A), TestHelper.qualifiedTableName(B));
+    }
+
+    @Override
+    protected String tableDataCollectionId() {
+        return TestHelper.qualifiedTableName(A);
+    }
+
+    @Override
+    protected String noPKTableDataCollectionId() {
+        return TestHelper.qualifiedTableName(A42);
+    }
+
+    @Override
+    protected List<String> tableDataCollectionIds() {
+        return List.of(TestHelper.qualifiedTableName(A), TestHelper.qualifiedTableName(B));
+    }
+
+    @Override
+    protected String signalTableName() {
+        return TestHelper.qualifiedTableName(SIGNAL);
+    }
+
+    @Override
+    protected String signalTableNameSanitized() {
+        return TestHelper.qualifiedTableName(SIGNAL);
+    }
+
+    @Override
+    protected Configuration.Builder config() {
+        return baseConfig(YashanDbConnectorConfig.SnapshotMode.NO_DATA)
+                .with(YashanDbConnectorConfig.TABLE_INCLUDE_LIST,
+                        TestHelper.qualifiedTableName(A) + "," + TestHelper.qualifiedTableName(B) + "," + TestHelper.qualifiedTableName(A42))
+                .with(RelationalDatabaseConnectorConfig.MSG_KEY_COLUMNS, TestHelper.qualifiedTableName(A42) + ":pk1,pk2,pk3,pk4")
+                .with(SchemaHistory.STORE_ONLY_CAPTURED_TABLES_DDL, true);
+    }
+
+    @Override
+    protected Configuration.Builder mutableConfig(boolean signalTableOnly, boolean storeOnlyCapturedDdl) {
+        final String tableIncludeList;
+        if (signalTableOnly) {
+            tableIncludeList = TestHelper.TEST_SCHEMA + "\\." + B;
+        }
+        else {
+            tableIncludeList = TestHelper.TEST_SCHEMA + "\\." + A + "," + TestHelper.TEST_SCHEMA + "\\." + B;
+        }
+        return baseConfig(YashanDbConnectorConfig.SnapshotMode.INITIAL)
+                .with(YashanDbConnectorConfig.TABLE_INCLUDE_LIST, tableIncludeList)
+                .with(RelationalDatabaseConnectorConfig.MSG_KEY_COLUMNS, TestHelper.qualifiedTableName(A42) + ":pk1,pk2,pk3,pk4")
+                .with(SchemaHistory.STORE_ONLY_CAPTURED_TABLES_DDL, storeOnlyCapturedDdl);
+    }
+
+    @Override
+    protected String valueFieldName() {
+        return "AA";
+    }
+
+    @Override
+    protected String pkFieldName() {
+        return "PK";
+    }
+
+    @Override
+    protected String returnedIdentifierName(String queriedID) {
+        return queriedID.toUpperCase();
+    }
+
+    @Override
+    protected Optional<String> physicalRowIdentifierSurrogateKey() {
+        return Optional.of("ROWID");
+    }
+
+    @Override
+    protected String getSignalTypeFieldName() {
+        return "TYPE";
+    }
+
+    @Override
+    protected String alterTableAddColumnStatement(String tableName) {
+        return "ALTER TABLE " + tableName + " ADD col3 INT DEFAULT 0";
+    }
+
+    @Override
+    protected int defaultIncrementalSnapshotChunkSize() {
+        return 10;
+    }
+
+    // Do not override additionalConfiguration(): the parent returns
+    // INCREMENTAL_SNAPSHOT_CHUNK_SIZE=1, which is required by the two stop-snapshot
+    // tests so the stop signal is processed while the snapshot is still in progress
+    // (AbstractIncrementalSnapshotChangeEventSource#checkAndProcessStopFlag logs
+    // "Removed collections from incremental snapshot: " only when
+    // context.snapshotRunning() is true; otherwise it logs "stop ignored" and the
+    // assertion in consumeAnyRemainingIncrementalSnapshotEventsAndCheckForStopMessage
+    // fails). Overriding to 250 caused the 1000-row snapshot to finish in 4 chunks
+    // before the stop signal arrived.
+
+    @Override
+    protected String connector() {
+        return Module.name();
+    }
+
+    @Override
+    protected String server() {
+        return TestHelper.server();
+    }
+
+    @Override
+    protected Duration getWaitDurationInSeconds() {
+        return Duration.ofMinutes(5);
+    }
+
+    // ----------------------------------------------------------------
+    // Helper methods
+    // ----------------------------------------------------------------
+
+    private Configuration.Builder baseConfig(YashanDbConnectorConfig.SnapshotMode snapshotMode) {
+        return TestHelper.defaultConfig()
+                .with(YashanDbConnectorConfig.SNAPSHOT_MODE, snapshotMode)
+                .with(YashanDbConnectorConfig.YSTREAM_SERVER_NAME, TestHelper.ystreamServerName())
+                .with(YashanDbConnectorConfig.SIGNAL_DATA_COLLECTION, TestHelper.qualifiedTableName(SIGNAL))
+                .with(YashanDbConnectorConfig.YSTREAM_CLIENT_RESPONSE_TIMEOUT, 600)
+                .with(CommonConnectorConfig.SIGNAL_POLL_INTERVAL_MS, 100)
+                .with(CommonConnectorConfig.INCREMENTAL_SNAPSHOT_CHUNK_SIZE, defaultIncrementalSnapshotChunkSize());
+    }
+
+}

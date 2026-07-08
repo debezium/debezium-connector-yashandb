@@ -24,7 +24,7 @@ import io.debezium.util.Testing;
  */
 public final class TestHelper {
 
-    public static final String TEST_DATABASE = "SYS";
+    public static final String TEST_DATABASE = "testdb";
     public static final String TEST_CONNECTOR = "yashandb_server";
     public static final String TEST_SCHEMA = "DBZ";
     public static final String TEST_USER = "DBZ";
@@ -70,11 +70,15 @@ public final class TestHelper {
         return Configuration.copy(testJdbcConfig().build().map(key -> ConfigurationNames.DATABASE_CONFIG_PREFIX + key))
                 .with(CommonConnectorConfig.EXECUTOR_SHUTDOWN_TIMEOUT_MS, 28_657)
                 .with(AsyncEngineConfig.TASK_MANAGEMENT_TIMEOUT_MS, 196_418)
-                .with(CommonConnectorConfig.TOPIC_PREFIX, TEST_DATABASE)
+                .with(CommonConnectorConfig.TOPIC_PREFIX, TestHelper::server)
                 .with(YashanDbConnectorConfig.SCHEMA_HISTORY, FileSchemaHistory.class)
                 .with(YashanDbConnectorConfig.YSTREAM_SERVER_NAME, ystreamServerName())
                 .with(FileSchemaHistory.FILE_PATH, SCHEMA_HISTORY_PATH)
                 .with(YashanDbConnectorConfig.INCLUDE_SCHEMA_CHANGES, false);
+    }
+
+    public static String getTestUser() {
+        return TEST_USER;
     }
 
     public static String ystreamServerName() {
@@ -409,6 +413,10 @@ public final class TestHelper {
 
     public static String topicName(String tableName) {
         return TEST_DATABASE + "." + TEST_SCHEMA + "." + tableName;
+    }
+
+    public static String server() {
+        return TestHelper.TEST_DATABASE;
     }
 
     private static boolean isAlreadyExistsError(Exception e) {

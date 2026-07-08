@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import io.debezium.config.Configuration;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig;
 import io.debezium.connector.yashandb.YashanDbValueConverters;
+import io.debezium.relational.TableId;
 import io.debezium.relational.Tables;
 import io.debezium.relational.Tables.TableFilter;
 
@@ -143,11 +144,19 @@ class YashanDbDdlParserTest {
 
     @Test
     public void shouldParseAlterTableDropColumn() {
-        String sql = "ALTER TABLE DBZ.A drop column col3";
+        String createTableSql = "CREATE TABLE DBZ.A (col1 INT, col3 INT)";
+        String alterTableSql = "ALTER TABLE DBZ.A drop column col3";
         YashanDbDdlParser ddlParser = new YashanDbDdlParser(false, new YashanDbValueConverters(new YashanDbConnectorConfig(Configuration.create().build()),
                 null), Tables.TableFilter.includeAll());
         Tables databaseTables = new Tables();
-        ddlParser.parse(sql, databaseTables);
-        System.out.println();
+        TableId tableId = new TableId(null, null, "A");
+
+        ddlParser.parse(createTableSql, databaseTables);
+        assertThat(databaseTables.forTable(tableId)).isNotNull();
+        assertThat(databaseTables.forTable(tableId).columnWithName("COL3")).isNotNull();
+
+        ddlParser.parse(alterTableSql, databaseTables);
+        assertThat(databaseTables.forTable(tableId).columnWithName("COL1")).isNotNull();
+        assertThat(databaseTables.forTable(tableId).columnWithName("COL3")).isNull();
     }
 }
