@@ -12,6 +12,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
+
 import com.sics.ystream.result.LogPosition;
 import com.sics.ystream.result.Position;
 import com.sics.ystream.result.SystemChangeNumber;
@@ -43,6 +45,7 @@ public class SourceInfo extends BaseSourceInfo {
     private String transactionId;
     private Instant sourceTime;
     private Set<TableId> tableIds;
+    private final String databaseName;
 
     // YStream position
     private long positionScn;
@@ -58,6 +61,7 @@ public class SourceInfo extends BaseSourceInfo {
      */
     protected SourceInfo(YashanDbConnectorConfig connectorConfig) {
         super(connectorConfig);
+        this.databaseName = connectorConfig.getDatabaseName();
     }
 
     /**
@@ -66,7 +70,7 @@ public class SourceInfo extends BaseSourceInfo {
      * @return the LCR position
      */
     public Position getLcrPosition() {
-        return new Position(new SystemChangeNumber(positionScn), new LogPosition(Byte.parseByte(instanceId), groupLsn, groupOffset, batchRowId));
+        return new Position(new SystemChangeNumber(positionScn), new LogPosition(instanceId == null ? 0 : Byte.parseByte(instanceId), groupLsn, groupOffset, batchRowId));
     }
 
     /**
@@ -119,7 +123,10 @@ public class SourceInfo extends BaseSourceInfo {
      *
      * @param lcrPosition the LCR position to set
      */
-    public void setLcrPosition(Position lcrPosition) {
+    public void setLcrPosition(@Nullable Position lcrPosition) {
+        if (lcrPosition == null) {
+            return;
+        }
         this.positionScn = lcrPosition.getCommitScn().getScn();
         this.batchRowId = lcrPosition.getLogPosition().getBatchRowId();
         this.groupLsn = lcrPosition.getLogPosition().getGroupLsn();
@@ -220,11 +227,14 @@ public class SourceInfo extends BaseSourceInfo {
 
     /**
      * Returns the database catalog name for the current table event.
+     * Uses the configured database name from the connector configuration,
+     * ensuring the {@code db} field in the source struct is always populated
+     * even when the JDBC driver does not report catalog information.
      *
-     * @return the database catalog name, or null if no tables are set
+     * @return the database catalog name
      */
     @Override
     protected String database() {
-        return (tableIds != null) ? tableIds.iterator().next().catalog() : null;
+        return databaseName;
     }
 }
