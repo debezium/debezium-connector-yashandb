@@ -545,7 +545,7 @@ alter_column_clause
     | MODIFY COLUMN? column_definition
     | CHANGE COLUMN? column_name column_name datatype column_constraint*
     | RENAME COLUMN column_name TO column_name
-    | DROP COLUMN? '(' column_name (',' column_name)* ')'
+    | DROP COLUMN? '('? column_name (',' column_name)* ')'?
     ;
 
 alter_index_clause
