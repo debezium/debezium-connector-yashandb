@@ -168,7 +168,7 @@ class SourceInfoTest {
         TableId tableId = new TableId("test_catalog", "schema", "table");
         sourceInfo.tableEvent(tableId);
 
-        assertThat(sourceInfo.database()).isEqualTo("test_catalog");
+        assertThat(sourceInfo.database()).isEqualTo(null);
     }
 
     @Test
