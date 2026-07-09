@@ -54,7 +54,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withEnum(IntervalHandlingMode.class, IntervalHandlingMode.NUMERIC)
             .withWidth(Width.MEDIUM)
             .withImportance(Importance.LOW)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 6))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR))
             .withDescription("Specify how INTERVAL columns should be represented in change events, including: "
                     + "'string' represents values as an exact ISO formatted string; "
                     + "'numeric' (default) represents values using the inexact conversion into microseconds");
@@ -64,27 +64,27 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withType(Type.BOOLEAN)
             .withWidth(Width.MEDIUM)
             .withImportance(Importance.HIGH)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 6))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR))
             .withDescription("Incremental DDL Parsing Failure Handling Mode,including:" +
                     "false -> Do nothing and throw an exception;" +
                     "true -> Wait for the next DML event and read the source table DDL")
             .withDefault(false);
 
     public static final Field YSTREAM_SERVER_NAME = Field.create(DATABASE_CONFIG_PREFIX + "ystream.server.name")
-            .withDisplayName("Ystream out server name")
+            .withDisplayName("YStream out server name")
             .withType(Type.STRING)
             .withWidth(Width.MEDIUM)
             .withImportance(Importance.HIGH)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION, 9))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION))
             // .withValidation(YashanDbConnectorConfig::validateOutServerName)
-            .withDescription("Name of the Ystream Out server to connect to.");
+            .withDescription("Name of the YStream Out server to connect to.");
 
     public static final Field SNAPSHOT_MODE = Field.create("snapshot.mode")
             .withDisplayName("Snapshot mode")
             .withEnum(SnapshotMode.class, SnapshotMode.INITIAL)
             .withWidth(Width.SHORT)
             .withImportance(Importance.LOW)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 0))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT))
             .withDescription("The criteria for running a snapshot upon startup of the connector. "
                     + "Select one of the following snapshot options: "
                     + "'always': The connector runs a snapshot every time that it starts. After the snapshot completes, the connector begins to stream changes from the redo logs.; "
@@ -98,7 +98,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withEnum(SnapshotLockingMode.class, SnapshotLockingMode.SHARED)
             .withWidth(Width.SHORT)
             .withImportance(Importance.LOW)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 1))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT))
             .withDescription("Controls how the connector holds locks on tables while performing the schema snapshot. The default is 'shared', "
                     + "which means the connector will hold a table lock that prevents exclusive table access for just the initial portion of the snapshot "
                     + "while the database schemas and other metadata are being read. The remaining work in a snapshot involves selecting all rows from "
@@ -111,7 +111,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withType(Type.STRING)
             .withWidth(Width.MEDIUM)
             .withImportance(Importance.HIGH)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT, 11))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_SNAPSHOT))
             .withDescription("A token to replace on snapshot predicate template");
 
     public static final Field SNAPSHOT_DATABASE_ERRORS_MAX_RETRIES = Field.create("snapshot.database.errors.max.retries")
@@ -129,7 +129,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.LONG)
             .withImportance(Importance.HIGH)
             .withValidation(YashanDbConnectorConfig::requiredWhenNoHostname)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION, 10))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTION))
             .withDescription("Complete JDBC URL as an alternative to specifying hostname, port and database provided "
                     + "as a way to support alternative connection scenarios.");
 
@@ -138,7 +138,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withType(Type.BOOLEAN)
             .withWidth(Width.SHORT)
             .withImportance(Importance.LOW)
-            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_ADVANCED, 21))
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR_ADVANCED))
             .withDefault(false)
             .withDescription("When set to 'false', the default, LOB fields will not be captured nor emitted. When set to 'true', the connector " +
                     "will capture LOB fields and emit changes for those fields like any other column type.");
@@ -216,7 +216,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
                     SCHEMA_EXCLUDE_LIST,
                     RelationalDatabaseConnectorConfig.TABLE_IGNORE_BUILTIN,
                     CommonConnectorConfig.QUERY_FETCH_SIZE)
-            .type(
+            .group(Field.Group.CONNECTION,
                     HOSTNAME,
                     PORT,
                     USER,
@@ -225,23 +225,14 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
                     YSTREAM_SERVER_NAME,
                     SNAPSHOT_MODE,
                     URL)
-            .connector(
-                    QUERY_FETCH_SIZE,
-                    SNAPSHOT_ENHANCEMENT_TOKEN,
-                    SNAPSHOT_LOCKING_MODE,
-                    INTERVAL_HANDLING_MODE,
-                    YSTREAM_CLIENT_RESPONSE_TIMEOUT,
-                    YSTREAM_POLL_TIMEOUT,
-                    YSTREAM_QUEUE_SIZE,
-                    LOGIC_SHARD_ENABLED,
-                    TABLE_READ_THREADS,
-                    LOB_ENABLED,
-                    UNAVAILABLE_VALUE_PLACEHOLDER,
-                    BINARY_HANDLING_MODE,
-                    SNAPSHOT_DATABASE_ERRORS_MAX_RETRIES,
-                    SCHEMA_NAME_ADJUSTMENT_MODE,
+            .group(Field.Group.CONNECTOR_SNAPSHOT, SNAPSHOT_MODE, SNAPSHOT_ENHANCEMENT_TOKEN, SNAPSHOT_LOCKING_MODE, SNAPSHOT_DATABASE_ERRORS_MAX_RETRIES)
+            .group(Field.Group.ADVANCED, QUERY_FETCH_SIZE)
+            .group(Field.Group.CONNECTOR, INTERVAL_HANDLING_MODE, UNAVAILABLE_VALUE_PLACEHOLDER, BINARY_HANDLING_MODE, SCHEMA_NAME_ADJUSTMENT_MODE,
                     LEGACY_DECIMAL_HANDLING_STRATEGY)
-            .events(SOURCE_INFO_STRUCT_MAKER)
+            .group(Field.Group.CONNECTOR_ADVANCED,
+                    YSTREAM_CLIENT_RESPONSE_TIMEOUT, YSTREAM_POLL_TIMEOUT, YSTREAM_QUEUE_SIZE,
+                    LOGIC_SHARD_ENABLED, TABLE_READ_THREADS, LOB_ENABLED)
+            .group(Field.Group.CONNECTOR, SOURCE_INFO_STRUCT_MAKER)
             .create();
 
     /**
