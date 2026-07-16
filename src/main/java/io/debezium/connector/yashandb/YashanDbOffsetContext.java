@@ -20,6 +20,7 @@ import com.sics.ystream.result.Position;
 import com.sics.ystream.result.SystemChangeNumber;
 
 import io.debezium.connector.SnapshotRecord;
+import io.debezium.connector.SnapshotType;
 import io.debezium.pipeline.CommonOffsetContext;
 import io.debezium.pipeline.source.snapshot.incremental.IncrementalSnapshotContext;
 import io.debezium.pipeline.txmetadata.TransactionContext;
@@ -49,7 +50,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      * in case we start mining _before_ the snapshot SCN to cover transactions that were
      * ongoing at the time the snapshot was taken.
      */
-    private Scn snapshotScn;
+    private final Scn snapshotScn;
 
     /**
      * Map of (txid, start SCN) for all transactions in progress at the time the
@@ -58,27 +59,22 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     private Map<String, Scn> snapshotPendingTransactions;
 
     /**
-     * Whether a snapshot has been completed or not.
-     */
-    private boolean snapshotCompleted;
-
-    /**
      * Creates a YashanDbOffsetContext instance initialized with the given parameters for tracking offset state.
      *
      * @param connectorConfig the connector configuration
      * @param snapshotScn the snapshot SCN
      * @param recoverPosition the recover position
      * @param snapshotPendingTransactions the pending transactions map
-     * @param snapshot whether a snapshot is in progress
+     * @param snapshot the type of snapshot in progress
      * @param snapshotCompleted whether the snapshot is completed
      * @param transactionContext the transaction context
      * @param incrementalSnapshotContext the incremental snapshot context
      */
     public YashanDbOffsetContext(YashanDbConnectorConfig connectorConfig,
                                  Scn snapshotScn, Position recoverPosition, Map<String, Scn> snapshotPendingTransactions,
-                                 boolean snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
+                                 SnapshotType snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
                                  IncrementalSnapshotContext<TableId> incrementalSnapshotContext) {
-        super(new SourceInfo(connectorConfig));
+        super(new SourceInfo(connectorConfig), snapshotCompleted);
         sourceInfo.setLcrPosition(recoverPosition);
         sourceInfoSchema = sourceInfo.schema();
 
@@ -91,12 +87,12 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         this.transactionContext = transactionContext;
         this.incrementalSnapshotContext = incrementalSnapshotContext;
 
-        this.snapshotCompleted = snapshotCompleted;
         if (this.snapshotCompleted) {
             postSnapshotCompletion();
         }
         else {
-            sourceInfo.setSnapshot(snapshot ? SnapshotRecord.TRUE : SnapshotRecord.FALSE);
+            setSnapshot(snapshot);
+            sourceInfo.setSnapshot(snapshot != null ? SnapshotRecord.TRUE : SnapshotRecord.FALSE);
         }
     }
 
@@ -106,7 +102,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     public static class Builder {
 
         private YashanDbConnectorConfig connectorConfig;
-        private boolean snapshot;
+        private SnapshotType snapshot;
         private boolean snapshotCompleted;
         private TransactionContext transactionContext;
         private IncrementalSnapshotContext<TableId> incrementalSnapshotContext;
@@ -141,11 +137,11 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
         /**
          * Sets the snapshot flag.
          *
-         * @param snapshot the snapshot flag
+         * @param snapshot the snapshot type
          *
          * @return this builder for method chaining
          */
-        public Builder snapshot(boolean snapshot) {
+        public Builder snapshot(SnapshotType snapshot) {
             this.snapshot = snapshot;
             return this;
         }
@@ -238,44 +234,29 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      */
     @Override
     public Map<String, ?> getOffset() {
-        Position lcrPosition = sourceInfo.getLcrPosition();
-        if (getSnapshot().isPresent()) {
-            Map<String, Object> offset = new HashMap<>();
+        final Position lcrPosition = sourceInfo.getLcrPosition();
+        final Map<String, Object> offset = new HashMap<>();
 
+        if (getSnapshot().isPresent()) {
             offset.put(SourceInfo.SNAPSHOT_KEY, getSnapshot().get().toString());
             offset.put(SNAPSHOT_COMPLETED_KEY, snapshotCompleted);
-
-            if (snapshotPendingTransactions != null && !snapshotPendingTransactions.isEmpty()) {
-                String encoded = snapshotPendingTransactions.entrySet().stream()
-                        .map(e -> e.getKey() + ":" + e.getValue().toString())
-                        .collect(Collectors.joining(","));
-                offset.put(SNAPSHOT_PENDING_TRANSACTIONS_KEY, encoded);
-            }
-            offset.put(SNAPSHOT_SCN_KEY, snapshotScn != null ? snapshotScn.isNull() ? null : snapshotScn.toString() : null);
-            offset.put(SourceInfo.POSITION_SCN_KEY, lcrPosition.getCommitScn().getScn());
-            offset.put(SourceInfo.GROUP_LSN_KEY, lcrPosition.getLogPosition().getGroupLsn());
-            offset.put(SourceInfo.GROUP_OFFSET_KEY, lcrPosition.getLogPosition().getGroupOffset());
-            offset.put(SourceInfo.BATCH_ROW_ID_KEY, lcrPosition.getLogPosition().getBatchRowId());
-            offset.put(SourceInfo.INSTANCE_ID_KEY, String.valueOf(lcrPosition.getLogPosition().getInstanceId()));
-
-            return offset;
         }
-        else {
-            final Map<String, Object> offset = new HashMap<>();
-            offset.put(SourceInfo.POSITION_SCN_KEY, lcrPosition.getCommitScn().getScn());
-            offset.put(SourceInfo.GROUP_LSN_KEY, lcrPosition.getLogPosition().getGroupLsn());
-            offset.put(SourceInfo.GROUP_OFFSET_KEY, lcrPosition.getLogPosition().getGroupOffset());
-            offset.put(SourceInfo.BATCH_ROW_ID_KEY, lcrPosition.getLogPosition().getBatchRowId());
-            offset.put(SourceInfo.INSTANCE_ID_KEY, String.valueOf(lcrPosition.getLogPosition().getInstanceId()));
-            if (snapshotPendingTransactions != null && !snapshotPendingTransactions.isEmpty()) {
-                String encoded = snapshotPendingTransactions.entrySet().stream()
-                        .map(e -> e.getKey() + ":" + e.getValue().toString())
-                        .collect(Collectors.joining(","));
-                offset.put(SNAPSHOT_PENDING_TRANSACTIONS_KEY, encoded);
-            }
-            offset.put(SNAPSHOT_SCN_KEY, snapshotScn != null ? snapshotScn.isNull() ? null : snapshotScn.toString() : null);
-            return incrementalSnapshotContext.store(transactionContext.store(offset));
+
+        if (snapshotPendingTransactions != null && !snapshotPendingTransactions.isEmpty()) {
+            String encoded = snapshotPendingTransactions.entrySet().stream()
+                    .map(e -> e.getKey() + ":" + e.getValue().toString())
+                    .collect(Collectors.joining(","));
+            offset.put(SNAPSHOT_PENDING_TRANSACTIONS_KEY, encoded);
         }
+
+        offset.put(SNAPSHOT_SCN_KEY, snapshotScn != null ? snapshotScn.isNull() ? null : snapshotScn.toString() : null);
+        offset.put(SourceInfo.POSITION_SCN_KEY, lcrPosition.getCommitScn().getScn());
+        offset.put(SourceInfo.GROUP_LSN_KEY, lcrPosition.getLogPosition().getGroupLsn());
+        offset.put(SourceInfo.GROUP_OFFSET_KEY, lcrPosition.getLogPosition().getGroupOffset());
+        offset.put(SourceInfo.BATCH_ROW_ID_KEY, lcrPosition.getLogPosition().getBatchRowId());
+        offset.put(SourceInfo.INSTANCE_ID_KEY, String.valueOf(lcrPosition.getLogPosition().getInstanceId()));
+
+        return incrementalSnapshotContext.store(transactionContext.store(offset));
     }
 
     /**
@@ -303,8 +284,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      * @param lcrPosition the LCR position to set
      */
     public void setLcrPosition(Position lcrPosition) {
-        // reset snapshotScn, because of will used for blocking snapshot
-        snapshotScn = Scn.valueOf(lcrPosition.getCommitScn().getScn());
         sourceInfo.setLcrPosition(lcrPosition);
     }
 
@@ -323,6 +302,24 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      * @return the snapshot SCN
      */
     public Scn getSnapshotScn() {
+        return snapshotScn;
+    }
+
+    /**
+     * Returns the SCN that should be used by AS OF SCN snapshot queries.
+     * Initial snapshots use the consistent snapshot SCN, while blocking snapshots reuse the
+     * current streaming position as their snapshot point.
+     *
+     * @return the SCN for snapshot queries
+     */
+    public Scn getSnapshotQueryScn() {
+        if (getSnapshot().filter(SnapshotType.INITIAL::equals).isPresent()) {
+            return snapshotScn;
+        }
+        Position recoverPosition = getRecoverPosition();
+        if (recoverPosition != null) {
+            return Scn.valueOf(recoverPosition.getCommitScn().getScn());
+        }
         return snapshotScn;
     }
 
@@ -369,35 +366,6 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
      */
     public void setTableId(TableId tableId) {
         sourceInfo.tableEvent(tableId);
-    }
-
-    /**
-     * Returns whether an initial snapshot is currently running.
-     *
-     * @return true if a snapshot is in progress, false otherwise
-     */
-    @Override
-    public boolean isInitialSnapshotRunning() {
-        return sourceInfo.isSnapshot() && !snapshotCompleted;
-    }
-
-    /**
-     * Called before the snapshot starts to initialize the snapshot state.
-     *
-     * @param onDemand whether the snapshot is triggered on demand
-     */
-    @Override
-    public void preSnapshotStart(boolean onDemand) {
-        sourceInfo.setSnapshot(SnapshotRecord.TRUE);
-        snapshotCompleted = false;
-    }
-
-    /**
-     * Called before the snapshot completion to mark the snapshot as complete.
-     */
-    @Override
-    public void preSnapshotCompletion() {
-        snapshotCompleted = true;
     }
 
     /**

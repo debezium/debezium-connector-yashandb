@@ -8,11 +8,22 @@ package io.debezium.connector.yashandb;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.sics.ystream.result.LogPosition;
 import com.sics.ystream.result.Position;
+import com.sics.ystream.result.SystemChangeNumber;
+
+import io.debezium.connector.SnapshotType;
+import io.debezium.connector.yashandb.util.TestHelper;
+import io.debezium.connector.yashandb.ystream.YStreamOffsetContextLoader;
+import io.debezium.pipeline.source.snapshot.incremental.AbstractIncrementalSnapshotContext;
+import io.debezium.pipeline.source.snapshot.incremental.SignalBasedIncrementalSnapshotContext;
+import io.debezium.pipeline.txmetadata.TransactionContext;
+import io.debezium.relational.TableId;
 
 /**
  * Unit tests for static methods in {@link YashanDbOffsetContext}.
@@ -316,11 +327,133 @@ class YashanDbOffsetContextTest {
     }
 
     @Test
+    void shouldKeepSnapshotScnWhenLcrPositionChanges() {
+        YashanDbOffsetContext offsetContext = baseOffsetContext();
+
+        offsetContext.setLcrPosition(new Position(new SystemChangeNumber(1002L), new LogPosition()));
+
+        assertThat(offsetContext.getRecoverPosition().getCommitScn().getScn()).isEqualTo(1002L);
+        assertThat(offsetContext.getSnapshotScn().longValue()).isEqualTo(1000L);
+        assertThat(offsetContext.getOffset().get(YashanDbOffsetContext.SNAPSHOT_SCN_KEY)).isEqualTo("1000");
+    }
+
+    @Test
+    void shouldUseSnapshotScnForInitialSnapshotQueries() {
+        YashanDbOffsetContext offsetContext = YashanDbOffsetContext.create()
+                .logicalName(new YashanDbConnectorConfig(TestHelper.defaultConfig().build()))
+                .recoverPosition(new Position(new SystemChangeNumber(1001L), new LogPosition()))
+                .snapshotScn(Scn.valueOf(1000L))
+                .snapshotPendingTransactions(Map.of())
+                .transactionContext(new TransactionContext())
+                .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>())
+                .build();
+
+        offsetContext.preSnapshotStart(false);
+
+        assertThat(offsetContext.getSnapshotQueryScn().longValue()).isEqualTo(1000L);
+    }
+
+    @Test
+    void shouldUseRecoverPositionForBlockingSnapshotQueries() {
+        YashanDbOffsetContext offsetContext = YashanDbOffsetContext.create()
+                .logicalName(new YashanDbConnectorConfig(TestHelper.defaultConfig().build()))
+                .recoverPosition(new Position(new SystemChangeNumber(2000L), new LogPosition()))
+                .snapshotScn(Scn.valueOf(1000L))
+                .snapshotPendingTransactions(Map.of())
+                .transactionContext(new TransactionContext())
+                .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>())
+                .build();
+
+        offsetContext.preSnapshotStart(true);
+
+        assertThat(offsetContext.getSnapshotQueryScn().longValue()).isEqualTo(2000L);
+        assertThat(offsetContext.isInitialSnapshotRunning()).isFalse();
+    }
+
+    @Test
     void shouldCreateBuilder() {
         // When: create offset context builder
 
         // Then: verify builder is created
         YashanDbOffsetContext.Builder builder = YashanDbOffsetContext.create();
         assertThat(builder).isNotNull();
+    }
+
+    @Test
+    void shouldStoreInitialSnapshotStateUntilSnapshotIsCompleted() {
+        YashanDbOffsetContext offsetContext = baseOffsetContext();
+
+        offsetContext.preSnapshotStart(false);
+        Map<String, ?> offset = offsetContext.getOffset();
+
+        assertThat(offset.get(SourceInfo.SNAPSHOT_KEY)).isEqualTo(SnapshotType.INITIAL.toString());
+        assertThat(offset.get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY)).isEqualTo(false);
+
+        offsetContext.preSnapshotCompletion();
+        offset = offsetContext.getOffset();
+
+        assertThat(offset.get(SourceInfo.SNAPSHOT_KEY)).isEqualTo(SnapshotType.INITIAL.toString());
+        assertThat(offset.get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY)).isEqualTo(true);
+    }
+
+    @Test
+    void shouldLoadInitialSnapshotStateFromStoredOffset() {
+        Map<String, Object> offset = baseOffsetMap();
+        offset.put(SourceInfo.SNAPSHOT_KEY, SnapshotType.INITIAL.toString());
+        offset.put(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY, false);
+
+        YashanDbOffsetContext offsetContext = new YStreamOffsetContextLoader(new YashanDbConnectorConfig(TestHelper.defaultConfig().build())).load(offset);
+
+        assertThat(offsetContext.isInitialSnapshotRunning()).isTrue();
+        assertThat(offsetContext.getOffset().get(SourceInfo.SNAPSHOT_KEY)).isEqualTo(SnapshotType.INITIAL.toString());
+    }
+
+    @Test
+    void shouldStoreIncrementalSnapshotContextWhenIncrementalSnapshotEventsAreActive() {
+        SignalBasedIncrementalSnapshotContext<TableId> incrementalSnapshotContext = new SignalBasedIncrementalSnapshotContext<>();
+        incrementalSnapshotContext.addDataCollectionNamesToSnapshot("ad-hoc", List.of(TestHelper.qualifiedTableName("A")), List.of(), "");
+
+        YashanDbOffsetContext offsetContext = YashanDbOffsetContext.create()
+                .logicalName(new YashanDbConnectorConfig(TestHelper.defaultConfig().build()))
+                .recoverPosition(new Position(new SystemChangeNumber(1000L), new LogPosition()))
+                .snapshotScn(Scn.valueOf(1000L))
+                .snapshotPendingTransactions(Map.of())
+                .transactionContext(new TransactionContext())
+                .incrementalSnapshotContext(incrementalSnapshotContext)
+                .build();
+
+        offsetContext.incrementalSnapshotEvents();
+
+        Map<String, ?> offset = offsetContext.getOffset();
+
+        assertThat(offset).containsKeys(
+                AbstractIncrementalSnapshotContext.EVENT_PRIMARY_KEY,
+                AbstractIncrementalSnapshotContext.TABLE_MAXIMUM_KEY,
+                AbstractIncrementalSnapshotContext.CORRELATION_ID,
+                "incremental_snapshot_collections");
+        assertThat(offset.get(SourceInfo.SNAPSHOT_KEY)).isEqualTo("INCREMENTAL");
+        assertThat(offset.get(AbstractIncrementalSnapshotContext.CORRELATION_ID)).isEqualTo("ad-hoc");
+    }
+
+    private static YashanDbOffsetContext baseOffsetContext() {
+        return YashanDbOffsetContext.create()
+                .logicalName(new YashanDbConnectorConfig(TestHelper.defaultConfig().build()))
+                .recoverPosition(new Position(new SystemChangeNumber(1000L), new LogPosition()))
+                .snapshotScn(Scn.valueOf(1000L))
+                .snapshotPendingTransactions(Map.of())
+                .transactionContext(new TransactionContext())
+                .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>())
+                .build();
+    }
+
+    private static Map<String, Object> baseOffsetMap() {
+        Map<String, Object> offset = new HashMap<>();
+        offset.put(YashanDbOffsetContext.SNAPSHOT_SCN_KEY, "1000");
+        offset.put(SourceInfo.POSITION_SCN_KEY, 1001L);
+        offset.put(SourceInfo.INSTANCE_ID_KEY, "0");
+        offset.put(SourceInfo.GROUP_LSN_KEY, 0L);
+        offset.put(SourceInfo.GROUP_OFFSET_KEY, 0);
+        offset.put(SourceInfo.BATCH_ROW_ID_KEY, 0);
+        return offset;
     }
 }

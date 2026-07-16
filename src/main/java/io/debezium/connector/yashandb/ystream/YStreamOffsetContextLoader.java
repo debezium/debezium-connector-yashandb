@@ -10,10 +10,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sics.ystream.result.Position;
-
-import io.debezium.connector.yashandb.Scn;
-import io.debezium.connector.yashandb.SourceInfo;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig;
 import io.debezium.connector.yashandb.YashanDbOffsetContext;
 import io.debezium.pipeline.source.snapshot.incremental.SignalBasedIncrementalSnapshotContext;
@@ -44,15 +40,15 @@ public class YStreamOffsetContextLoader implements OffsetContext.Loader<YashanDb
      */
     @Override
     public YashanDbOffsetContext load(Map<String, ?> offset) {
-        boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
-        boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY));
-
-        final Map<String, Scn> snapshotPendingTransactions = YashanDbOffsetContext.loadSnapshotPendingTransactions(offset);
-        final Scn snapshotScn = YashanDbOffsetContext.loadSnapshotScn(offset);
-        final Position recoverPosition = YashanDbOffsetContext.loadRecoverPosition(offset);
-        LOGGER.debug("loader offset context position:{}", recoverPosition);
-        return new YashanDbOffsetContext(connectorConfig, snapshotScn, recoverPosition, snapshotPendingTransactions,
-                snapshot, snapshotCompleted, TransactionContext.load(offset),
-                SignalBasedIncrementalSnapshotContext.load(offset, false));
+        return YashanDbOffsetContext.create()
+                .logicalName(connectorConfig)
+                .snapshotScn(YashanDbOffsetContext.loadSnapshotScn(offset))
+                .recoverPosition(YashanDbOffsetContext.loadRecoverPosition(offset))
+                .snapshotPendingTransactions(YashanDbOffsetContext.loadSnapshotPendingTransactions(offset))
+                .snapshot(loadSnapshot(offset).orElse(null))
+                .snapshotCompleted(loadSnapshotCompleted(offset))
+                .transactionContext(TransactionContext.load(offset))
+                .incrementalSnapshotContext(SignalBasedIncrementalSnapshotContext.load(offset, false))
+                .build();
     }
 }
