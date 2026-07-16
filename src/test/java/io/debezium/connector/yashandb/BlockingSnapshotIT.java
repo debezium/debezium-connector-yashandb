@@ -35,15 +35,14 @@ public class BlockingSnapshotIT extends AbstractBlockingSnapshotTest<YashanDbCon
     static void beforeAll() throws Exception {
         TestHelper.dropTestUser();
         io.debezium.connector.yashandb.util.TestHelper.createTestUser();
-        io.debezium.connector.yashandb.util.TestHelper.createYStreamServer();
     }
 
     @BeforeEach
     void before() throws Exception {
         connection = TestHelper.connectedConnection();
-
-        io.debezium.connector.yashandb.util.TestHelper.stopYStreamIfRunning();
         TestHelper.dropTables(connection, A, B, SIGNAL);
+        io.debezium.connector.yashandb.util.TestHelper.createYStreamServer();
+        io.debezium.connector.yashandb.util.TestHelper.stopYStreamIfRunning();
 
         TestHelper.createTableIgnoreExists(connection,
                 "CREATE TABLE " + A + " (pk INT NOT NULL, aa INT, PRIMARY KEY (pk))");

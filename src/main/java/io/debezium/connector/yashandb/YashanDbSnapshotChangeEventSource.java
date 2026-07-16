@@ -13,7 +13,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Queue;
@@ -26,17 +25,14 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sics.ystream.result.Position;
-
+import io.debezium.connector.yashandb.ystream.YStreamOffsetContextLoader;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.notification.NotificationService;
 import io.debezium.pipeline.source.SnapshottingTask;
-import io.debezium.pipeline.source.snapshot.incremental.SignalBasedIncrementalSnapshotContext;
 import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
-import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.relational.RelationalSnapshotChangeEventSource;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -190,7 +186,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     @Override
     protected String enhanceOverriddenSelect(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                              String overriddenSelect, TableId tableId) {
-        String snapshotOffset = (String) snapshotContext.offset.getOffset().get(YashanDbOffsetContext.SNAPSHOT_SCN_KEY);
+        String snapshotOffset = snapshotContext.offset.getSnapshotQueryScn().toString();
         String token = connectorConfig.getTokenToReplaceInSnapshotPredicate();
         if (token != null) {
             return overriddenSelect.replaceAll(token, " AS OF SCN " + snapshotOffset);
@@ -274,25 +270,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
     @Override
     protected YashanDbOffsetContext copyOffset(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext) {
-        return load(snapshotContext.offset.getOffset());
-    }
-
-    /**
-     * Loads offset context from a map.
-     *
-     * @param offset the offset map
-     * @return the loaded offset context
-     */
-    public YashanDbOffsetContext load(Map<String, ?> offset) {
-        boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
-        boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY));
-        Map<String, Scn> snapshotPendingTransactions = YashanDbOffsetContext.loadSnapshotPendingTransactions(offset);
-        Scn snapshotScn = YashanDbOffsetContext.loadSnapshotScn(offset);
-        Position recoverPosition = YashanDbOffsetContext.loadRecoverPosition(offset);
-        return new YashanDbOffsetContext(connectorConfig, snapshotScn, recoverPosition, snapshotPendingTransactions, snapshot,
-                snapshotCompleted,
-                TransactionContext.load(offset),
-                SignalBasedIncrementalSnapshotContext.load(offset));
+        return new YStreamOffsetContextLoader(connectorConfig).load(snapshotContext.offset.getOffset());
     }
 
     @Override

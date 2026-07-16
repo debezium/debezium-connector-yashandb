@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
+import io.debezium.connector.SnapshotType;
 import io.debezium.connector.yashandb.util.TestHelper;
 import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
@@ -115,7 +116,7 @@ public class YashanDbConnectorIT extends AbstractAsyncEngineConnectorTest {
 
     private static void assertSnapshotRecord(SourceRecord record, int id, String name, boolean snapshotCompleted) {
         VerifyRecord.isValidRead(record, "ID", id);
-        assertThat(record.sourceOffset().get(SourceInfo.SNAPSHOT_KEY)).isEqualTo(true);
+        assertThat(record.sourceOffset().get(SourceInfo.SNAPSHOT_KEY)).isEqualTo(SnapshotType.INITIAL.toString());
         assertThat(record.sourceOffset().get(YashanDbOffsetContext.SNAPSHOT_COMPLETED_KEY)).isEqualTo(snapshotCompleted);
 
         Struct value = (Struct) record.value();

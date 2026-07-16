@@ -425,7 +425,7 @@ public final class TestHelper {
     }
 
     private static boolean isDoesNotExistError(Exception e) {
-        return containsErrorCode(e, "YAS-02012") || containsErrorCode(e, "YAS-02012") || containsErrorCode(e, "YAS-02015")
+        return containsErrorCode(e, "YAS-02012") || containsErrorCode(e, "YAS-02153") || containsErrorCode(e, "YAS-02015")
                 || containsMessage(e, "does not exist") || containsMessage(e, "not exist");
     }
 

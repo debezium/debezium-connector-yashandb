@@ -46,7 +46,7 @@ public class SelectAllSnapshotQuery implements SnapshotQuery, BeanRegistryAware 
                 RelationalSnapshotChangeEventSource.RelationalSnapshotContext.class);
         final YashanDbOffsetContext offset = (YashanDbOffsetContext) snapshotContext.offset;
 
-        final String snapshotOffset = offset.getSnapshotScn().toString();
+        final String snapshotOffset = offset.getSnapshotQueryScn().toString();
         String columns = String.join(", ", snapshotSelectColumns);
         assert snapshotOffset != null;
         return Optional.of(String.format("SELECT %s FROM %s AS OF SCN %s", columns, tableId, snapshotOffset));
