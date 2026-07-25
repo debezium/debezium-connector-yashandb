@@ -223,10 +223,8 @@ class YashanDbConnectorConfigTest {
             assertThat(allFields).isNotEmpty();
         }
 
-        // Tests that require KafkaSchemaHistory class in classpath - skipped in unit tests
-        // @Test
+        @Test
         void shouldReturnNonNullConfigDef() {
-            // Use configDef() directly to avoid classpath issues in tests
             ConfigDef configDef = YashanDbConnectorConfig.configDef();
             assertThat(configDef).isNotNull();
         }
