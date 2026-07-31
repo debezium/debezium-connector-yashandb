@@ -253,12 +253,22 @@ public class YashanDbValueConverters extends JdbcValueConverters {
 
     @Override
     protected Object convertReal(Column column, Field fieldDefn, Object data) {
-        if (data instanceof String str) {
-            return Float.valueOf(str);
-        }
-        else {
-            return super.convertReal(column, fieldDefn, data);
-        }
+        return convertValue(column, fieldDefn, data, 0.0f, (r) -> {
+            if (data instanceof String str) {
+                r.deliver(Float.valueOf(str));
+            }
+            else if (data instanceof Float) {
+                r.deliver(data);
+            }
+            else if (data instanceof Number) {
+                // Includes BigDecimal and other numeric values ...
+                Number value = (Number) data;
+                r.deliver(Float.valueOf(value.floatValue()));
+            }
+            else if (data instanceof Boolean) {
+                r.deliver(NumberConversions.getFloat((Boolean) data));
+            }
+        });
     }
 
     /**

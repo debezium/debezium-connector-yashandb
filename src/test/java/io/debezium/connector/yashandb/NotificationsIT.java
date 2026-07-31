@@ -6,7 +6,7 @@
 
 package io.debezium.connector.yashandb;
 
-import java.nio.file.Files;
+import java.sql.SQLException;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import io.debezium.config.Configuration;
 import io.debezium.connector.yashandb.util.TestHelper;
 import io.debezium.pipeline.notification.AbstractNotificationsIT;
+import io.debezium.util.Testing;
 
 public class NotificationsIT extends AbstractNotificationsIT<YashanDbConnector> {
 
@@ -22,7 +23,7 @@ public class NotificationsIT extends AbstractNotificationsIT<YashanDbConnector> 
 
     @BeforeEach
     void before() throws Exception {
-        connection = TestHelper.testConnection();
+        connection = TestHelper.connectedConnection();
         TestHelper.createYStreamServer();
         TestHelper.dropAllTables();
         TestHelper.stopYStreamIfRunning();
@@ -30,14 +31,17 @@ public class NotificationsIT extends AbstractNotificationsIT<YashanDbConnector> 
         TestHelper.addYStreamTables("a");
 
         initializeConnectorTestFramework();
-        Files.delete(TestHelper.SCHEMA_HISTORY_PATH);
+        Testing.Files.delete(TestHelper.SCHEMA_HISTORY_PATH);
     }
 
     @AfterEach
-    void after() {
+    void after() throws SQLException {
         stopConnector();
 
         TestHelper.dropAllTables();
+        if (connection != null) {
+            connection.close();
+        }
     }
 
     protected List<String> collections() {

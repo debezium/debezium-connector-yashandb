@@ -12,8 +12,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
-
 import com.sics.ystream.result.LogPosition;
 import com.sics.ystream.result.Position;
 import com.sics.ystream.result.SystemChangeNumber;
@@ -123,7 +121,7 @@ public class SourceInfo extends BaseSourceInfo {
      *
      * @param lcrPosition the LCR position to set
      */
-    public void setLcrPosition(@Nullable Position lcrPosition) {
+    public void setLcrPosition(Position lcrPosition) {
         if (lcrPosition == null) {
             return;
         }

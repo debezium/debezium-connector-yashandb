@@ -128,8 +128,8 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         final SnapshotterService snapshotterService = connectorConfig.getServiceRegistry().tryGetService(SnapshotterService.class);
         if (snapshotterService.getSnapshotter().shouldStream()) {
             validateYStreamServer(connectorConfig);
+            validateRedoLogConfiguration(connectorConfig);
         }
-        validateRedoLogConfiguration(connectorConfig);
 
         YashanDbPartition partition = previousOffsets.getTheOnlyPartition();
         YashanDbOffsetContext previousOffset = previousOffsets.getTheOnlyOffset();

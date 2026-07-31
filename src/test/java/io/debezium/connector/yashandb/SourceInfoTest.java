@@ -19,6 +19,7 @@ import com.sics.ystream.result.LogPosition;
 import com.sics.ystream.result.Position;
 import com.sics.ystream.result.SystemChangeNumber;
 
+import io.debezium.connector.yashandb.util.TestHelper;
 import io.debezium.relational.TableId;
 
 /**
@@ -153,22 +154,25 @@ class SourceInfoTest {
     }
 
     @Test
-    void shouldReturnNullDatabaseWhenNoTablesSet() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
+    void shouldReturnDatabaseFromConfigNotTableCatalog() {
+        YashanDbConnectorConfig config = new YashanDbConnectorConfig(
+                TestHelper.defaultConfig().build());
         SourceInfo sourceInfo = new TestableSourceInfo(config);
 
-        assertThat(sourceInfo.database()).isNull();
+        sourceInfo.tableEvent(new TableId("different_catalog", "schema", "table"));
+
+        assertThat(sourceInfo.database()).isNotNull();
+        assertThat(sourceInfo.database()).isEqualTo(config.getDatabaseName());
     }
 
     @Test
-    void shouldReturnDatabaseFromTableId() {
-        YashanDbConnectorConfig config = mock(YashanDbConnectorConfig.class);
+    void shouldAlwaysReturnDatabaseFromConfig() {
+        YashanDbConnectorConfig config = new YashanDbConnectorConfig(
+                TestHelper.defaultConfig().build());
         SourceInfo sourceInfo = new TestableSourceInfo(config);
 
-        TableId tableId = new TableId("test_catalog", "schema", "table");
-        sourceInfo.tableEvent(tableId);
-
-        assertThat(sourceInfo.database()).isEqualTo(null);
+        assertThat(sourceInfo.database()).isNotNull();
+        assertThat(sourceInfo.database()).isEqualTo(config.getDatabaseName());
     }
 
     @Test

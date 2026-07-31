@@ -92,7 +92,7 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Yasha
 
     @Override
     protected JdbcConnection databaseConnection() {
-        return TestHelper.connectedConnection();
+        return connection;
     }
 
     @Override
