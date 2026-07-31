@@ -5,8 +5,12 @@
  */
 package io.debezium.connector.yashandb.util;
 
+import static org.awaitility.Awaitility.await;
+
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.time.Duration;
+import java.util.Arrays;
 
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
@@ -169,7 +173,7 @@ public final class TestHelper {
                 catch (Exception ignored) {
                     // May already be stopped
                 }
-                Thread.sleep(1000);
+                waitForYStreamStatus("STOPPED");
                 // Drop existing server
                 try {
                     connection.execute("BEGIN DBMS_YSTREAM_ADM.DROP('" + DEFAULT_YSTREAM_SERVER + "'); END;");
@@ -177,7 +181,7 @@ public final class TestHelper {
                 catch (Exception ignored) {
                     // Best-effort drop
                 }
-                Thread.sleep(1000);
+                waitForYStreamDropped();
             }
 
             // Step 3: Get current SCN for the start position
@@ -191,7 +195,7 @@ public final class TestHelper {
             connection.execute("BEGIN DBMS_YSTREAM_ADM.START('" + DEFAULT_YSTREAM_SERVER + "'); END;");
 
             // Wait for YStream server to become ready
-            Thread.sleep(3000);
+            waitForYStreamStatus("RUNNING", "STARTED");
         }
     }
 
@@ -231,7 +235,7 @@ public final class TestHelper {
                         throw e;
                     }
                 }
-                Thread.sleep(1000);
+                waitForYStreamStatus("STOPPED");
             }
 
             // Add tables: use schema-qualified names, schemas=null
@@ -250,7 +254,7 @@ public final class TestHelper {
 
             // Start YStream server
             connection.execute("BEGIN DBMS_YSTREAM_ADM.START('" + DEFAULT_YSTREAM_SERVER + "'); END;");
-            Thread.sleep(2000);
+            waitForYStreamStatus("RUNNING", "STARTED");
         }
     }
 
@@ -268,12 +272,67 @@ public final class TestHelper {
             if (status != null) {
                 try {
                     connection.execute("BEGIN DBMS_YSTREAM_ADM.STOP('" + DEFAULT_YSTREAM_SERVER + "'); END;");
-                    Thread.sleep(1000);
+                    waitForYStreamStatus("STOPPED");
                 }
                 catch (Exception ignored) {
                     // best-effort
                 }
             }
+        }
+    }
+
+    public static void stopYStreamServer() throws Exception {
+        if (!isYStreamStatus("STOPPED")) {
+            try (YashanDbConnection connection = adminConnection()) {
+                connection.connect();
+                connection.execute("BEGIN DBMS_YSTREAM_ADM.STOP('" + DEFAULT_YSTREAM_SERVER + "'); END;");
+            }
+        }
+        waitForYStreamStatus("STOPPED");
+    }
+
+    public static void startYStreamServer() throws Exception {
+        if (!isYStreamStatus("RUNNING", "STARTED")) {
+            try (YashanDbConnection connection = adminConnection()) {
+                connection.connect();
+                connection.execute("BEGIN DBMS_YSTREAM_ADM.START('" + DEFAULT_YSTREAM_SERVER + "'); END;");
+            }
+        }
+        waitForYStreamStatus("RUNNING", "STARTED");
+    }
+
+    private static void waitForYStreamStatus(String... expectedStatuses) {
+        await().ignoreExceptions()
+                .pollInterval(Duration.ofMillis(200))
+                .atMost(Duration.ofSeconds(15))
+                .until(() -> isYStreamStatus(expectedStatuses));
+    }
+
+    private static boolean isYStreamStatus(String... expectedStatuses) throws SQLException {
+        try (YashanDbConnection connection = adminConnection()) {
+            connection.connect();
+            String status = connection.queryAndMap(
+                    "SELECT STATUS FROM SYS.V_$YSTREAM_SERVER WHERE SERVER_NAME = '" + DEFAULT_YSTREAM_SERVER + "'",
+                    rs -> rs.next() ? rs.getString(1) : null);
+            return status != null && Arrays.stream(expectedStatuses)
+                    .anyMatch(expected -> expected.equalsIgnoreCase(status));
+        }
+    }
+
+    private static void waitForYStreamDropped() {
+        await().ignoreExceptions()
+                .pollInterval(Duration.ofMillis(200))
+                .atMost(Duration.ofSeconds(15))
+                .until(() -> !isYStreamExists());
+    }
+
+    private static boolean isYStreamExists() throws SQLException {
+        try (YashanDbConnection connection = adminConnection()) {
+            connection.connect();
+            String status = connection.queryAndMap(
+                    "SELECT STATUS FROM SYS.V_$YSTREAM_SERVER WHERE SERVER_NAME = '" + DEFAULT_YSTREAM_SERVER + "'",
+                    rs -> rs.next() ? rs.getString(1) : null);
+            return status != null;
         }
     }
 
@@ -307,13 +366,13 @@ public final class TestHelper {
                 }
                 catch (Exception ignored) {
                 }
-                Thread.sleep(1000);
+                waitForYStreamStatus("STOPPED");
                 try {
                     connection.execute("BEGIN DBMS_YSTREAM_ADM.DROP('" + DEFAULT_YSTREAM_SERVER + "'); END;");
                 }
                 catch (Exception ignored) {
                 }
-                Thread.sleep(1000);
+                waitForYStreamDropped();
             }
 
             // Get current SCN for the start position
@@ -331,7 +390,7 @@ public final class TestHelper {
 
             // Start YStream server
             connection.execute("BEGIN DBMS_YSTREAM_ADM.START('" + DEFAULT_YSTREAM_SERVER + "'); END;");
-            Thread.sleep(3000);
+            waitForYStreamStatus("RUNNING", "STARTED");
         }
     }
 
@@ -379,7 +438,7 @@ public final class TestHelper {
      * Drops all tables visible to user {@link #TEST_USER}.
      */
     public static void dropAllTables() {
-        try (YashanDbConnection connection = testConnection()) {
+        try (YashanDbConnection connection = connectedConnection()) {
             connection.query("SELECT TABLE_NAME FROM USER_TABLES", rs -> {
                 while (rs.next()) {
                     String tableName = rs.getString(1);
@@ -446,13 +505,5 @@ public final class TestHelper {
             current = current.getCause();
         }
         return false;
-    }
-
-    private static class LazyConnectionHolder {
-        static final YashanDbConnection INSTANCE = new YashanDbConnection(TestHelper.testJdbcConfig().build());
-    }
-
-    public static YashanDbConnection testConnection() {
-        return LazyConnectionHolder.INSTANCE;
     }
 }

@@ -5,7 +5,10 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
+import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -15,8 +18,10 @@ import org.slf4j.LoggerFactory;
 import com.sics.ystream.YstreamClientBoot;
 import com.sics.ystream.conf.StartMode;
 import com.sics.ystream.conf.YstreamConfig;
+import com.sics.ystream.exception.YstreamException;
 import com.sics.ystream.result.Position;
 
+import io.debezium.DebeziumException;
 import io.debezium.connector.yashandb.YashanDbConnection;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig;
 import io.debezium.connector.yashandb.YashanDbDatabaseSchema;
@@ -30,6 +35,7 @@ import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.relational.TableId;
 import io.debezium.util.Clock;
+import io.debezium.util.Metronome;
 
 /**
  * A {@link StreamingChangeEventSource} based on YashanDB's YStream API. The YStream event handler loop is executed in a
@@ -40,7 +46,8 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     private static final Logger LOGGER = LoggerFactory.getLogger(YStreamStreamingChangeEventSource.class);
 
     private static final int YSTREAM_RETRY_MAX_ATTEMPTS = 30;
-    private static final long YSTREAM_RETRY_BACKOFF_MS = 1000;
+    private static final long YSTREAM_RETRY_BACKOFF_MS = 2000;
+    private static final long YSTREAM_RETRY_WINDOW_MS = 180_000;
 
     private final YashanDbConnectorConfig connectorConfig;
     private final YashanDbConnection jdbcConnection;
@@ -51,6 +58,9 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     private final YashanDbStreamingChangeEventSourceMetrics streamingMetrics;
     private final String yStreamServerName;
     private YstreamClientBoot<YStreamRecord> ystreamClientBoot;
+    private boolean ystreamClientOpen;
+    private final Deque<Long> ystreamFailureTimestamps = new ArrayDeque<>();
+
     /**
      * A message box between thread that is informed about committed offsets and the YStream thread.
      * When the last offset is committed its value is passed to the YStream thread and a watermark is
@@ -128,71 +138,92 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         lastAppliedPosition = offsetContext.getLcrPosition();
 
         try {
-            initializeYStreamConnection(offsetContext);
-
-            // 2. receive events while running
             processEventLoop(context, partition, offsetContext, eventHandler);
+        }
+        catch (InterruptedException e) {
+            throw e;
         }
         catch (Throwable e) {
             handleExecutionError(e, context);
         }
         finally {
-            closeYStreamClient();
+            resetYStreamClient();
         }
     }
 
-    /**
-     * Creates the event handler for processing YStream records.
-     */
     private YStreamEventHandler createEventHandler(YashanDbPartition partition, YashanDbOffsetContext offsetContext) {
         return new YStreamEventHandler(connectorConfig, errorHandler, dispatcher, clock, schema,
                 partition, offsetContext, this, streamingMetrics);
     }
 
-    /**
-     * Initializes the YStream connection with retry logic.
-     */
-    private void initializeYStreamConnection(YashanDbOffsetContext offsetContext) throws InterruptedException {
-        ystreamClientBoot = YstreamClientBoot.getClient();
-        openConnectionWithRetry(offsetContext, false);
-    }
-
-    /**
-     * Opens YStream connection with configurable retry behavior.
-     *
-     * @param offsetContext the offset context for recovery position
-     * @param isReopen whether this is a reconnection attempt
-     * @throws InterruptedException if retry is interrupted
-     */
-    private void openConnectionWithRetry(YashanDbOffsetContext offsetContext, boolean isReopen) throws InterruptedException {
-        boolean openRetryable = true;
-        int openAttempt = 0;
-        String operationType = isReopen ? "re-open" : "open";
-
-        while (openRetryable && openAttempt < YSTREAM_RETRY_MAX_ATTEMPTS) {
-            try {
-                ystreamClientBoot.open(buildYStreamConfig(offsetContext));
-                openRetryable = false;
-                LOGGER.debug("YStream {} succeeded on attempt {}", operationType, openAttempt + 1);
+    private void processEventLoop(ChangeEventSourceContext context, YashanDbPartition partition,
+                                  YashanDbOffsetContext offsetContext, YStreamEventHandler eventHandler)
+            throws InterruptedException {
+        while (context.isRunning()) {
+            LOGGER.trace("Receiving LCR");
+            YStreamRecord next = fetchNextRecord(offsetContext);
+            if (next != null) {
+                eventHandler.processRecord(next);
+                dispatcher.dispatchHeartbeatEvent(partition, offsetContext);
             }
-            catch (Exception e) {
-                openAttempt++;
-                LOGGER.warn("YStream {} failed (attempt {}/{}): {}",
-                        operationType, openAttempt, YSTREAM_RETRY_MAX_ATTEMPTS, e.getMessage());
 
-                if (openAttempt >= YSTREAM_RETRY_MAX_ATTEMPTS) {
-                    throw new RuntimeException("YStream " + operationType + " failed after "
-                            + YSTREAM_RETRY_MAX_ATTEMPTS + " attempts", e);
-                }
-
-                sleepWithInterruptedCheck(YSTREAM_RETRY_BACKOFF_MS);
+            if (context.isPaused()) {
+                LOGGER.info("Streaming will now pause");
+                context.streamingPaused();
+                context.waitSnapshotCompletion();
+                LOGGER.info("Streaming resumed");
             }
         }
     }
 
-    /**
-     * Builds the YStream configuration with current connector settings.
-     */
+    private YStreamRecord fetchNextRecord(YashanDbOffsetContext offsetContext) throws InterruptedException {
+        Exception lastFailure = null;
+        Metronome retryMetronome = null;
+
+        while (ystreamFailureTimestamps.size() < YSTREAM_RETRY_MAX_ATTEMPTS) {
+            try {
+                ensureConnectionOpen(offsetContext);
+                return ystreamClientBoot.next();
+            }
+            catch (InterruptedException e) {
+                throw e;
+            }
+            catch (Exception e) {
+                lastFailure = e;
+                ystreamFailureTimestamps.addLast(clock.currentTimeInMillis());
+                // Remove failures outside the time window
+                long now = clock.currentTimeInMillis();
+                while (!ystreamFailureTimestamps.isEmpty()
+                        && now - ystreamFailureTimestamps.peekFirst() > YSTREAM_RETRY_WINDOW_MS) {
+                    ystreamFailureTimestamps.pollFirst();
+                }
+                resetYStreamClient();
+
+                LOGGER.warn("YStream read attempt {}/{} failed within last {}s: {}",
+                        ystreamFailureTimestamps.size(), YSTREAM_RETRY_MAX_ATTEMPTS,
+                        YSTREAM_RETRY_WINDOW_MS / 1000, e.getMessage());
+                if (retryMetronome == null) {
+                    retryMetronome = Metronome.sleeper(Duration.ofMillis(YSTREAM_RETRY_BACKOFF_MS), clock);
+                }
+                retryMetronome.pause();
+            }
+        }
+
+        throw new DebeziumException("YStream read failed: "
+                + YSTREAM_RETRY_MAX_ATTEMPTS + " attempts within "
+                + (YSTREAM_RETRY_WINDOW_MS / 1000) + "s window", lastFailure);
+    }
+
+    private void ensureConnectionOpen(YashanDbOffsetContext offsetContext) throws YstreamException {
+        if (ystreamClientBoot == null) {
+            ystreamClientBoot = YstreamClientBoot.getClient();
+        }
+        if (!ystreamClientOpen) {
+            ystreamClientBoot.open(buildYStreamConfig(offsetContext));
+            ystreamClientOpen = true;
+        }
+    }
+
     private YstreamConfig<YStreamRecord> buildYStreamConfig(YashanDbOffsetContext offsetContext) {
         return YstreamConfig.<YStreamRecord> builder()
                 .setHost(jdbcConnection.config().getHostname())
@@ -209,92 +240,19 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
                 .build();
     }
 
-    /**
-     * Main event processing loop - receives and processes YStream events.
-     */
-    private void processEventLoop(ChangeEventSourceContext context, YashanDbPartition partition,
-                                  YashanDbOffsetContext offsetContext, YStreamEventHandler eventHandler)
-            throws InterruptedException {
-
-        while (context.isRunning()) {
-            LOGGER.trace("Receiving LCR");
-            YStreamRecord record = fetchNextRecord(offsetContext);
-
-            if (record != null) {
-                eventHandler.processRecord(record);
-                dispatcher.dispatchHeartbeatEvent(partition, offsetContext);
-            }
-
-            handlePauseIfNeeded(context);
-        }
-    }
-
-    /**
-     * Fetches the next record from YStream with automatic reconnection on failure.
-     */
-    private YStreamRecord fetchNextRecord(YashanDbOffsetContext offsetContext) throws InterruptedException {
-        YStreamRecord next = null;
-        boolean nextRetryable = true;
-        int nextAttempt = 0;
-
-        while (nextRetryable && nextAttempt < YSTREAM_RETRY_MAX_ATTEMPTS) {
+    private void resetYStreamClient() {
+        if (ystreamClientBoot != null) {
             try {
-                next = ystreamClientBoot.next();
-                nextRetryable = false;
+                ystreamClientBoot.close();
             }
             catch (Exception e) {
-                nextAttempt++;
-                LOGGER.warn("YStream next() failed (attempt {}/{}), will re-open connection: {}",
-                        nextAttempt, YSTREAM_RETRY_MAX_ATTEMPTS, e.getMessage());
-
-                // Re-open connection on next() failure
-                reopenConnectionWithRetry(offsetContext, nextAttempt);
-
-                if (nextAttempt >= YSTREAM_RETRY_MAX_ATTEMPTS) {
-                    throw new RuntimeException("YStream next() failed after "
-                            + YSTREAM_RETRY_MAX_ATTEMPTS + " reconnection attempts", e);
-                }
-
-                sleepWithInterruptedCheck(YSTREAM_RETRY_BACKOFF_MS);
+                LOGGER.debug("Error closing YStream client: {}", e.getMessage());
             }
         }
-        return next;
+        ystreamClientBoot = null;
+        ystreamClientOpen = false;
     }
 
-    /**
-     * Reopens YStream connection after failure.
-     */
-    private void reopenConnectionWithRetry(YashanDbOffsetContext offsetContext, int attempt) {
-        closeQuietly(ystreamClientBoot);
-        try {
-            ystreamClientBoot = YstreamClientBoot.getClient();
-            openConnectionWithRetry(offsetContext, true);
-        }
-        catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Reconnection interrupted", ie);
-        }
-        catch (Exception e) {
-            LOGGER.warn("YStream re-open failed (attempt {}/{}): {}",
-                    attempt, YSTREAM_RETRY_MAX_ATTEMPTS, e.getMessage());
-        }
-    }
-
-    /**
-     * Handles pause state if streaming is paused.
-     */
-    private void handlePauseIfNeeded(ChangeEventSourceContext context) throws InterruptedException {
-        if (context.isPaused()) {
-            LOGGER.info("Streaming will now pause");
-            context.streamingPaused();
-            context.waitSnapshotCompletion();
-            LOGGER.info("Streaming resumed");
-        }
-    }
-
-    /**
-     * Handles execution errors, distinguishing between normal shutdown and actual errors.
-     */
     private void handleExecutionError(Throwable e, ChangeEventSourceContext context) {
         if (context.isRunning()) {
             LOGGER.error("Streaming error occurred: {}", e.getMessage(), e);
@@ -302,40 +260,6 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         }
         else {
             LOGGER.info("Exception caught during shutdown, ignoring: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * Closes YStream client quietly, suppressing any exceptions.
-     */
-    private void closeQuietly(YstreamClientBoot<?> client) {
-        if (client != null) {
-            try {
-                client.close();
-            }
-            catch (Exception closeEx) {
-                LOGGER.debug("Error closing ystream client: {}", closeEx.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Closes YStream client in finally block.
-     */
-    private void closeYStreamClient() {
-        closeQuietly(ystreamClientBoot);
-    }
-
-    /**
-     * Sleep with proper interrupt handling.
-     */
-    private void sleepWithInterruptedCheck(long sleepMs) throws InterruptedException {
-        try {
-            Thread.sleep(sleepMs);
-        }
-        catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            throw new InterruptedException("Retry interrupted");
         }
     }
 

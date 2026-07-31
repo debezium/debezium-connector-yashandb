@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import io.debezium.config.Configuration;
 import io.debezium.connector.yashandb.util.TestHelper;
 import io.debezium.pipeline.AbstractMetricsTest;
+import io.debezium.util.Testing;
 
 public class YashanDbMetricsIT extends AbstractMetricsTest<YashanDbConnector> {
 
@@ -69,10 +70,10 @@ public class YashanDbMetricsIT extends AbstractMetricsTest<YashanDbConnector> {
     }
 
     @BeforeAll
-    static void beforeClass() throws Exception {
+    static void beforeAll() throws Exception {
         TestHelper.dropTestUser();
         io.debezium.connector.yashandb.util.TestHelper.createTestUser();
-        connection = TestHelper.testConnection();
+        connection = TestHelper.connectedConnection();
         connection.setAutoCommit(false);
         TestHelper.dropAllTables();
         io.debezium.connector.yashandb.util.TestHelper.createYStreamServer();
@@ -93,7 +94,7 @@ public class YashanDbMetricsIT extends AbstractMetricsTest<YashanDbConnector> {
     }
 
     @AfterAll
-    static void closeConnection() throws SQLException {
+    static void afterAll() throws SQLException {
         if (connection != null) {
             TestHelper.dropTable(connection, "dbz.customer");
             connection.close();
@@ -106,6 +107,6 @@ public class YashanDbMetricsIT extends AbstractMetricsTest<YashanDbConnector> {
         TestHelper.addYStreamTables("customer");
         setConsumeTimeout(3, TimeUnit.SECONDS);
         initializeConnectorTestFramework();
-        Files.delete(TestHelper.SCHEMA_HISTORY_PATH);
+        Testing.Files.delete(TestHelper.SCHEMA_HISTORY_PATH);
     }
 }

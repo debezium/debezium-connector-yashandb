@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,14 +42,20 @@ public class YashanDbDataTypesIT extends AbstractAsyncEngineConnectorTest {
     static void beforeAll() throws Exception {
         TestHelper.createTestUser();
         TestHelper.createYStreamServer();
-        connection = TestHelper.create();
-        connection.connect();
+        connection = TestHelper.connectedConnection();
     }
 
     @BeforeEach
     void beforeEach() {
         setConsumeTimeout(30, TimeUnit.SECONDS);
         TestHelper.dropTable(connection, DATATYPES);
+    }
+
+    @AfterAll
+    static void afterAll() throws Exception {
+        if (connection != null) {
+            connection.close();
+        }
     }
 
     @Test

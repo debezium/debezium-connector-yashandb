@@ -22,6 +22,7 @@ import io.debezium.connector.yashandb.util.TestHelper;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.pipeline.AbstractBlockingSnapshotTest;
 import io.debezium.relational.history.SchemaHistory;
+import io.debezium.util.Testing;
 
 public class BlockingSnapshotIT extends AbstractBlockingSnapshotTest<YashanDbConnector> {
 
@@ -34,15 +35,15 @@ public class BlockingSnapshotIT extends AbstractBlockingSnapshotTest<YashanDbCon
     @BeforeAll
     static void beforeAll() throws Exception {
         TestHelper.dropTestUser();
-        io.debezium.connector.yashandb.util.TestHelper.createTestUser();
+        TestHelper.createTestUser();
     }
 
     @BeforeEach
     void before() throws Exception {
         connection = TestHelper.connectedConnection();
         TestHelper.dropTables(connection, A, B, SIGNAL);
-        io.debezium.connector.yashandb.util.TestHelper.createYStreamServer();
-        io.debezium.connector.yashandb.util.TestHelper.stopYStreamIfRunning();
+        TestHelper.createYStreamServer();
+        TestHelper.stopYStreamIfRunning();
 
         TestHelper.createTableIgnoreExists(connection,
                 "CREATE TABLE " + A + " (pk INT NOT NULL, aa INT, PRIMARY KEY (pk))");
@@ -56,7 +57,7 @@ public class BlockingSnapshotIT extends AbstractBlockingSnapshotTest<YashanDbCon
 
         setConsumeTimeout(30, TimeUnit.SECONDS);
         initializeConnectorTestFramework();
-        Files.delete(TestHelper.SCHEMA_HISTORY_PATH);
+        Testing.Files.delete(TestHelper.SCHEMA_HISTORY_PATH);
     }
 
     @AfterEach

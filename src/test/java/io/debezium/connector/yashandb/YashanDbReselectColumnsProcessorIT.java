@@ -16,6 +16,7 @@ import io.debezium.connector.yashandb.util.TestHelper;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.processors.AbstractReselectProcessorTest;
 import io.debezium.processors.reselect.ReselectColumnsPostProcessor;
+import io.debezium.util.Testing;
 
 /**
  * YashanDB's integration tests for {@link ReselectColumnsPostProcessor}.
@@ -26,17 +27,17 @@ public class YashanDbReselectColumnsProcessorIT extends AbstractReselectProcesso
 
     @BeforeAll
     static void beforeAll() throws Exception {
-        io.debezium.connector.yashandb.util.TestHelper.dropTestUser();
-        io.debezium.connector.yashandb.util.TestHelper.createTestUser();
-        io.debezium.connector.yashandb.util.TestHelper.createYStreamServer();
+        TestHelper.dropTestUser();
+        TestHelper.createTestUser();
+        TestHelper.createYStreamServer();
     }
 
     @BeforeEach
     public void beforeEach() throws Exception {
-        connection = TestHelper.testConnection();
+        connection = TestHelper.connectedConnection();
         setConsumeTimeout(20, TimeUnit.SECONDS);
         initializeConnectorTestFramework();
-        Files.delete(TestHelper.SCHEMA_HISTORY_PATH);
+        Testing.Files.delete(TestHelper.SCHEMA_HISTORY_PATH);
         super.beforeEach();
     }
 

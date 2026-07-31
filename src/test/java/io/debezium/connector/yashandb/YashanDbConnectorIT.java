@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,8 +42,14 @@ public class YashanDbConnectorIT extends AbstractAsyncEngineConnectorTest {
     static void beforeAll() throws Exception {
         TestHelper.createTestUser();
         TestHelper.createYStreamServer();
-        connection = TestHelper.create();
-        connection.connect();
+        connection = TestHelper.connectedConnection();
+    }
+
+    @AfterAll
+    static void afterAll() throws Exception {
+        if (connection != null) {
+            connection.close();
+        }
     }
 
     @BeforeEach
@@ -49,6 +57,11 @@ public class YashanDbConnectorIT extends AbstractAsyncEngineConnectorTest {
         setConsumeTimeout(30, TimeUnit.SECONDS);
         dropTable(CUSTOMERS);
         dropTable(PRODUCTS);
+    }
+
+    @AfterEach
+    void afterEach() {
+        stopConnector();
     }
 
     @Test

@@ -7,7 +7,6 @@ package io.debezium.connector.yashandb;
 
 import static io.debezium.connector.yashandb.util.TestHelper.addYStreamTables;
 
-import java.nio.file.Files;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -20,6 +19,7 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.yashandb.util.TestHelper;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.pipeline.AbstractChunkedSnapshotTest;
+import io.debezium.util.Testing;
 
 /**
  * YashanDB-specific chunked table snapshot integration tests.
@@ -30,20 +30,19 @@ public class YashanDbChunkedSnapshotIT extends AbstractChunkedSnapshotTest<Yasha
 
     @BeforeAll
     static void beforeAll() throws Exception {
-        io.debezium.connector.yashandb.util.TestHelper.dropTestUser();
-        io.debezium.connector.yashandb.util.TestHelper.createTestUser();
-
+        TestHelper.dropTestUser();
+        TestHelper.createTestUser();
     }
 
     @BeforeEach
     public void beforeEach() throws Exception {
-        connection = TestHelper.testConnection();
+        connection = TestHelper.connectedConnection();
         TestHelper.dropAllTables();
         TestHelper.createYStreamServer();
         TestHelper.stopYStreamIfRunning();
         setConsumeTimeout(20, TimeUnit.SECONDS);
         initializeConnectorTestFramework();
-        Files.delete(TestHelper.SCHEMA_HISTORY_PATH);
+        Testing.Files.delete(TestHelper.SCHEMA_HISTORY_PATH);
 
         super.beforeEach();
     }
