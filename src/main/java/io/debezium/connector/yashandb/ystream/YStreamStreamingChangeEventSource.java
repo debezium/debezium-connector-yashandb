@@ -45,10 +45,6 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
 
     private static final Logger LOGGER = LoggerFactory.getLogger(YStreamStreamingChangeEventSource.class);
 
-    private static final int YSTREAM_RETRY_MAX_ATTEMPTS = 30;
-    private static final long YSTREAM_RETRY_BACKOFF_MS = 2000;
-    private static final long YSTREAM_RETRY_WINDOW_MS = 180_000;
-
     private final YashanDbConnectorConfig connectorConfig;
     private final YashanDbConnection jdbcConnection;
     private final EventDispatcher<YashanDbPartition, TableId> dispatcher;
@@ -180,7 +176,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         Exception lastFailure = null;
         Metronome retryMetronome = null;
 
-        while (ystreamFailureTimestamps.size() < YSTREAM_RETRY_MAX_ATTEMPTS) {
+        while (ystreamFailureTimestamps.size() < connectorConfig.getYStreamRetryMaxAttempts()) {
             try {
                 ensureConnectionOpen(offsetContext);
                 return ystreamClientBoot.next();
@@ -191,27 +187,31 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
             catch (Exception e) {
                 lastFailure = e;
                 ystreamFailureTimestamps.addLast(clock.currentTimeInMillis());
-                // Remove failures outside the time window
-                long now = clock.currentTimeInMillis();
-                while (!ystreamFailureTimestamps.isEmpty()
-                        && now - ystreamFailureTimestamps.peekFirst() > YSTREAM_RETRY_WINDOW_MS) {
-                    ystreamFailureTimestamps.pollFirst();
-                }
+                removeExpiredFailures();
                 resetYStreamClient();
 
                 LOGGER.warn("YStream read attempt {}/{} failed within last {}s: {}",
-                        ystreamFailureTimestamps.size(), YSTREAM_RETRY_MAX_ATTEMPTS,
-                        YSTREAM_RETRY_WINDOW_MS / 1000, e.getMessage());
+                        ystreamFailureTimestamps.size(), connectorConfig.getYStreamRetryMaxAttempts(),
+                        connectorConfig.getYStreamRetryWindowMs() / 1000, e.getMessage());
+
                 if (retryMetronome == null) {
-                    retryMetronome = Metronome.sleeper(Duration.ofMillis(YSTREAM_RETRY_BACKOFF_MS), clock);
+                    retryMetronome = Metronome.sleeper(Duration.ofMillis(connectorConfig.getYStreamRetryBackoffMs()), clock);
                 }
                 retryMetronome.pause();
             }
         }
 
         throw new DebeziumException("YStream read failed: "
-                + YSTREAM_RETRY_MAX_ATTEMPTS + " attempts within "
-                + (YSTREAM_RETRY_WINDOW_MS / 1000) + "s window", lastFailure);
+                + connectorConfig.getYStreamRetryMaxAttempts() + " attempts within "
+                + (connectorConfig.getYStreamRetryWindowMs() / 1000) + "s window", lastFailure);
+    }
+
+    private void removeExpiredFailures() {
+        long now = clock.currentTimeInMillis();
+        while (!ystreamFailureTimestamps.isEmpty()
+                && now - ystreamFailureTimestamps.peekFirst() > connectorConfig.getYStreamRetryWindowMs()) {
+            ystreamFailureTimestamps.pollFirst();
+        }
     }
 
     private void ensureConnectionOpen(YashanDbOffsetContext offsetContext) throws YstreamException {

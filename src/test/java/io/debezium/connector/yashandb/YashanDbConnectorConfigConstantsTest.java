@@ -127,6 +127,13 @@ class YashanDbConnectorConfigConstantsTest {
     }
 
     @Test
+    void shouldHaveYstreamRetryFields() {
+        assertThat(YashanDbConnectorConfig.YSTREAM_RETRY_MAX_ATTEMPTS.name()).isEqualTo("ystream.retry.max.attempts");
+        assertThat(YashanDbConnectorConfig.YSTREAM_RETRY_BACKOFF_MS.name()).isEqualTo("ystream.retry.backoff.ms");
+        assertThat(YashanDbConnectorConfig.YSTREAM_RETRY_WINDOW_MS.name()).isEqualTo("ystream.retry.window.ms");
+    }
+
+    @Test
     void shouldHaveLogicShardEnabledField() {
         assertThat(YashanDbConnectorConfig.LOGIC_SHARD_ENABLED).isNotNull();
         assertThat(YashanDbConnectorConfig.LOGIC_SHARD_ENABLED.name()).isEqualTo("logic.shard.enabled");

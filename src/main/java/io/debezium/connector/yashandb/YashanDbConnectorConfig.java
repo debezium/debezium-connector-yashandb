@@ -193,6 +193,36 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
                     "The maximum time (in seconds) that the YStream server can wait for a response from the YStream client,"
                             + " with a default value of 60.");
 
+    public static final Field YSTREAM_RETRY_MAX_ATTEMPTS = Field.create("ystream.retry.max.attempts")
+            .withDisplayName("YStream retry maximum attempts")
+            .withType(Type.INT)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withValidation(Field::isNonNegativeInteger)
+            .withDefault(30)
+            .withDescription("The maximum number of failed YStream read attempts allowed within the retry window. "
+                    + "Failures are counted cumulatively in a sliding window, including failures separated by successful reads. "
+                    + "A value of 0 disables retries.");
+
+    public static final Field YSTREAM_RETRY_BACKOFF_MS = Field.create("ystream.retry.backoff.ms")
+            .withDisplayName("YStream retry backoff")
+            .withType(Type.LONG)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withValidation(Field::isPositiveLong)
+            .withDefault(2_000L)
+            .withDescription("The delay in milliseconds between failed YStream read attempts. The default is 2000 ms.");
+
+    public static final Field YSTREAM_RETRY_WINDOW_MS = Field.create("ystream.retry.window.ms")
+            .withDisplayName("YStream retry window")
+            .withType(Type.LONG)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withValidation(Field::isPositiveLong)
+            .withDefault(180_000L)
+            .withDescription("The sliding time window in milliseconds used to count failed YStream read attempts. "
+                    + "Failures older than this window are discarded. The default is 180000 ms (180 seconds).");
+
     public static final Field LOGIC_SHARD_ENABLED = Field.create("logic.shard.enabled")
             .withType(Type.BOOLEAN)
             .withWidth(Width.MEDIUM)
@@ -231,6 +261,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
                     LEGACY_DECIMAL_HANDLING_STRATEGY)
             .group(Field.Group.CONNECTOR_ADVANCED,
                     YSTREAM_CLIENT_RESPONSE_TIMEOUT, YSTREAM_POLL_TIMEOUT, YSTREAM_QUEUE_SIZE,
+                    YSTREAM_RETRY_MAX_ATTEMPTS, YSTREAM_RETRY_BACKOFF_MS, YSTREAM_RETRY_WINDOW_MS,
                     LOGIC_SHARD_ENABLED, TABLE_READ_THREADS, LOB_ENABLED)
             .group(Field.Group.CONNECTOR, SOURCE_INFO_STRUCT_MAKER)
             .create();
@@ -269,6 +300,9 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final int yStreamQueueSize;
     private final int yStreamPollTimeout;
     private final int yStreamClientResponseTimeout;
+    private final int yStreamRetryMaxAttempts;
+    private final long yStreamRetryBackoffMs;
+    private final long yStreamRetryWindowMs;
     private final Boolean logicShardEnabled;
     private final int tableReadThreads;
     private final boolean legacyDecimalHandlingStrategy;
@@ -305,6 +339,9 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         this.yStreamQueueSize = config.getInteger(YSTREAM_QUEUE_SIZE);
         this.snapshotRetryDatabaseErrorsMaxRetries = config.getInteger(SNAPSHOT_DATABASE_ERRORS_MAX_RETRIES);
         this.yStreamClientResponseTimeout = config.getInteger(YSTREAM_CLIENT_RESPONSE_TIMEOUT);
+        this.yStreamRetryMaxAttempts = config.getInteger(YSTREAM_RETRY_MAX_ATTEMPTS);
+        this.yStreamRetryBackoffMs = config.getLong(YSTREAM_RETRY_BACKOFF_MS);
+        this.yStreamRetryWindowMs = config.getLong(YSTREAM_RETRY_WINDOW_MS);
 
         // Shard
         this.logicShardEnabled = config.getBoolean(LOGIC_SHARD_ENABLED);
@@ -397,6 +434,33 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      */
     public int getyStreamClientResponseTimeout() {
         return yStreamClientResponseTimeout;
+    }
+
+    /**
+     * Returns the maximum number of failed YStream read attempts in the retry window.
+     *
+     * @return the maximum number of attempts
+     */
+    public int getYStreamRetryMaxAttempts() {
+        return yStreamRetryMaxAttempts;
+    }
+
+    /**
+     * Returns the delay between failed YStream read attempts in milliseconds.
+     *
+     * @return the retry backoff
+     */
+    public long getYStreamRetryBackoffMs() {
+        return yStreamRetryBackoffMs;
+    }
+
+    /**
+     * Returns the sliding window for failed YStream read attempts in milliseconds.
+     *
+     * @return the retry window
+     */
+    public long getYStreamRetryWindowMs() {
+        return yStreamRetryWindowMs;
     }
 
     /**

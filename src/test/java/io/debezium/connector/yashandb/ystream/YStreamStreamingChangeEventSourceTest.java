@@ -82,6 +82,9 @@ class YStreamStreamingChangeEventSourceTest {
         when(connectorConfig.getyStreamQueueSize()).thenReturn(16);
         when(connectorConfig.getyStreamPollTimeout()).thenReturn(1_000);
         when(connectorConfig.getyStreamClientResponseTimeout()).thenReturn(1_000);
+        when(connectorConfig.getYStreamRetryMaxAttempts()).thenReturn(30);
+        when(connectorConfig.getYStreamRetryBackoffMs()).thenReturn(2_000L);
+        when(connectorConfig.getYStreamRetryWindowMs()).thenReturn(180_000L);
 
         Position position = new Position(new SystemChangeNumber(1L), new LogPosition());
         when(offsetContext.getLcrPosition()).thenReturn(position);
