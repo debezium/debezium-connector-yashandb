@@ -39,6 +39,7 @@ import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.source.spi.ChangeEventSource.ChangeEventSourceContext;
+import io.debezium.service.spi.ServiceRegistry;
 import io.debezium.util.Clock;
 
 class YStreamStreamingChangeEventSourceTest {
@@ -70,6 +71,8 @@ class YStreamStreamingChangeEventSourceTest {
 
         AtomicLong time = new AtomicLong();
         clock = () -> time.addAndGet(1_000L);
+
+        when(connectorConfig.getServiceRegistry()).thenReturn(mock(ServiceRegistry.class));
 
         JdbcConfiguration jdbcConfiguration = mock(JdbcConfiguration.class);
         when(jdbcConnection.config()).thenReturn(jdbcConfiguration);
