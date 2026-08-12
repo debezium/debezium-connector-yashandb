@@ -10,6 +10,7 @@ import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -30,6 +31,8 @@ import io.debezium.connector.yashandb.YashanDbPartition;
 import io.debezium.connector.yashandb.YashanDbStreamingChangeEventSourceMetrics;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.pipeline.EventDispatcher;
+import io.debezium.pipeline.monitor.OffsetActivityMonitor;
+import io.debezium.pipeline.monitor.OffsetActivityMonitorService;
 import io.debezium.pipeline.source.snapshot.incremental.SignalBasedIncrementalSnapshotContext;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.pipeline.txmetadata.TransactionContext;
@@ -67,6 +70,8 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     private final AtomicReference<YStreamPosition> lcrMessage = new AtomicReference<>();
     private YashanDbOffsetContext effectiveOffset;
     private Position lastAppliedPosition = null;
+    private final OffsetActivityMonitorService offsetActivityMonitorService;
+    private OffsetActivityMonitor<YashanDbPartition, YashanDbOffsetContext> offsetActivityMonitor;
 
     /**
      * Creates a YStreamStreamingChangeEventSource with the given configuration and dependencies.
@@ -91,6 +96,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         this.schema = schema;
         this.streamingMetrics = streamingMetrics;
         this.yStreamServerName = connectorConfig.getYstreamServerName();
+        this.offsetActivityMonitorService = OffsetActivityMonitorService.lookup(connectorConfig.getServiceRegistry());
     }
 
     /**
@@ -162,6 +168,8 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
                 eventHandler.processRecord(next);
                 dispatcher.dispatchHeartbeatEvent(partition, offsetContext);
             }
+
+            offsetActivityMonitorService.pulse(partition, offsetContext);
 
             if (context.isPaused()) {
                 LOGGER.info("Streaming will now pause");
@@ -286,6 +294,16 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     @Override
     public YashanDbOffsetContext getOffsetContext() {
         return effectiveOffset;
+    }
+
+    @Override
+    public Optional<OffsetActivityMonitor<YashanDbPartition, YashanDbOffsetContext>> getOffsetActivityMonitor() {
+        if (offsetActivityMonitor == null) {
+            offsetActivityMonitor = new YStreamOffsetActivityMonitor(
+                    connectorConfig.getOffsetActivityMonitorInterval(),
+                    streamingMetrics);
+        }
+        return Optional.of(offsetActivityMonitor);
     }
 
     /**
