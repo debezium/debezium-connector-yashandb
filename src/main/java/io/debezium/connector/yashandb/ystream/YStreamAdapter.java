@@ -230,7 +230,7 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
                 .snapshotScn(currentScn)
                 .snapshotPendingTransactions(Collections.emptyMap())
                 .transactionContext(new TransactionContext())
-                .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>())
+                .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>(false))
                 .build();
     }
 }

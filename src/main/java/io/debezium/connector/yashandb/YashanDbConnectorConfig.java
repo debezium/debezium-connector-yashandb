@@ -7,7 +7,9 @@ package io.debezium.connector.yashandb;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.apache.kafka.common.config.ConfigDef;
@@ -26,6 +28,7 @@ import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.AbstractSourceInfo;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.yashandb.ystream.YStreamAdapter;
+import io.debezium.connector.yashandb.ystream.YStreamConfigBuilder;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
@@ -239,6 +242,26 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withDescription(
                     "Number of read threads per table.Default 1 thread.");
 
+    /**
+     * Enables fault-tolerant processing of the YStream client. When enabled, the connector passes the flag through to the
+     * client via {@code setFaultTolerance}, allowing the client to recover from transient errors instead of failing the
+     * streaming task.
+     */
+    public static final Field YSTREAM_FAULT_TOLERANCE = Field.create("ystream.fault.tolerance")
+            .withDisplayName("YashanDB YStream fault tolerance")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(false)
+            .withDescription("Whether the YStream client should enable fault-tolerant processing.");
+
+    /**
+     * Prefix for YStream builder options. For example, {@code ystream.additional.properties.enable.sequence.next.val=true}
+     * maps to {@code setEnableSequenceNextVal(true)}. Credential-like options are rejected; use dedicated connector
+     * settings for connection credentials.
+     */
+    public static final String YSTREAM_ADDITIONAL_PROPERTIES_PREFIX = "ystream.additional.properties.";
+
     private static final ConfigDefinition CONFIG_DEFINITION = HistorizedRelationalDatabaseConnectorConfig.CONFIG_DEFINITION.edit()
             .name("YashanDB")
             .excluding(
@@ -262,6 +285,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .group(Field.Group.CONNECTOR_ADVANCED,
                     YSTREAM_CLIENT_RESPONSE_TIMEOUT, YSTREAM_POLL_TIMEOUT, YSTREAM_QUEUE_SIZE,
                     YSTREAM_RETRY_MAX_ATTEMPTS, YSTREAM_RETRY_BACKOFF_MS, YSTREAM_RETRY_WINDOW_MS,
+                    YSTREAM_FAULT_TOLERANCE,
                     LOGIC_SHARD_ENABLED, TABLE_READ_THREADS, LOB_ENABLED)
             .group(Field.Group.CONNECTOR, SOURCE_INFO_STRUCT_MAKER)
             .create();
@@ -307,6 +331,10 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final int tableReadThreads;
     private final boolean legacyDecimalHandlingStrategy;
     private final int snapshotRetryDatabaseErrorsMaxRetries;
+    // Passed through to the YStream client via setFaultTolerance, see buildYStreamConfig
+    private final boolean yStreamFaultTolerance;
+    // Additional YStream builder options, resolved to builder setters by YStreamConfigBuilder
+    private final Map<String, String> yStreamAdditionalProperties;
 
     /**
      * Creates a new connector configuration.
@@ -342,6 +370,9 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         this.yStreamRetryMaxAttempts = config.getInteger(YSTREAM_RETRY_MAX_ATTEMPTS);
         this.yStreamRetryBackoffMs = config.getLong(YSTREAM_RETRY_BACKOFF_MS);
         this.yStreamRetryWindowMs = config.getLong(YSTREAM_RETRY_WINDOW_MS);
+        this.yStreamFaultTolerance = config.getBoolean(YSTREAM_FAULT_TOLERANCE);
+        this.yStreamAdditionalProperties = additionalYStreamProperties(config);
+        YStreamConfigBuilder.validate(yStreamAdditionalProperties);
 
         // Shard
         this.logicShardEnabled = config.getBoolean(LOGIC_SHARD_ENABLED);
@@ -353,6 +384,10 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
 
     private static String toUpperCase(String property) {
         return property == null ? null : property.toUpperCase();
+    }
+
+    private static Map<String, String> additionalYStreamProperties(Configuration config) {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(config.subset(YSTREAM_ADDITIONAL_PROPERTIES_PREFIX, true).asMap()));
     }
 
     /**
@@ -461,6 +496,24 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      */
     public long getYStreamRetryWindowMs() {
         return yStreamRetryWindowMs;
+    }
+
+    /**
+     * Returns whether fault-tolerant processing of the YStream client is enabled.
+     *
+     * @return true if fault tolerance is enabled, false otherwise
+     */
+    public boolean getYstreamFaultTolerance() {
+        return yStreamFaultTolerance;
+    }
+
+    /**
+     * Returns the additional YStream builder options configured under {@code ystream.additional.properties.*}.
+     *
+     * @return the unmodifiable map of additional YStream builder options, empty when none are configured
+     */
+    public Map<String, String> getYstreamAdditionalProperties() {
+        return yStreamAdditionalProperties;
     }
 
     /**

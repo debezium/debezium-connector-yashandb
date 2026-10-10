@@ -118,7 +118,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         return YashanDbOffsetContext.create().logicalName(connectorConfig)
                 .snapshotPendingTransactions(Collections.emptyMap())
                 .transactionContext(new TransactionContext())
-                .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>()).build();
+                .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>(false)).build();
     }
 
     /**
@@ -232,9 +232,20 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         }
     }
 
+    /**
+     * Builds the YStream client configuration used when opening the streaming connection.
+     *
+     * <p>Additional YStream properties ({@code ystream.additional.properties.*}) are applied to the builder first, followed
+     * by the dedicated connector settings below, so the latter take precedence when the same option is configured in both
+     * places.</p>
+     *
+     * @param offsetContext the current offset context, supplying the recovery start position
+     * @return the fully configured YStream config
+     */
     private YstreamConfig<YStreamRecord> buildYStreamConfig(YashanDbOffsetContext offsetContext) {
-        return YstreamConfig.<YStreamRecord> builder()
-                .setHost(jdbcConnection.config().getHostname())
+        YstreamConfig.Builder<YStreamRecord> ystreamConfigBuilder = YstreamConfig.builder();
+        YStreamConfigBuilder.apply(ystreamConfigBuilder, connectorConfig.getYstreamAdditionalProperties());
+        ystreamConfigBuilder.setHost(jdbcConnection.config().getHostname())
                 .setPort(String.valueOf(jdbcConnection.config().getPort()))
                 .setUser(jdbcConnection.config().getUser())
                 .setPassword(jdbcConnection.config().getPassword())
@@ -245,7 +256,8 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
                 .setClientResponseTimeout(connectorConfig.getyStreamClientResponseTimeout())
                 .setQueueSize(connectorConfig.getyStreamQueueSize())
                 .setServerName(yStreamServerName)
-                .build();
+                .setFaultTolerance(connectorConfig.getYstreamFaultTolerance());
+        return ystreamConfigBuilder.build();
     }
 
     private void resetYStreamClient() {

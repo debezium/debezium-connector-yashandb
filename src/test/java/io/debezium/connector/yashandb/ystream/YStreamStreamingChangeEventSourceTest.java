@@ -14,6 +14,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -88,6 +89,8 @@ class YStreamStreamingChangeEventSourceTest {
         when(connectorConfig.getYStreamRetryMaxAttempts()).thenReturn(30);
         when(connectorConfig.getYStreamRetryBackoffMs()).thenReturn(2_000L);
         when(connectorConfig.getYStreamRetryWindowMs()).thenReturn(180_000L);
+        when(connectorConfig.getYstreamFaultTolerance()).thenReturn(false);
+        when(connectorConfig.getYstreamAdditionalProperties()).thenReturn(Collections.emptyMap());
 
         Position position = new Position(new SystemChangeNumber(1L), new LogPosition());
         when(offsetContext.getLcrPosition()).thenReturn(position);
