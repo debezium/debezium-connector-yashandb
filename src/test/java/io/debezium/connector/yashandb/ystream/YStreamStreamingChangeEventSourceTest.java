@@ -33,6 +33,7 @@ import com.sics.ystream.result.YstreamMetadata;
 import io.debezium.connector.yashandb.YashanDbConnection;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig;
 import io.debezium.connector.yashandb.YashanDbDatabaseSchema;
+import io.debezium.connector.yashandb.YashanDbModeContext;
 import io.debezium.connector.yashandb.YashanDbOffsetContext;
 import io.debezium.connector.yashandb.YashanDbPartition;
 import io.debezium.connector.yashandb.YashanDbStreamingChangeEventSourceMetrics;
@@ -91,6 +92,7 @@ class YStreamStreamingChangeEventSourceTest {
         when(connectorConfig.getYStreamRetryWindowMs()).thenReturn(180_000L);
         when(connectorConfig.getYstreamFaultTolerance()).thenReturn(false);
         when(connectorConfig.getYstreamAdditionalProperties()).thenReturn(Collections.emptyMap());
+        when(connectorConfig.getModeContext()).thenReturn(new YashanDbModeContext(false));
 
         Position position = new Position(new SystemChangeNumber(1L), new LogPosition());
         when(offsetContext.getLcrPosition()).thenReturn(position);

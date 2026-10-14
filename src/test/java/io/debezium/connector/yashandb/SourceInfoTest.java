@@ -20,6 +20,7 @@ import com.sics.ystream.result.Position;
 import com.sics.ystream.result.SystemChangeNumber;
 
 import io.debezium.connector.yashandb.util.TestHelper;
+import io.debezium.doc.FixFor;
 import io.debezium.relational.TableId;
 
 /**
@@ -101,6 +102,17 @@ class SourceInfoTest {
 
         assertThat(sourceInfo.table()).isEqualTo("table_name");
         assertThat(sourceInfo.tableSchema()).isEqualTo("schema");
+    }
+
+    @FixFor("debezium/dbz#3014")
+    @Test
+    void shouldUseTableIdSchemaInMysqlMode() {
+        YashanDbConnectorConfig config = new YashanDbConnectorConfig(
+                TestHelper.defaultConfig().build(), new YashanDbModeContext(true));
+        SourceInfo sourceInfo = new TestableSourceInfo(config);
+        sourceInfo.tableEvent(new TableId(null, "inventory", "orders"));
+
+        assertThat(sourceInfo.tableSchema()).isEqualTo("inventory");
     }
 
     @Test

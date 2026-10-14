@@ -17,6 +17,7 @@ import io.debezium.config.Configuration;
 import io.debezium.config.ConfigurationNames;
 import io.debezium.connector.yashandb.YashanDbConnection;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig;
+import io.debezium.connector.yashandb.YashanDbModeContext;
 import io.debezium.embedded.async.AsyncEngineConfig;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.storage.file.history.FileSchemaHistory;
@@ -31,6 +32,7 @@ public final class TestHelper {
     public static final String TEST_DATABASE = "testdb";
     public static final String TEST_CONNECTOR = "yashandb_server";
     public static final String TEST_SCHEMA = "DBZ";
+    public static final String MYSQL_TEST_DATABASE = "dbz";
     public static final String TEST_USER = "DBZ";
     public static final String TEST_PASSWORD = "dbz";
     public static final String DEFAULT_YSTREAM_SERVER = "ystream_server";
@@ -46,7 +48,11 @@ public final class TestHelper {
                 .withDefault(JdbcConfiguration.HOSTNAME, "localhost")
                 .withDefault(JdbcConfiguration.PORT, DEFAULT_PORT)
                 .withDefault(JdbcConfiguration.USER, "SYS")
-                .withDefault(JdbcConfiguration.PASSWORD, "Cod-2022");
+                .withDefault(JdbcConfiguration.PASSWORD, "Cod-2022")
+                // Administrative statements (user grants and YStream setup)
+                // use the native YashanDB grammar even when the instance was
+                // installed in MySQL compatibility mode.
+                .with("compatVector", "yashan");
     }
 
     public static YashanDbConnection connectedConnection() {
@@ -95,6 +101,29 @@ public final class TestHelper {
 
     public static YashanDbConnection create() {
         return new YashanDbConnection(testJdbcConfig().build());
+    }
+
+    /**
+     * Creates a test-user connection using the MySQL compatibility dialect.
+     * This is used by MySQL-mode integration tests for DDL and DML setup.
+     *
+     * @return a configured MySQL-mode connection
+     */
+    public static YashanDbConnection createMySqlMode() {
+        return new YashanDbConnection(testJdbcConfig().with(JdbcConfiguration.DATABASE, MYSQL_TEST_DATABASE).build(),
+                new YashanDbModeContext(true));
+    }
+
+    /**
+     * Grants the schema privileges needed by the MySQL snapshot fixture.
+     * Native system grants alone do not authorize MySQL USE database statements.
+     */
+    public static void createMySqlTestUser() throws Exception {
+        createTestUser();
+        try (YashanDbConnection connection = new YashanDbConnection(adminJdbcConfig().build(), new YashanDbModeContext(true))) {
+            connection.connect();
+            connection.execute("GRANT SELECT, INSERT, CREATE, DROP ON `" + MYSQL_TEST_DATABASE + "`.* TO " + TEST_USER);
+        }
     }
 
     public static void dropTestUser() throws Exception {

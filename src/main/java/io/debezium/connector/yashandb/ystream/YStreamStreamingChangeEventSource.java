@@ -256,7 +256,8 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
                 .setClientResponseTimeout(connectorConfig.getyStreamClientResponseTimeout())
                 .setQueueSize(connectorConfig.getyStreamQueueSize())
                 .setServerName(yStreamServerName)
-                .setFaultTolerance(connectorConfig.getYstreamFaultTolerance());
+                .setFaultTolerance(connectorConfig.getYstreamFaultTolerance())
+                .setMysqlMode(connectorConfig.getModeContext().isMySql());
         return ystreamConfigBuilder.build();
     }
 

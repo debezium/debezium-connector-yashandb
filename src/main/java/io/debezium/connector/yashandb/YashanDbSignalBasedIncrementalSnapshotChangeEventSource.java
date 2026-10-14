@@ -53,7 +53,10 @@ public class YashanDbSignalBasedIncrementalSnapshotChangeEventSource extends Sig
 
     @Override
     protected String getSignalTableName(String dataCollectionId) {
-        final TableId tableId = YashanDbTableIdParser.parse(dataCollectionId);
+        TableId tableId = YashanDbTableIdParser.parse(dataCollectionId);
+        if (connection.isMySqlMode()) {
+            return connection.quotedTableIdString(tableId);
+        }
         return YashanDbTableIdParser.quoteIfNeeded(tableId, false, true, connection.getSQLKeywords());
     }
 

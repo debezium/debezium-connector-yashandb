@@ -129,24 +129,24 @@ class YStreamEventHandler {
             switch (record.getYstreamLcrInterface().getLcrType()) {
                 case YSTREAM_DDL:
                     YstreamDdl ddl = (YstreamDdl) record.getYstreamLcrInterface();
-                    offsetContext.tableEvent(new TableId("", ddl.getTableId().getSchema(), ddl.getTableId().getTable()),
+                    offsetContext.tableEvent(toTableId(ddl.getTableId().getSchema(), ddl.getTableId().getTable()),
                             ddl.getCurrentScn().getTimestamp().toInstant());
                     break;
                 case YSTREAM_DML:
                     YstreamDml dml = (YstreamDml) record.getYstreamLcrInterface();
-                    offsetContext.tableEvent(new TableId("", dml.getTableId().getSchema(), dml.getTableId().getTable()),
+                    offsetContext.tableEvent(toTableId(dml.getTableId().getSchema(), dml.getTableId().getTable()),
                             dml.getCurrentScn().getTimestamp().toInstant());
                     break;
                 case YSTREAM_XACT:
                     break;
                 case YSTREAM_CHUNK:
                     YstreamChunk chunk = (YstreamChunk) record.getYstreamLcrInterface();
-                    offsetContext.tableEvent(new TableId("", chunk.getTableId().getSchema(), chunk.getTableId().getTable()),
+                    offsetContext.tableEvent(toTableId(chunk.getTableId().getSchema(), chunk.getTableId().getTable()),
                             chunk.getCurrentScn().getTimestamp().toInstant());
                     break;
                 case YSTREAM_METADATA:
                     YstreamMetadata metadata = (YstreamMetadata) record.getYstreamLcrInterface();
-                    offsetContext.tableEvent(new TableId("", metadata.getTableId().getSchema(), metadata.getTableId().getTable()),
+                    offsetContext.tableEvent(toTableId(metadata.getTableId().getSchema(), metadata.getTableId().getTable()),
                             null);
             }
             YstreamLcrInterface ystreamLcrInterface = record.getYstreamLcrInterface();
@@ -244,16 +244,22 @@ class YStreamEventHandler {
             Object[] oldValues;
             try {
                 tableFor = schema.tableFor(tableId);
-                newValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues);
-                oldValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
+                newValues = truncateTable ? null
+                        : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues,
+                                connectorConfig.getModeContext().isMySql());
+                oldValues = truncateTable ? null
+                        : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues,
+                                connectorConfig.getModeContext().isMySql());
             }
             catch (IllegalStateException e) {
                 LOGGER.warn("Try to read table metadata again to resolve the error when obtaining field values.");
                 printDiffMetadata(record, tableId);
                 schema.getTables().removeTable(tableId);
                 tableFor = getTable(tableId);
-                newValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues);
-                oldValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
+                newValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues,
+                        connectorConfig.getModeContext().isMySql());
+                oldValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues,
+                        connectorConfig.getModeContext().isMySql());
             }
             if (!truncateTable) {
                 Set<String> columnNamesPresentInAfter = record.getYstreamDml().getNewValues().getColumns().stream()
@@ -289,10 +295,11 @@ class YStreamEventHandler {
                 .map(YstreamColumn::getColumn)
                 .map(com.sics.ystream.metadata.Column::getColumnName)
                 .collect(Collectors.joining(","));
+        String namespace = tableId.schema();
         LOGGER.error("Dispatch data change event error,record schema: {}," +
                 "table: {}," +
                 "columns in the schema: {}," +
-                "columns on the table: {}", tableId.schema(), tableId.table(), columnsInSchema, columnsOnTable);
+                "columns on the table: {}", namespace, tableId.table(), columnsInSchema, columnsOnTable);
     }
 
     /**
@@ -337,18 +344,22 @@ class YStreamEventHandler {
         LOGGER.debug("Processing DDL event {}", ddl.getDdlText());
 
         TableId tableId = getTableId(ddl);
+        // MySQL DDL may affect multiple tables or rename a captured table to an excluded name.
+        // Let the emitter filter the parsed table events when the LCR table alone is excluded.
+        TableId dispatchTableId = connectorConfig.getModeContext().isMySql()
+                && !connectorConfig.getTableFilters().dataCollectionFilter().isIncluded(tableId) ? null : tableId;
 
         dispatcher.dispatchSchemaChangeEvent(
                 partition,
                 offsetContext,
-                tableId,
+                dispatchTableId,
                 new YashanDbSchemaChangeEventEmitter(
                         connectorConfig,
                         partition,
                         offsetContext,
                         tableId,
                         "",
-                        ddl.getTableId().getSchema(),
+                        tableId.schema(),
                         ddl.getDdlText(),
                         schema,
                         ddl.getCurrentScn().getTimestamp().toInstant(),
@@ -382,22 +393,27 @@ class YStreamEventHandler {
 
     private TableId getTableId(YStreamDataChangeRecord dmlRecord) {
         return dmlRecord.isTruncateTable()
-                ? new TableId("", dmlRecord.getyStreamTruncate().getTableId().getSchema(), dmlRecord.getyStreamTruncate().getTableId().getTable())
-                : new TableId("", dmlRecord.getYstreamDml().getTableId().getSchema(), dmlRecord.getYstreamDml().getTableId().getTable());
+                ? toTableId(dmlRecord.getyStreamTruncate().getTableId().getSchema(), dmlRecord.getyStreamTruncate().getTableId().getTable())
+                : toTableId(dmlRecord.getYstreamDml().getTableId().getSchema(), dmlRecord.getYstreamDml().getTableId().getTable());
     }
 
     private TableId getTableId(YstreamDdl ddl) {
-        return new TableId("", ddl.getTableId().getSchema(), ddl.getTableId().getTable());
+        return toTableId(ddl.getTableId().getSchema(), ddl.getTableId().getTable());
+    }
+
+    private TableId toTableId(String schemaName, String tableName) {
+        return connectorConfig.getModeContext().dialect().tableId("", schemaName, tableName);
     }
 
     private String getTableMetadataDdl(TableId tableId) {
         LOGGER.info("Getting database metadata for table '{}'", tableId);
         // A separate connection must be used for this out-of-bands query while processing the Xstream callback.
         // This should have negligible overhead as this should happen rarely.
-        try (YashanDbConnection connection = new YashanDbConnection(connectorConfig.getJdbcConfig())) {
+        try (YashanDbConnection connection = new YashanDbConnection(connectorConfig.getJdbcConfig(), connectorConfig.getModeContext())) {
             connection.setAutoCommit(false);
             String tableMetadataDdl = connection.getTableMetadataDdl(tableId);
-            LOGGER.debug("Obtain table {}.{} ddl: {}", tableId.schema(), tableId.table(), tableMetadataDdl);
+            String namespace = tableId.schema();
+            LOGGER.debug("Obtain table {}.{} ddl: {}", namespace, tableId.table(), tableMetadataDdl);
             return tableMetadataDdl;
         }
         catch (SQLException e) {

@@ -89,7 +89,7 @@ public class DateToStringConverter implements CustomConverter<SchemaBuilder, Rel
                 return formatter.format(((Timestamp) x).toLocalDateTime());
             }
             else if (x instanceof Date) {
-                return formatter.format(Instant.ofEpochMilli(((Date) x).getTime()).atZone(ZoneId.systemDefault()));
+                return formatter.format(((Date) x).toLocalDate());
             }
             else if (x instanceof java.util.Date) {
                 return formatter.format(((java.util.Date) x).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());

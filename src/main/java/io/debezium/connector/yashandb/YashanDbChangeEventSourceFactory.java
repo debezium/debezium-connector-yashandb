@@ -107,7 +107,7 @@ public class YashanDbChangeEventSourceFactory implements ChangeEventSourceFactor
         // PDB when reading snapshot records.
         return Optional.of(new YashanDbSignalBasedIncrementalSnapshotChangeEventSource(
                 configuration,
-                new YashanDbConnection(connectionFactory.mainConnection().config()),
+                new YashanDbConnection(connectionFactory.mainConnection().config(), configuration.getModeContext()),
                 dispatcher,
                 schema,
                 clock,

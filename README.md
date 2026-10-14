@@ -97,7 +97,34 @@ Then restart Kafka Connect to load the new connector.
 |----------|-------------|---------|
 | `interval.handling.mode` | INTERVAL column representation: `string`, `numeric` | `numeric` |
 | `decimal.handling.mode` | DECIMAL column representation: `precise`, `double`, `string` | `precise` |
+| `bigint.unsigned.handling.mode` | MySQL-mode `BIGINT UNSIGNED` representation: `precise` (scale-zero Decimal), `long` (signed INT64), `double` (FLOAT64), `string` (decimal text) | `precise` |
 | `legacy.decimal.handling.strategy` | Legacy decimal handling strategy | - |
+
+#### YStream MySQL mode
+
+The connector uses native YashanDB syntax by default. To connect to a MySQL-compatible YashanDB database, set the `mysql.mode` YStream option:
+
+```json
+{
+  "ystream.additional.properties.mysql.mode": "true"
+}
+```
+
+This setting selects the YStream client mode, the MySQL dialect for connector-generated SQL and table identifiers, and the JDBC `compatVector=mysql` connection property. The connector does not inspect `COMPAT_VECTOR` to select a mode. Use a separate topic prefix, offsets, and schema history when changing the mode of an existing connector.
+
+In MySQL mode, a database name is the `schema` component of the connector's table identifier, so a table is identified as `database.table`. Use `schema.include.list` and `schema.exclude.list` to filter databases. Do not use `database.include.list` or `database.exclude.list` for MySQL-mode database filtering.
+
+In MySQL mode, integer columns declared `UNSIGNED` or `ZEROFILL` use wider Kafka Connect types so their full range is retained. `TINYINT UNSIGNED` maps to `INT16`, `SMALLINT UNSIGNED` and `MEDIUMINT UNSIGNED` to `INT32`, and `INT UNSIGNED` to `INT64`. `BIGINT UNSIGNED` maps to a scale-zero Connect `Decimal` by default, including values above Java's signed `long` maximum. Set `bigint.unsigned.handling.mode=long` for a signed `INT64` schema; values above `Long.MAX_VALUE` then cannot be represented correctly. Set it to `double` for an approximate `FLOAT64` value, or `string` for the exact unsigned decimal value as text. Signed values returned by YStream are restored according to the source integer width; already-positive JDBC snapshot values are preserved. This mapping is specific to MySQL mode and does not depend on `decimal.handling.mode`.
+
+MySQL-mode `TIME` columns use a Kafka Connect `STRING` schema in snapshots and streaming. This preserves durations beyond 24 hours, including values such as `838:59:59` and negative values. Existing consumers of these columns need to accept the string schema.
+
+MySQL mode parses incremental DDL with the Debezium MySQL ANTLR grammar. Supported changes include `CREATE TABLE`, `ALTER TABLE` (adding, modifying, renaming, reordering, and dropping columns, and changing primary keys), `RENAME TABLE`, `DROP TABLE`, and `TRUNCATE TABLE`. Parsed table definitions use the same `database.table` identifiers as snapshots and streaming, and are recorded in schema history. `TRUNCATE TABLE` uses the existing truncate event handling and `skipped.operations` setting.
+
+The MySQL grammar files are copied from Debezium's `debezium-ddl-parser/src/main/antlr4/io/debezium/ddl/parser/mysql/legacy/` (`MySqlLexer.g4` and `MySqlParser.g4`), with their original license notices preserved. The connector generates them under its own package to coexist with the native YashanDB parser.
+
+The container-backed MySQL-mode integration test is documented in [YashanDB MySQL mode integration](docs/yashandb-mysql-integration.md). Run it with `-Pmysql-integration-tests` so the YashanDB image is initialized with `--mode mysql`.
+
+Additional YStream builder options use the same `ystream.additional.properties.` prefix, with one connector property per option. For example, `"ystream.additional.properties.enable.sequence.next.val": "true"` maps to the YStream `setEnableSequenceNextVal(true)` builder call. Dedicated connector settings take precedence when they configure the same YStream option. Replace the former comma-separated `ystream.additional.properties` setting with individually prefixed properties when upgrading.
 
 ### Example Configuration
 
