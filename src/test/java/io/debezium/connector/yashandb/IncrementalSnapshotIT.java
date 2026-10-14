@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
@@ -29,8 +30,10 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Yasha
     private static final String B = "B";
     private static final String A42 = "A42";
     private static final String SIGNAL = "DEBEZIUM_SIGNAL";
+    private static final int BASE_CHUNK_SIZE = 10;
 
     private YashanDbConnection connection;
+    private boolean notificationTest;
 
     @BeforeAll
     static void beforeAll() throws Exception {
@@ -40,7 +43,10 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Yasha
     }
 
     @BeforeEach
-    void before() throws Exception {
+    void before(TestInfo testInfo) throws Exception {
+        notificationTest = testInfo.getTestMethod()
+                .map(method -> "testNotification".equals(method.getName()))
+                .orElse(false);
         connection = TestHelper.connectedConnection();
 
         TestHelper.stopYStreamIfRunning();
@@ -152,7 +158,14 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Yasha
 
     @Override
     protected Configuration.Builder config() {
-        return baseConfig(YashanDbConnectorConfig.SnapshotMode.NO_DATA)
+        Configuration.Builder builder = baseConfig(YashanDbConnectorConfig.SnapshotMode.NO_DATA);
+        if (notificationTest) {
+            // The inherited test consumes 100 of 1,000 rows before pausing. Bound this test's
+            // queue so the snapshot cannot finish in the default 8,192-record buffer first.
+            builder.with(CommonConnectorConfig.MAX_QUEUE_SIZE, 128)
+                    .with(CommonConnectorConfig.MAX_BATCH_SIZE, 64);
+        }
+        return builder
                 .with(YashanDbConnectorConfig.TABLE_INCLUDE_LIST,
                         TestHelper.qualifiedTableName(A) + "," + TestHelper.qualifiedTableName(B) + "," + TestHelper.qualifiedTableName(A42))
                 .with(RelationalDatabaseConnectorConfig.MSG_KEY_COLUMNS, TestHelper.qualifiedTableName(A42) + ":pk1,pk2,pk3,pk4")
@@ -204,9 +217,11 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Yasha
         return "ALTER TABLE " + tableName + " ADD col3 INT DEFAULT 0";
     }
 
+    // testNotification uses this for its chunk size and progress assertions. Its queue limit
+    // above keeps the 1,000-row snapshot active until the pause signal is processed.
     @Override
     protected int defaultIncrementalSnapshotChunkSize() {
-        return 10;
+        return 100;
     }
 
     // Do not override additionalConfiguration(): the parent returns
@@ -245,7 +260,7 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<Yasha
                 .with(YashanDbConnectorConfig.SIGNAL_DATA_COLLECTION, TestHelper.qualifiedTableName(SIGNAL))
                 .with(YashanDbConnectorConfig.YSTREAM_CLIENT_RESPONSE_TIMEOUT, 600)
                 .with(CommonConnectorConfig.SIGNAL_POLL_INTERVAL_MS, 100)
-                .with(CommonConnectorConfig.INCREMENTAL_SNAPSHOT_CHUNK_SIZE, defaultIncrementalSnapshotChunkSize());
+                .with(CommonConnectorConfig.INCREMENTAL_SNAPSHOT_CHUNK_SIZE, BASE_CHUNK_SIZE);
     }
 
 }

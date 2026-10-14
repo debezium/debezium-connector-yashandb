@@ -40,6 +40,7 @@ public class YStreamOffsetContextLoader implements OffsetContext.Loader<YashanDb
      */
     @Override
     public YashanDbOffsetContext load(Map<String, ?> offset) {
+        connectorConfig.getModeContext().validateOffset(offset);
         return YashanDbOffsetContext.create()
                 .logicalName(connectorConfig)
                 .snapshotScn(YashanDbOffsetContext.loadSnapshotScn(offset))

@@ -37,6 +37,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     public static final String SNAPSHOT_SCN_KEY = "snapshot_scn";
 
     private final Schema sourceInfoSchema;
+    private final String databaseMode;
 
     private final TransactionContext transactionContext;
     private final IncrementalSnapshotContext<TableId> incrementalSnapshotContext;
@@ -75,6 +76,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
                                  SnapshotType snapshot, boolean snapshotCompleted, TransactionContext transactionContext,
                                  IncrementalSnapshotContext<TableId> incrementalSnapshotContext) {
         super(new SourceInfo(connectorConfig), snapshotCompleted);
+        databaseMode = connectorConfig.getModeContext().name();
         sourceInfo.setLcrPosition(recoverPosition);
         sourceInfoSchema = sourceInfo.schema();
 
@@ -236,6 +238,7 @@ public class YashanDbOffsetContext extends CommonOffsetContext<SourceInfo> {
     public Map<String, ?> getOffset() {
         final Position lcrPosition = sourceInfo.getLcrPosition();
         final Map<String, Object> offset = new HashMap<>();
+        offset.put(YashanDbModeContext.OFFSET_KEY, databaseMode);
 
         if (getSnapshot().isPresent()) {
             offset.put(SourceInfo.SNAPSHOT_KEY, getSnapshot().get().toString());

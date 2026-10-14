@@ -5,6 +5,8 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
+import java.sql.SQLException;
+import java.sql.Types;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -131,9 +133,10 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
      * @param table the table metadata for column mapping
      * @param columnValues the YStream column values
      * @param chunkValues a map of chunk values to overlay onto the column values
+     * @param mysqlMode whether YStream is reading a MySQL-compatible database
      * @return an array of column values indexed by column position
      */
-    public static Object[] getColumnValues(Table table, YstreamColumns columnValues, Map<String, Object> chunkValues) {
+    public static Object[] getColumnValues(Table table, YstreamColumns columnValues, Map<String, Object> chunkValues, boolean mysqlMode) {
         Object[] values = new Object[table.columns().size()];
         if (columnValues != null) {
             List<YstreamColumn> columns = columnValues.getColumns().stream()
@@ -147,14 +150,18 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
                             values[index] = chunkValues.get(column.name());
                         }
                         else {
-                            values[index] = columnValue.getData();
+                            // MySQL TIME is a duration and can exceed 24 hours. YStream's getData() calls
+                            // getTime(), which cannot represent values such as 838:59:59.
+                            values[index] = mysqlMode && column.jdbcType() == Types.TIME
+                                    ? (columnValue.isNull() ? null : columnValue.getAccessor().getString(columnValue.getBytes()))
+                                    : columnValue.getData();
                         }
                     }
                     else {
                         throw new IllegalStateException("The schema metadata is different from event,maybe NPE");
                     }
                 }
-                catch (YstreamSqlException e) {
+                catch (YstreamSqlException | SQLException e) {
                     LOGGER.error("convert data error", e);
                     throw new RuntimeException("convert data error", e);
                 }

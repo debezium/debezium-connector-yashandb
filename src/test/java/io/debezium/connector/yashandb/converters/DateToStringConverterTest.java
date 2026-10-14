@@ -182,6 +182,36 @@ class DateToStringConverterTest {
         assertThat(result).isEqualTo("2024/01/15");
     }
 
+    @Test
+    void shouldConvertDateToStringWithTimeFieldsInCustomFormat() {
+        Properties props = new Properties();
+        props.setProperty("format", "yyyy-MM-dd HH:mm:ss");
+        DateToStringConverter converter = new DateToStringConverter();
+        converter.configure(props);
+
+        RelationalColumn column = mockColumn("DATE", false);
+        CustomConverter.Converter conv = getConverter(converter, column);
+
+        Date date = Date.valueOf("2024-01-15");
+        Object result = conv.convert(date);
+        assertThat(result).isEqualTo("2024-01-15 00:00:00");
+    }
+
+    @Test
+    void shouldPreserveTimeFieldsWhenConvertingDateToString() {
+        Properties props = new Properties();
+        props.setProperty("format", "yyyy-MM-dd HH:mm:ss");
+        DateToStringConverter converter = new DateToStringConverter();
+        converter.configure(props);
+
+        RelationalColumn column = mockColumn("DATE", false);
+        CustomConverter.Converter conv = getConverter(converter, column);
+
+        Date date = new Date(Timestamp.valueOf("2024-01-15 10:30:45").getTime());
+        Object result = conv.convert(date);
+        assertThat(result).isEqualTo("2024-01-15 10:30:45");
+    }
+
     private RelationalColumn mockColumn(String typeName, boolean optional) {
         RelationalColumn column = mock(RelationalColumn.class);
         when(column.typeName()).thenReturn(typeName);
