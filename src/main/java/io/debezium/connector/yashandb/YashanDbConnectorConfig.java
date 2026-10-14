@@ -79,7 +79,6 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.MEDIUM)
             .withImportance(Importance.HIGH)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTION))
-            // .withValidation(YashanDbConnectorConfig::validateOutServerName)
             .withDescription("Name of the YStream Out server to connect to.");
 
     public static final Field SNAPSHOT_MODE = Field.create("snapshot.mode")
@@ -161,6 +160,16 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withImportance(Importance.LOW)
             .withDefault(false)
             .withDescription("Uses the legacy decimal handling behavior before DBZ-7882");
+
+    public static final Field BIGINT_UNSIGNED_HANDLING_MODE = Field.create("bigint.unsigned.handling.mode")
+            .withDisplayName("Unsigned BIGINT handling mode")
+            .withEnum(BigIntUnsignedHandlingMode.class, BigIntUnsignedHandlingMode.PRECISE)
+            .withWidth(Width.SHORT)
+            .withImportance(Importance.MEDIUM)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR))
+            .withDescription("In MySQL mode, 'precise' (default) represents BIGINT UNSIGNED as a scale-zero Decimal "
+                    + "without loss of range; 'long' represents it as INT64 and may overflow above Long.MAX_VALUE; "
+                    + "'double' represents it as an approximate FLOAT64; 'string' represents it as an exact decimal string.");
 
     // ------------------------------------------- ystream options
     // ------------------------------------------------------
@@ -281,7 +290,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .group(Field.Group.CONNECTOR_SNAPSHOT, SNAPSHOT_MODE, SNAPSHOT_ENHANCEMENT_TOKEN, SNAPSHOT_LOCKING_MODE, SNAPSHOT_DATABASE_ERRORS_MAX_RETRIES)
             .group(Field.Group.ADVANCED, QUERY_FETCH_SIZE)
             .group(Field.Group.CONNECTOR, INTERVAL_HANDLING_MODE, UNAVAILABLE_VALUE_PLACEHOLDER, BINARY_HANDLING_MODE, SCHEMA_NAME_ADJUSTMENT_MODE,
-                    LEGACY_DECIMAL_HANDLING_STRATEGY)
+                    LEGACY_DECIMAL_HANDLING_STRATEGY, BIGINT_UNSIGNED_HANDLING_MODE)
             .group(Field.Group.CONNECTOR_ADVANCED,
                     YSTREAM_CLIENT_RESPONSE_TIMEOUT, YSTREAM_POLL_TIMEOUT, YSTREAM_QUEUE_SIZE,
                     YSTREAM_RETRY_MAX_ATTEMPTS, YSTREAM_RETRY_BACKOFF_MS, YSTREAM_RETRY_WINDOW_MS,
@@ -330,11 +339,13 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final Boolean logicShardEnabled;
     private final int tableReadThreads;
     private final boolean legacyDecimalHandlingStrategy;
+    private final BigIntUnsignedHandlingMode bigIntUnsignedHandlingMode;
     private final int snapshotRetryDatabaseErrorsMaxRetries;
     // Passed through to the YStream client via setFaultTolerance, see buildYStreamConfig
     private final boolean yStreamFaultTolerance;
     // Additional YStream builder options, resolved to builder setters by YStreamConfigBuilder
     private final Map<String, String> yStreamAdditionalProperties;
+    private final YashanDbModeContext modeContext;
 
     /**
      * Creates a new connector configuration.
@@ -342,16 +353,21 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      * @param config the configuration properties
      */
     public YashanDbConnectorConfig(Configuration config) {
+        this(config, new YashanDbModeContext(YStreamConfigBuilder.mysqlMode(additionalYStreamProperties(config))));
+    }
+
+    public YashanDbConnectorConfig(Configuration config, YashanDbModeContext modeContext) {
         super(
                 YashanDbConnector.class, config,
-                new SystemTablesPredicate(config),
+                new SystemTablesPredicate(),
                 x -> x.schema() + "." + x.table(),
                 false,
                 DEFAULT_QUERY_FETCH_SIZE,
                 ColumnFilterMode.SCHEMA,
                 false);
 
-        this.databaseName = toUpperCase(config.getString(DATABASE_NAME));
+        this.modeContext = modeContext;
+        this.databaseName = modeContext.isMySql() ? config.getString(DATABASE_NAME) : toUpperCase(config.getString(DATABASE_NAME));
         this.intervalHandlingMode = IntervalHandlingMode.parse(config.getString(INTERVAL_HANDLING_MODE));
         this.snapshotMode = SnapshotMode.parse(config.getString(SNAPSHOT_MODE));
         this.snapshotEnhancementToken = config.getString(SNAPSHOT_ENHANCEMENT_TOKEN);
@@ -380,6 +396,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
 
         // Legacy decimal handling
         this.legacyDecimalHandlingStrategy = config.getBoolean(LEGACY_DECIMAL_HANDLING_STRATEGY);
+        this.bigIntUnsignedHandlingMode = BigIntUnsignedHandlingMode.parse(config.getString(BIGINT_UNSIGNED_HANDLING_MODE));
     }
 
     private static String toUpperCase(String property) {
@@ -397,6 +414,14 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      */
     public String getDatabaseName() {
         return databaseName;
+    }
+
+    public YashanDbModeContext getModeContext() {
+        return modeContext;
+    }
+
+    public BigIntUnsignedHandlingMode getBigIntUnsignedHandlingMode() {
+        return bigIntUnsignedHandlingMode;
     }
 
     /**
@@ -563,8 +588,38 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     }
 
     /**
-     * Defines modes of representation of {@code interval} datatype
+     * Defines modes of representation of MySQL-mode {@code BIGINT UNSIGNED} values.
      */
+    public enum BigIntUnsignedHandlingMode implements EnumeratedValue {
+        PRECISE("precise"),
+        LONG("long"),
+        DOUBLE("double"),
+        STRING("string");
+
+        private final String value;
+
+        BigIntUnsignedHandlingMode(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String getValue() {
+            return value;
+        }
+
+        public static BigIntUnsignedHandlingMode parse(String value) {
+            if (value == null) {
+                return PRECISE;
+            }
+            for (BigIntUnsignedHandlingMode mode : values()) {
+                if (mode.value.equalsIgnoreCase(value.trim())) {
+                    return mode;
+                }
+            }
+            throw new IllegalArgumentException("Unsupported bigint.unsigned.handling.mode: " + value);
+        }
+    }
+
     public enum IntervalHandlingMode implements EnumeratedValue {
 
         /**
@@ -788,12 +843,6 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      * A {@link TableFilter} that excludes all YashanDB system tables.
      */
     private static class SystemTablesPredicate implements TableFilter {
-
-        private final Configuration config;
-
-        SystemTablesPredicate(Configuration config) {
-            this.config = config;
-        }
 
         @Override
         public boolean isIncluded(TableId t) {

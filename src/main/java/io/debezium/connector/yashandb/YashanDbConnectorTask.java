@@ -97,11 +97,11 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
         JdbcConfiguration jdbcConfig = connectorConfig.getJdbcConfig();
 
         MainConnectionProvidingConnectionFactory<YashanDbConnection> connectionFactory = new DefaultMainConnectionProvidingConnectionFactory<>(
-                () -> new YashanDbConnection(jdbcConfig));
+                () -> new YashanDbConnection(jdbcConfig, connectorConfig.getModeContext()));
 
         jdbcConnection = connectionFactory.mainConnection();
 
-        YashanDbValueConverters valueConverters = new YashanDbValueConverters(connectorConfig, jdbcConnection);
+        YashanDbValueConverters valueConverters = createValueConverters(connectorConfig, jdbcConnection);
         YashanDbDefaultValueConverter defaultValueConverter = new YashanDbDefaultValueConverter(valueConverters, jdbcConnection);
         StreamingAdapter.TableNameCaseSensitivity tableNameCaseSensitivity = connectorConfig.getAdapter().getTableNameCaseSensitivity(jdbcConnection);
 
@@ -215,7 +215,13 @@ public class YashanDbConnectorTask extends BaseSourceTask<YashanDbPartition, Yas
     }
 
     private YashanDbConnection getHeartbeatConnection(YashanDbConnectorConfig connectorConfig, JdbcConfiguration jdbcConfig) {
-        return new YashanDbConnection(jdbcConfig);
+        return new YashanDbConnection(jdbcConfig, connectorConfig.getModeContext());
+    }
+
+    static YashanDbValueConverters createValueConverters(YashanDbConnectorConfig config, YashanDbConnection connection) {
+        return config.getModeContext().isMySql()
+                ? new YashanDbMySqlValueConverters(config, connection)
+                : new YashanDbValueConverters(config, connection);
     }
 
     @Override
