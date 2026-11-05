@@ -6,21 +6,108 @@
 package io.debezium.connector.yashandb;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.withSettings;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Types;
 import java.util.Optional;
+import java.util.Properties;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 
+import io.debezium.doc.FixFor;
 import io.debezium.jdbc.JdbcConfiguration;
+import io.debezium.relational.Column;
 import io.debezium.relational.TableId;
 
 /**
  * Unit tests for {@link YashanDbConnection}.
  */
 class YashanDbConnectionTest {
+
+    @FixFor("debezium/dbz#3014")
+    @Test
+    void shouldIgnoreDatabaseNameInNativeTableId() throws SQLException {
+        try (YashanDbConnection connection = new YashanDbConnection(JdbcConfiguration.create().build())) {
+            assertThat(connection.createTableId("SYS", "DBZ", "DBZ4321"))
+                    .isEqualTo(new TableId("", "DBZ", "DBZ4321"));
+        }
+    }
+
+    @FixFor("debezium/dbz#3014")
+    @Test
+    void shouldIgnoreDatabaseNameInMySqlTableId() throws SQLException {
+        try (YashanDbConnection connection = new YashanDbConnection(JdbcConfiguration.create().build(), new YashanDbModeContext(true))) {
+            assertThat(connection.createTableId("SYS", "DBZ", "DBZ4321"))
+                    .isEqualTo(new TableId("", "DBZ", "DBZ4321"));
+        }
+    }
+
+    @FixFor("debezium/dbz#3014")
+    @Test
+    void shouldReadMysqlTimeAsStringForSnapshot() throws SQLException {
+        JdbcConfiguration config = JdbcConfiguration.create()
+                .withHostname("localhost")
+                .withPort(1688)
+                .withDatabase("yashandb")
+                .build();
+        ResultSet resultSet = mock(ResultSet.class);
+        Column column = Column.editor().name("duration").type("time").jdbcType(Types.TIME).create();
+        when(resultSet.getString(1)).thenReturn("838:59:59");
+
+        try (YashanDbConnection connection = new YashanDbConnection(config, new YashanDbModeContext(true))) {
+            assertThat(connection.getColumnValue(resultSet, 1, column, null)).isEqualTo("838:59:59");
+        }
+        verify(resultSet).getString(1);
+    }
+
+    @FixFor("debezium/dbz#3014")
+    @ParameterizedTest
+    @CsvSource({ "true,false,", "true,true,", "true,false,yashan", "false,false,", "false,true,", "false,false,yashan" })
+    void shouldPassCompatibilityPropertyToDriver(boolean mysqlMode, boolean useRawUrl, String configuredCompatibility) throws SQLException {
+        JdbcConfiguration.Builder builder = JdbcConfiguration.create()
+                .withHostname("localhost")
+                .withPort(1688)
+                .withDatabase("yashandb")
+                .withUser("test_user")
+                .with("customProperty", "custom_value");
+        String url = useRawUrl ? "jdbc:yasdb://db.example.com:5521/mydb" : "jdbc:yasdb://localhost:1688/yashandb";
+        if (useRawUrl) {
+            builder.with("url", url);
+        }
+        if (configuredCompatibility != null) {
+            builder.with("compatVector", configuredCompatibility);
+        }
+        JdbcConfiguration config = builder.build();
+        Connection jdbcConnection = mock(Connection.class);
+
+        try (MockedStatic<DriverManager> driverManager = mockStatic(DriverManager.class);
+                YashanDbConnection connection = new YashanDbConnection(config, new YashanDbModeContext(mysqlMode))) {
+            driverManager.when(() -> DriverManager.getConnection(eq(url), any(Properties.class))).thenReturn(jdbcConnection);
+
+            connection.connect();
+
+            ArgumentCaptor<Properties> properties = ArgumentCaptor.forClass(Properties.class);
+            driverManager.verify(() -> DriverManager.getConnection(eq(url), properties.capture()));
+            assertThat(properties.getValue().getProperty("compatVector")).isEqualTo(mysqlMode ? "mysql" : configuredCompatibility);
+            assertThat(properties.getValue().getProperty("user")).isEqualTo("test_user");
+            assertThat(properties.getValue().getProperty("customProperty")).isEqualTo("custom_value");
+            assertThat(config.getString("compatVector")).isEqualTo(configuredCompatibility);
+        }
+    }
 
     // -----------------------------------------------------------------------
     // connectionString tests
@@ -58,8 +145,7 @@ class YashanDbConnectionTest {
 
     @Test
     void shouldBuildSelectWithRowLimitsNoCondition() {
-        YashanDbConnection connection = mock(YashanDbConnection.class,
-                withSettings().defaultAnswer(CALLS_REAL_METHODS));
+        YashanDbConnection connection = nativeConnection();
 
         TableId tableId = new TableId(null, "SCHEMA", "TABLE_NAME");
         String sql = connection.buildSelectWithRowLimits(
@@ -79,10 +165,31 @@ class YashanDbConnectionTest {
         assertThat(sql).contains("WHERE ROWNUM <=");
     }
 
+    @FixFor("debezium/dbz#3014")
+    @Test
+    void shouldUseSelectedDialectForLimitedSelect() {
+        TableId nativeTable = new TableId("", "APP", "ORDERS");
+        String nativeSql = nativeConnection().buildSelectWithRowLimits(nativeTable, 10, "ID",
+                Optional.of("ID > 0"), Optional.empty(), "ID");
+        assertThat(nativeSql).isEqualTo(" SELECT * FROM (SELECT ID FROM \"APP\".\"ORDERS\" WHERE ID > 0 ORDER BY ID) WHERE ROWNUM <=10");
+
+        JdbcConfiguration config = JdbcConfiguration.create()
+                .withHostname("localhost")
+                .withPort(1688)
+                .withDatabase("yashandb")
+                .build();
+        YashanDbConnection mysqlConnection = new YashanDbConnection(config, new YashanDbModeContext(true));
+        TableId mysqlTable = new TableId(null, "inventory", "orders");
+        String mysqlSql = mysqlConnection.buildSelectWithRowLimits(mysqlTable, 10, "ID",
+                Optional.of("ID > 0"), Optional.empty(), "ID");
+        String quote = String.valueOf((char) 96);
+        assertThat(mysqlSql).isEqualTo("SELECT ID FROM " + quote + "inventory" + quote + "." + quote + "orders" + quote
+                + " WHERE ID > 0 ORDER BY ID LIMIT 10");
+    }
+
     @Test
     void shouldBuildSelectWithRowLimitsWithCondition() {
-        YashanDbConnection connection = mock(YashanDbConnection.class,
-                withSettings().defaultAnswer(CALLS_REAL_METHODS));
+        YashanDbConnection connection = nativeConnection();
 
         TableId tableId = new TableId(null, "SCHEMA", "TABLE_NAME");
         String sql = connection.buildSelectWithRowLimits(
@@ -101,8 +208,7 @@ class YashanDbConnectionTest {
 
     @Test
     void shouldBuildSelectWithRowLimitsWithAdditionalConditionOnly() {
-        YashanDbConnection connection = mock(YashanDbConnection.class,
-                withSettings().defaultAnswer(CALLS_REAL_METHODS));
+        YashanDbConnection connection = nativeConnection();
 
         TableId tableId = new TableId(null, "SCHEMA", "TABLE_NAME");
         String sql = connection.buildSelectWithRowLimits(
@@ -121,8 +227,7 @@ class YashanDbConnectionTest {
 
     @Test
     void shouldBuildSelectWithRowLimitsWithBothConditions() {
-        YashanDbConnection connection = mock(YashanDbConnection.class,
-                withSettings().defaultAnswer(CALLS_REAL_METHODS));
+        YashanDbConnection connection = nativeConnection();
 
         TableId tableId = new TableId(null, "SCHEMA", "TABLE_NAME");
         String sql = connection.buildSelectWithRowLimits(
@@ -138,8 +243,7 @@ class YashanDbConnectionTest {
 
     @Test
     void shouldBuildSelectWithRowLimitsWithLargeLimit() {
-        YashanDbConnection connection = mock(YashanDbConnection.class,
-                withSettings().defaultAnswer(CALLS_REAL_METHODS));
+        YashanDbConnection connection = nativeConnection();
 
         TableId tableId = new TableId(null, "OWNER", "BIG_TABLE");
         String sql = connection.buildSelectWithRowLimits(
@@ -152,6 +256,27 @@ class YashanDbConnectionTest {
 
         assertThat(sql).contains("ROWNUM <=");
         assertThat(sql).contains("1000000");
+    }
+
+    @FixFor("debezium/dbz#3014")
+    @Test
+    void shouldRejectNullModeContext() {
+        JdbcConfiguration config = JdbcConfiguration.create()
+                .withHostname("localhost")
+                .withPort(1688)
+                .withDatabase("yashandb")
+                .build();
+        assertThatThrownBy(() -> new YashanDbConnection(config, (YashanDbModeContext) null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("modeContext");
+    }
+
+    private static YashanDbConnection nativeConnection() {
+        return new YashanDbConnection(JdbcConfiguration.create()
+                .withHostname("localhost")
+                .withPort(1688)
+                .withDatabase("yashandb")
+                .build());
     }
 
     // -----------------------------------------------------------------------

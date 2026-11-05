@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
+import io.debezium.connector.yashandb.YashanDbConnectorConfig.BigIntUnsignedHandlingMode;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig.IntervalHandlingMode;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig.SnapshotLockingMode;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig.SnapshotMode;
@@ -203,6 +204,48 @@ class YashanDbConnectorConfigTest {
     // -----------------------------------------------------------------------
     @Nested
     class ConnectorConfigTests {
+
+        @FixFor("debezium/dbz#3014")
+        @Test
+        void shouldConfigureUnsignedBigintHandling() {
+            Configuration defaults = Configuration.create().with("topic.prefix", "test").build();
+            Configuration longMode = Configuration.create()
+                    .with("topic.prefix", "test")
+                    .with("bigint.unsigned.handling.mode", "long")
+                    .build();
+            Configuration doubleMode = Configuration.create()
+                    .with("topic.prefix", "test")
+                    .with("bigint.unsigned.handling.mode", "DOUBLE")
+                    .build();
+            Configuration stringMode = Configuration.create()
+                    .with("topic.prefix", "test")
+                    .with("bigint.unsigned.handling.mode", "string")
+                    .build();
+
+            assertThat(new YashanDbConnectorConfig(defaults).getBigIntUnsignedHandlingMode())
+                    .isEqualTo(BigIntUnsignedHandlingMode.PRECISE);
+            assertThat(new YashanDbConnectorConfig(longMode).getBigIntUnsignedHandlingMode())
+                    .isEqualTo(BigIntUnsignedHandlingMode.LONG);
+            assertThat(new YashanDbConnectorConfig(doubleMode).getBigIntUnsignedHandlingMode())
+                    .isEqualTo(BigIntUnsignedHandlingMode.DOUBLE);
+            assertThat(new YashanDbConnectorConfig(stringMode).getBigIntUnsignedHandlingMode())
+                    .isEqualTo(BigIntUnsignedHandlingMode.STRING);
+        }
+
+        @FixFor("debezium/dbz#3014")
+        @Test
+        void shouldSelectModeFromYStreamProperty() {
+            Configuration nativeConfig = Configuration.create().with("topic.prefix", "native_test").build();
+            Configuration mysqlConfig = Configuration.create()
+                    .with("topic.prefix", "mysql_test")
+                    .with("ystream.additional.properties.mysql.mode", "true")
+                    .build();
+
+            assertThat(new YashanDbConnectorConfig(nativeConfig).getModeContext().isMySql()).isFalse();
+            YashanDbConnectorConfig selected = new YashanDbConnectorConfig(mysqlConfig);
+            assertThat(selected.getModeContext().isMySql()).isTrue();
+            assertThat(selected.getModeContext().dialect().name()).isEqualTo("mysql");
+        }
 
         @Test
         @FixFor("debezium/dbz#2861")

@@ -24,7 +24,6 @@ import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.relational.Column;
 import io.debezium.relational.RelationalChangeRecordEmitter;
 import io.debezium.relational.Table;
-import io.debezium.relational.TableId;
 import io.debezium.relational.TableSchema;
 import io.debezium.util.Clock;
 
@@ -144,7 +143,7 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
                     table.id(), newKey, reselectColumns.stream().map(Column::name).collect(Collectors.toList()));
 
             final JdbcConfiguration jdbcConfig = connectorConfig.getJdbcConfig();
-            try (YashanDbConnection connection = new YashanDbConnection(jdbcConfig)) {
+            try (YashanDbConnection connection = new YashanDbConnection(jdbcConfig, connectorConfig.getModeContext())) {
                 final String query = getReselectQuery(reselectColumns, table, connection);
                 connection.prepareQuery(query,
                         ps -> prepareReselectQueryStatement(ps, table, newKey),
@@ -176,7 +175,7 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
                         table.id(), oldKey, newKey, reselectColumns.stream().map(Column::name).collect(Collectors.toList()));
 
                 final JdbcConfiguration jdbcConfig = connectorConfig.getJdbcConfig();
-                try (YashanDbConnection connection = new YashanDbConnection(jdbcConfig)) {
+                try (YashanDbConnection connection = new YashanDbConnection(jdbcConfig, connectorConfig.getModeContext())) {
                     final String query = getReselectQuery(reselectColumns, table, connection);
                     connection.prepareQuery(query,
                             ps -> prepareReselectQueryStatement(ps, table, newKey),
@@ -230,11 +229,10 @@ public abstract class BaseChangeRecordEmitter<T> extends RelationalChangeRecordE
      * @return the query string for the reselect query
      */
     private String getReselectQuery(List<Column> reselectColumns, Table table, YashanDbConnection connection) {
-        final TableId id = new TableId(null, table.id().schema(), table.id().table());
         final StringBuilder query = new StringBuilder("SELECT ")
                 .append(reselectColumns.stream().map(c -> connection.quoteIdentifier(c.name())).collect(Collectors.joining(", ")))
                 .append(" FROM ")
-                .append(id.toDoubleQuotedString())
+                .append(connection.quotedTableIdString(table.id()))
                 .append(" WHERE ");
 
         for (int i = 0; i < table.primaryKeyColumnNames().size(); ++i) {

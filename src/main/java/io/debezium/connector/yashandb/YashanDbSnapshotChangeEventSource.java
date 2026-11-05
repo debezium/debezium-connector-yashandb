@@ -6,8 +6,6 @@
 package io.debezium.connector.yashandb;
 
 import java.sql.SQLException;
-import java.sql.Savepoint;
-import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -25,6 +23,7 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.connector.yashandb.dialect.YashanDbSnapshotLocker;
 import io.debezium.connector.yashandb.ystream.YStreamOffsetContextLoader;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.jdbc.MainConnectionProvidingConnectionFactory;
@@ -33,6 +32,7 @@ import io.debezium.pipeline.notification.NotificationService;
 import io.debezium.pipeline.source.SnapshottingTask;
 import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
+import io.debezium.pipeline.spi.SnapshotResult;
 import io.debezium.relational.RelationalSnapshotChangeEventSource;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -51,8 +51,22 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbSnapshotChangeEventSource.class);
 
     private final YashanDbConnectorConfig connectorConfig;
+    private final MainConnectionProvidingConnectionFactory<YashanDbConnection> connectionFactory;
     private final YashanDbConnection jdbcConnection;
     private final YashanDbDatabaseSchema databaseSchema;
+
+    @Override
+    public SnapshotResult<YashanDbOffsetContext> doExecute(ChangeEventSourceContext context, YashanDbOffsetContext previousOffset,
+                                                           SnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
+                                                           SnapshottingTask snapshottingTask)
+            throws Exception {
+        try {
+            return super.doExecute(context, previousOffset, snapshotContext, snapshottingTask);
+        }
+        finally {
+            releaseSnapshotLocks((YashanDbSnapshotContext) snapshotContext);
+        }
+    }
 
     /**
      * Creates a new snapshot change event source.
@@ -72,6 +86,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
                                              NotificationService<YashanDbPartition, YashanDbOffsetContext> notificationService, SnapshotterService snapshotterService) {
         super(connectorConfig, connectionFactory, schema, dispatcher, clock, snapshotProgressListener, notificationService, snapshotterService);
         this.connectorConfig = connectorConfig;
+        this.connectionFactory = connectionFactory;
         this.jdbcConnection = connectionFactory.mainConnection();
         this.databaseSchema = schema;
     }
@@ -94,33 +109,28 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     protected void lockTablesForSchemaSnapshot(ChangeEventSourceContext sourceContext,
                                                RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext)
             throws SQLException, InterruptedException {
-        if (connectorConfig.getSnapshotLockingMode().get().usesLocking()) {
-            ((YashanDbSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint = jdbcConnection.connection().setSavepoint("dbz_schema_snapshot");
-
-            try (Statement statement = jdbcConnection.connection().createStatement()) {
-                for (TableId tableId : snapshotContext.capturedTables) {
-                    if (!sourceContext.isRunning()) {
-                        throw new InterruptedException("Interrupted while locking table " + tableId);
-                    }
-
-                    Optional<String> lockingStatement = snapshotterService.getSnapshotLock().tableLockingStatement(null, quote(tableId));
-                    if (lockingStatement.isPresent()) {
-                        LOGGER.debug("Locking table {}", tableId);
-                        statement.execute(lockingStatement.get());
-                    }
-                }
-            }
-        }
-        else {
+        if (!connectorConfig.getSnapshotLockingMode().get().usesLocking()) {
             LOGGER.info("Schema locking was disabled in connector configuration");
+            return;
         }
+
+        YashanDbSnapshotContext context = (YashanDbSnapshotContext) snapshotContext;
+        context.snapshotLocker = connectorConfig.getModeContext()
+                .createSnapshotLocker(jdbcConnection, connectionFactory::newConnection, snapshotterService.getSnapshotLock());
+        context.snapshotLocker.lock(sourceContext, snapshotContext.capturedTables);
     }
 
     @Override
     protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext)
             throws SQLException {
-        if (connectorConfig.getSnapshotLockingMode().get().usesLocking()) {
-            jdbcConnection.connection().rollback(((YashanDbSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint);
+        releaseSnapshotLocks((YashanDbSnapshotContext) snapshotContext);
+    }
+
+    private void releaseSnapshotLocks(YashanDbSnapshotContext snapshotContext) throws SQLException {
+        YashanDbSnapshotLocker snapshotLocker = snapshotContext.snapshotLocker;
+        if (snapshotLocker != null) {
+            snapshotContext.snapshotLocker = null;
+            snapshotLocker.unlock();
         }
     }
 
@@ -240,20 +250,16 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
     protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> snapshotContext,
                                                  TableId tableId, List<String> columns) {
 
-        return snapshotterService.getSnapshotQuery().snapshotQuery(quote(tableId), columns);
+        return snapshotterService.getSnapshotQuery().snapshotQuery(jdbcConnection.quotedTableIdString(tableId), columns);
     }
 
     @Override
     protected List<Pattern> getSignalDataCollectionPattern(String signalingDataCollection) {
-        // YashanDB expects this value to be supplied using "<database>.<schema>.<table>"; however the
-        // TableIdMapper used by the connector uses only "<schema>.<table>". This primarily targets
-        // a fix for this specific use case as a much larger refactor is likely necessary long term.
-        final TableId tableId = TableId.parse(signalingDataCollection);
-        return Strings.listOfRegex(tableId.schema() + "." + tableId.table(), Pattern.CASE_INSENSITIVE);
-    }
-
-    private String quote(TableId tableId) {
-        return new TableId(null, tableId.schema(), tableId.table()).toDoubleQuotedString();
+        // YashanDB signal collection names include a database prefix, while the connector matches the
+        // final namespace and table components for the selected database mode.
+        final TableId tableId = YashanDbTableIdParser.parse(signalingDataCollection);
+        String namespace = tableId.schema();
+        return Strings.listOfRegex(namespace + "." + tableId.table(), Pattern.CASE_INSENSITIVE);
     }
 
     /**
@@ -261,7 +267,7 @@ public class YashanDbSnapshotChangeEventSource extends RelationalSnapshotChangeE
      */
     private static class YashanDbSnapshotContext extends RelationalSnapshotContext<YashanDbPartition, YashanDbOffsetContext> {
 
-        private Savepoint preSchemaSnapshotSavepoint;
+        private YashanDbSnapshotLocker snapshotLocker;
 
         YashanDbSnapshotContext(YashanDbPartition partition, String catalogName, boolean onDemand) {
             super(partition, catalogName, onDemand);
