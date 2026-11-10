@@ -5,13 +5,20 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -26,11 +33,15 @@ import io.debezium.config.Field;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.pipeline.source.snapshot.incremental.ChunkQueryBuilder;
+import io.debezium.relational.Attribute;
 import io.debezium.relational.Column;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
+import io.debezium.relational.Tables;
+import io.debezium.relational.Tables.ColumnNameFilter;
+import io.debezium.relational.Tables.TableFilter;
 import io.debezium.spi.schema.DataCollectionId;
 
 /**
@@ -39,11 +50,11 @@ import io.debezium.spi.schema.DataCollectionId;
 public class YashanDbConnection extends JdbcConnection {
     private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbConnection.class);
 
-    private static final String QUOTED_CHARACTER = "\"";
-
     private static final Field URL = Field.create("url", "Raw JDBC url");
 
     private static final int YASHANDB_UNSET_SCALE = -127;
+    private static final int COLUMN_METADATA_BATCH_SIZE = 1000;
+    private final YashanDbModeContext modeContext;
 
     /**
      * Creates a new YashanDB connection.
@@ -51,7 +62,11 @@ public class YashanDbConnection extends JdbcConnection {
      * @param config the JDBC configuration
      */
     public YashanDbConnection(JdbcConfiguration config) {
-        super(config, resolveConnectionFactory(config), QUOTED_CHARACTER, QUOTED_CHARACTER);
+        this(config, new YashanDbModeContext(false));
+    }
+
+    public YashanDbConnection(JdbcConfiguration config, YashanDbModeContext modeContext) {
+        this(config, resolveConnectionFactory(config), null, modeContext);
     }
 
     /**
@@ -61,7 +76,7 @@ public class YashanDbConnection extends JdbcConnection {
      * @param connectionFactory the connection factory
      */
     public YashanDbConnection(JdbcConfiguration config, ConnectionFactory connectionFactory) {
-        super(config, connectionFactory, QUOTED_CHARACTER, QUOTED_CHARACTER);
+        this(config, connectionFactory, null, new YashanDbModeContext(false));
     }
 
     /**
@@ -72,22 +87,111 @@ public class YashanDbConnection extends JdbcConnection {
      * @param initialOperations the initial operations to execute
      */
     protected YashanDbConnection(JdbcConfiguration config, ConnectionFactory connectionFactory, Operations initialOperations) {
-        super(config, connectionFactory, initialOperations, QUOTED_CHARACTER, QUOTED_CHARACTER);
+        this(config, connectionFactory, initialOperations, new YashanDbModeContext(false));
+    }
+
+    private YashanDbConnection(JdbcConfiguration config, ConnectionFactory connectionFactory, Operations initialOperations,
+                               YashanDbModeContext modeContext) {
+        super(connectionConfiguration(config, modeContext), connectionFactory, initialOperations, quoteCharacter(modeContext), quoteCharacter(modeContext));
+        this.modeContext = Objects.requireNonNull(modeContext, "modeContext");
+    }
+
+    private static JdbcConfiguration connectionConfiguration(JdbcConfiguration config, YashanDbModeContext modeContext) {
+        if (Objects.requireNonNull(modeContext, "modeContext").isMySql()) {
+            return JdbcConfiguration.copy(config).with("compatVector", "mysql").build();
+        }
+        return config;
+    }
+
+    private static String quoteCharacter(YashanDbModeContext modeContext) {
+        return Objects.requireNonNull(modeContext, "modeContext").dialect().quoteCharacter();
+    }
+
+    @Override
+    public String quotedTableIdString(TableId tableId) {
+        return modeContext.dialect().qualifiedTableName(tableId);
     }
 
     /**
-     * Creates a {@link TableId} with an empty catalog.
-     * YashanDB does not use catalog to identify tables — only schema and table name matter.
+     * Creates a {@link TableId} using the selected database mode's identifier fields.
      * This ensures consistency between schema registration and lookup.
      *
-     * @param databaseName the database name (ignored for YashanDB)
+     * @param databaseName the database name (used as a MySQL schema fallback)
      * @param schemaName the schema name
      * @param tableName the table name
-     * @return a TableId with empty catalog
+     * @return a table identifier in the selected database mode
      */
     @Override
     public TableId createTableId(String databaseName, String schemaName, String tableName) {
         return new TableId("", schemaName, tableName);
+    }
+
+    @Override
+    public void readSchema(Tables tables, String catalogName, String schemaName,
+                           TableFilter tableFilter, ColumnNameFilter columnFilter, boolean removeTablesNotFoundInJdbc)
+            throws SQLException {
+        Set<TableId> tableIdsBefore = new HashSet<>(tables.tableIds());
+        DatabaseMetaData metadata = connection().getMetaData();
+        Set<TableId> tableIds = new LinkedHashSet<>();
+        Map<TableId, List<Attribute>> attributesByTable = new HashMap<>();
+        var tableMetadata = modeContext.metadataReader().readTables(this, catalogName, schemaName);
+        for (var table : tableMetadata) {
+            TableId tableId = table.id();
+            if (isTableType(table.type()) && (tableFilter == null || tableFilter.isIncluded(tableId))) {
+                tableIds.add(tableId);
+                attributesByTable.putAll(getAttributeDetails(tableId, table.type()));
+            }
+        }
+        LOGGER.debug("{} table(s) will be scanned", tableIds.size());
+
+        Map<TableId, List<Column>> columnsByTable = new HashMap<>();
+        Map<TableId, List<String>> keysByTable = new HashMap<>();
+        List<TableId> tableIdList = new ArrayList<>(tableIds);
+        for (int start = 0; start < tableIdList.size(); start += COLUMN_METADATA_BATCH_SIZE) {
+            List<TableId> batch = tableIdList.subList(start, Math.min(start + COLUMN_METADATA_BATCH_SIZE, tableIdList.size()));
+            LOGGER.debug("Retrieving columns of {} table(s) in batch starting at {}", batch.size(), start);
+            Map<TableId, List<Column>> columns = modeContext.metadataReader().readColumns(this, batch, columnFilter,
+                    this::overrideColumn, this::resolveNativeType);
+            columnsByTable.putAll(columns);
+            LOGGER.debug("Retrieving keys of {} table(s) in batch starting at {}", batch.size(), start);
+            keysByTable.putAll(modeContext.metadataReader().readPrimaryKeyOrUniqueIndexNames(this, batch, this::isTableUniqueIndexIncluded));
+        }
+
+        if (columnsByTable.isEmpty()) {
+            for (TableId emptyTableId : tableIds) {
+                LOGGER.warn("Table {} has no column or all columns were excluded due to include/exclude lists.", emptyTableId);
+                columnsByTable.put(emptyTableId, new ArrayList<>());
+            }
+        }
+
+        for (Map.Entry<TableId, List<Column>> entry : columnsByTable.entrySet()) {
+            TableId tableId = entry.getKey();
+            List<String> pkColumnNames = keysByTable.getOrDefault(tableId, Collections.emptyList());
+            List<Column> columns = entry.getValue();
+            Collections.sort(columns);
+            List<Attribute> attributes = attributesByTable.getOrDefault(tableId, Collections.emptyList());
+            tables.overwriteTable(tableId, columns, pkColumnNames, null, attributes);
+        }
+
+        if (removeTablesNotFoundInJdbc) {
+            tableIdsBefore.removeAll(columnsByTable.keySet());
+            tableIdsBefore.forEach(tables::removeTable);
+        }
+    }
+
+    @Override
+    public List<String> readPrimaryKeyNames(DatabaseMetaData metadata, TableId id) throws SQLException {
+        return modeContext.metadataReader().readPrimaryKeyNames(this, id, () -> super.readPrimaryKeyNames(metadata, id));
+    }
+
+    @Override
+    public List<String> readTableUniqueIndices(DatabaseMetaData metadata, TableId id) throws SQLException {
+        return modeContext.metadataReader().readTableUniqueIndices(this, id, this::isTableUniqueIndexIncluded,
+                () -> super.readTableUniqueIndices(metadata, id));
+    }
+
+    public boolean isMySqlMode() {
+        return modeContext.isMySql();
     }
 
     /**
@@ -146,19 +250,19 @@ public class YashanDbConnection extends JdbcConnection {
      * @throws SQLException if the query fails
      */
     public String getTableMetadataDdl(TableId tableId) throws SQLException {
-        return prepareQueryAndMap(
-                "SELECT dbms_metadata.get_ddl('TABLE',?,?) FROM DUAL",
-                ps -> {
-                    ps.setString(1, tableId.table());
-                    ps.setString(2, tableId.schema());
-                },
-                rs -> {
-                    if (!rs.next()) {
-                        throw new DebeziumException("Could not get DDL metadata for table: " + tableId);
-                    }
+        String sql = modeContext.dialect().tableDdlQuery(tableId);
+        if (modeContext.dialect().tableDdlUsesParameters()) {
+            return prepareQueryAndMap(sql, ps -> modeContext.dialect().bindTableDdlQuery(ps, tableId),
+                    rs -> readTableDdl(rs, tableId));
+        }
+        return queryAndMap(sql, rs -> readTableDdl(rs, tableId));
+    }
 
-                    return rs.getString(1);
-                });
+    private String readTableDdl(ResultSet result, TableId tableId) throws SQLException {
+        if (!result.next()) {
+            throw new DebeziumException("Could not get DDL metadata for table: " + tableId);
+        }
+        return result.getString(modeContext.dialect().tableDdlColumn());
     }
 
     @Override
@@ -175,33 +279,7 @@ public class YashanDbConnection extends JdbcConnection {
                                            Optional<String> condition,
                                            Optional<String> additionalCondition,
                                            String orderBy) {
-        final TableId table = new TableId(null, tableId.schema(), tableId.table());
-        final StringBuilder sql = new StringBuilder("SELECT ");
-        sql
-                .append(projection)
-                .append(" FROM ");
-        sql.append(quotedTableIdString(table));
-        if (condition.isPresent()) {
-            sql
-                    .append(" WHERE ")
-                    .append(condition.get());
-            if (additionalCondition.isPresent()) {
-                sql.append(" AND ");
-                sql.append(additionalCondition.get());
-            }
-        }
-        else if (additionalCondition.isPresent()) {
-            sql.append(" WHERE ");
-            sql.append(additionalCondition.get());
-        }
-        sql
-                .insert(0, " SELECT * FROM (")
-                .append(" ORDER BY ")
-                .append(orderBy)
-                .append(")")
-                .append(" WHERE ROWNUM <=")
-                .append(limit);
-        return sql.toString();
+        return modeContext.dialect().limitedSelect(tableId, limit, projection, condition, additionalCondition, orderBy);
     }
 
     protected boolean isArchiveLogMode() {
@@ -223,12 +301,12 @@ public class YashanDbConnection extends JdbcConnection {
      * @throws SQLException if the query fails
      */
     public Set<TableId> getAllTableIds(String catalogName) throws SQLException {
-        final String query = "select owner, table_name from all_tables ";
+        final String query = modeContext.dialect().tableIdsQuery();
 
         Set<TableId> tableIds = new HashSet<>();
         query(query, (rs) -> {
             while (rs.next()) {
-                tableIds.add(new TableId("", rs.getString(1), rs.getString(2)));
+                tableIds.add(modeContext.dialect().tableId(null, rs.getString(1), rs.getString(2)));
             }
             LOGGER.trace("TableIds are: {}", tableIds);
         });
@@ -263,6 +341,9 @@ public class YashanDbConnection extends JdbcConnection {
 
     @Override
     public Object getColumnValue(ResultSet rs, int columnIndex, Column column, Table table) throws SQLException {
+        if (modeContext.isMySql() && column.jdbcType() == Types.TIME) {
+            return rs.getString(columnIndex);
+        }
         // YashanDB JDBC driver returns YasRowID (not Serializable) for ROWID columns via rs.getObject().
         // Incremental snapshot serializes key arrays to offset storage using ObjectOutputStream,
         // which fails with NotSerializableException on YasRowID.

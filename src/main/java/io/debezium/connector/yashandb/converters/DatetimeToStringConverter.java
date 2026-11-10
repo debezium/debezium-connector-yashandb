@@ -1,0 +1,107 @@
+/*
+ * Copyright Debezium Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.debezium.connector.yashandb.converters;
+
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Properties;
+import java.util.function.Predicate;
+
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.debezium.config.Field;
+import io.debezium.function.Predicates;
+import io.debezium.metadata.ConfigDescriptor;
+import io.debezium.spi.converter.CustomConverter;
+import io.debezium.spi.converter.RelationalColumn;
+import io.debezium.util.Strings;
+
+/**
+ * Converts selected YashanDB {@code DATETIME} columns to formatted {@code String} values.
+ */
+public class DatetimeToStringConverter implements CustomConverter<SchemaBuilder, RelationalColumn>, ConfigDescriptor {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DatetimeToStringConverter.class);
+
+    public static final String SELECTOR_PROPERTY = "selector";
+
+    private Predicate<RelationalColumn> selector = x -> true;
+    private DateTimeFormatter formatter;
+
+    /**
+     * Configures the DATETIME-to-string converter with a date-time format and column selector.
+     *
+     * @param props configuration properties containing optional {@code format} and {@code selector} keys
+     */
+    @Override
+    public void configure(Properties props) {
+        String datetimeFormat = props.getProperty("format", "yyyy-MM-dd HH:mm:ss.SSSSSS");
+        formatter = DateTimeFormatter.ofPattern(datetimeFormat);
+        final String selectorConfig = props.getProperty(SELECTOR_PROPERTY);
+        if (Strings.isNullOrEmpty(selectorConfig)) {
+            return;
+        }
+        selector = Predicates.includes(selectorConfig.trim(), x -> x.dataCollection() + "." + x.name());
+    }
+
+    /**
+     * Registers a string converter for DATETIME columns that match the configured selector.
+     * Supports {@code DATETIME} and {@code DATETIME(0)} through {@code DATETIME(6)}.
+     *
+     * @param field the relational column to check for conversion
+     * @param registration the registration callback to register the converter
+     */
+    @Override
+    public void converterFor(RelationalColumn field, ConverterRegistration<SchemaBuilder> registration) {
+        final String typeName = field.typeName();
+        final boolean isPlainTimestamp = typeName != null
+                && typeName.trim().matches("(?i)^DATETIME(\\s*\\(\\s*(?:[0-6])\\s*\\))?$");
+        if (!isPlainTimestamp || !selector.test(field)) {
+            return;
+        }
+        registration.register(SchemaBuilder.string(), x -> {
+            if (x == null) {
+                if (field.isOptional()) {
+                    return null;
+                }
+                else if (field.hasDefaultValue()) {
+                    return field.defaultValue();
+                }
+                else {
+                    return null;
+                }
+            }
+            if (x instanceof Long) {
+                // Assumed to be a microsecond-precision epoch timestamp
+                long epochMicros = (Long) x;
+                long epochMillis = epochMicros / 1000L;
+                return formatter.format(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()));
+            }
+            else if (x instanceof String) {
+                return x;
+            }
+            else if (x instanceof Timestamp) {
+                return formatter.format(((Timestamp) x).toLocalDateTime());
+            }
+            LOGGER.warn("Cannot convert '{}' to string", x.getClass());
+            return x.toString();
+        });
+    }
+
+    /**
+     * Returns the configuration fields supported by this converter.
+     *
+     * @return the set of configuration fields
+     */
+    @Override
+    public Field.Set getConfigFields() {
+        return Field.setOf(Field.create(SELECTOR_PROPERTY), Field.create("format"));
+    }
+}
