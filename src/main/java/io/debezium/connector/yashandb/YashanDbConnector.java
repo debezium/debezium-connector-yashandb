@@ -76,12 +76,13 @@ public class YashanDbConnector extends RelationalBaseSourceConnector implements 
         final ConfigValue hostnameValue = configValues.get(RelationalDatabaseConnectorConfig.HOSTNAME.name());
         final ConfigValue userValue = configValues.get(RelationalDatabaseConnectorConfig.USER.name());
 
-        YashanDbConnectorConfig connectorConfig = new YashanDbConnectorConfig(config);
-        try (YashanDbConnection connection = new YashanDbConnection(connectorConfig.getJdbcConfig())) {
-            connection.connection();
-            connection.close();
-            LOGGER.debug("Successfully tested connection for {} with user '{}'", connectorConfig.getJdbcConfig().getHostname(),
-                    connection.username());
+        try {
+            YashanDbConnectorConfig connectorConfig = new YashanDbConnectorConfig(config);
+            try (YashanDbConnection connection = new YashanDbConnection(connectorConfig.getJdbcConfig(), connectorConfig.getModeContext())) {
+                connection.connection();
+                LOGGER.debug("Successfully tested connection for {} with user '{}'", connectorConfig.getJdbcConfig().getHostname(),
+                        connection.username());
+            }
         }
         catch (SQLException | RuntimeException e) {
             LOGGER.error("Failed testing connection for {} with user '{}'", config.withMaskedPasswords(), userValue, e);

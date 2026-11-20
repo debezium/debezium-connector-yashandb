@@ -32,6 +32,15 @@ jobs:
   build:
     needs: [ check-signed-commits ]
     runs-on: ubuntu-latest
+    name: Build and test (${{ matrix.mode }} mode)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: native
+            profiles: assembly
+          - mode: mysql
+            profiles: assembly,mysql-integration-tests
     steps:
       - name: Checkout yashandb repository
         uses: actions/checkout@v7
@@ -78,4 +87,4 @@ jobs:
       - name: Maven build core
         run: ./yashandb/mvnw clean install -f core/pom.xml -pl debezium-bom,debezium-connector-common,debezium-util,debezium-config,debezium-embedded,debezium-storage,debezium-storage/debezium-storage-kafka,debezium-storage/debezium-storage-file,debezium-assembly-descriptors,debezium-ddl-parser,debezium-connect-plugins -am -DskipTests -DskipITs -Dformat.formatter.goal=validate -Dformat.imports.goal=check -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=120
       - name: Maven build yashandb
-        run: ./yashandb/mvnw clean install -f yashandb/pom.xml -Passembly -Dformat.formatter.goal=validate -Dformat.imports.goal=check -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 -DfailFlakyTests=false -Ddebezium.test.records.waittime=5
+        run: ./yashandb/mvnw clean install -f yashandb/pom.xml -P${{ matrix.profiles }} -Dformat.formatter.goal=validate -Dformat.imports.goal=check -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 -DfailFlakyTests=false -Ddebezium.test.records.waittime=5

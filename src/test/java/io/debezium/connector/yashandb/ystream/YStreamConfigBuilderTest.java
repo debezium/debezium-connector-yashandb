@@ -37,6 +37,23 @@ class YStreamConfigBuilderTest {
         assertThat(builder.build().getFaultTolerance()).isTrue();
     }
 
+    @FixFor("debezium/dbz#3014")
+    @Test
+    void shouldDeriveMysqlModeFromAdditionalProperties() {
+        assertThat(YStreamConfigBuilder.mysqlMode(Collections.emptyMap())).isFalse();
+        assertThat(YStreamConfigBuilder.mysqlMode(Collections.singletonMap("mysql.mode", "false"))).isFalse();
+        assertThat(YStreamConfigBuilder.mysqlMode(Collections.singletonMap("mysql.mode", "true"))).isTrue();
+        assertThat(YStreamConfigBuilder.mysqlMode(Collections.singletonMap("MYSQL_MODE", "true"))).isTrue();
+
+        YstreamConfig.Builder<String> builder = minimalBuilder();
+        YStreamConfigBuilder.apply(builder, Collections.singletonMap("mysql.mode", "true"));
+        assertThat(builder.build().isMysqlMode()).isTrue();
+
+        YstreamConfig.Builder<String> aliasBuilder = minimalBuilder();
+        YStreamConfigBuilder.apply(aliasBuilder, Collections.singletonMap("MYSQL_MODE", "true"));
+        assertThat(aliasBuilder.build().isMysqlMode()).isTrue();
+    }
+
     @Test
     @FixFor("debezium/dbz#2861")
     void shouldApplyNumericOptionToBuilder() {

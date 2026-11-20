@@ -5,14 +5,19 @@
  */
 package io.debezium.connector.yashandb;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.connector.yashandb.dialect.YashanDbDialect;
 import io.debezium.relational.RelationalSnapshotChangeEventSource.RelationalSnapshotContext;
 import io.debezium.relational.TableId;
 
@@ -22,6 +27,7 @@ import io.debezium.relational.TableId;
 public abstract class AbstractStreamingAdapter implements StreamingAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStreamingAdapter.class);
+    private static final int TABLE_DDL_SCN_BATCH_SIZE = 1000;
 
     protected final YashanDbConnectorConfig connectorConfig;
 
@@ -74,36 +80,32 @@ public abstract class AbstractStreamingAdapter implements StreamingAdapter {
             return Optional.empty();
         }
 
-        StringBuilder lastDdlScnQuery = new StringBuilder("SELECT TIMESTAMP_TO_SCN(MAX(to_timestamp(last_ddl_time)))")
-                .append(" FROM all_objects")
-                .append(" WHERE");
+        YashanDbDialect dialect = connectorConfig.getModeContext().dialect();
+        return queryLatestTableDdlScn(ctx.capturedTables, dialect, connection.connection());
+    }
 
-        for (TableId table : ctx.capturedTables) {
-            lastDdlScnQuery.append(" (owner = ? AND object_name = ?) OR");
+    static Optional<Scn> queryLatestTableDdlScn(Collection<TableId> capturedTables, YashanDbDialect dialect, Connection connection)
+            throws SQLException {
+        List<TableId> tables = new ArrayList<>(capturedTables);
+        Scn latestDdlScn = null;
+        for (int start = 0; start < tables.size(); start += TABLE_DDL_SCN_BATCH_SIZE) {
+            List<TableId> batch = tables.subList(start, Math.min(start + TABLE_DDL_SCN_BATCH_SIZE, tables.size()));
+            String query = dialect.latestTableDdlScnQuery(batch);
+            try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                dialect.bindLatestTableDdlScnQuery(stmt, batch);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new IllegalStateException("Couldn't get latest table DDL SCN");
+                    }
+                    Scn batchScn = Scn.valueOf(rs.getString(1));
+                    if (latestDdlScn == null || batchScn.compareTo(latestDdlScn) > 0) {
+                        latestDdlScn = batchScn;
+                    }
+                }
+            }
         }
 
-        String query = lastDdlScnQuery.substring(0, lastDdlScnQuery.length() - 3);
-        try (PreparedStatement stmt = connection.connection().prepareStatement(query)) {
-            int paramIndex = 1;
-            for (TableId table : ctx.capturedTables) {
-                stmt.setString(paramIndex++, table.schema());
-                stmt.setString(paramIndex++, table.table());
-            }
-            ResultSet rs = stmt.executeQuery();
-
-            if (!rs.next()) {
-                throw new IllegalStateException("Couldn't get latest table DDL SCN");
-            }
-
-            // Guard against LAST_DDL_TIME with value of 0.
-            // This case should be treated as if we were unable to determine a value for LAST_DDL_TIME.
-            // This forces later calculations to be based upon the current SCN.
-            String latestDdlTime = rs.getString(1);
-            if ("0".equals(latestDdlTime)) {
-                return Optional.empty();
-            }
-
-            return Optional.of(Scn.valueOf(latestDdlTime));
-        }
+        // A zero SCN means LAST_DDL_TIME could not be determined, so later calculations use the current SCN.
+        return latestDdlScn == null || latestDdlScn.equals(Scn.valueOf(0)) ? Optional.empty() : Optional.of(latestDdlScn);
     }
 }

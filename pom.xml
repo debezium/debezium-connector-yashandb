@@ -33,6 +33,7 @@
         <docker.filter>${docker.dbs}:${yashandb.image.tag}</docker.filter>
         <docker.skip>false</docker.skip>
         <docker.showLogs>true</docker.showLogs>
+        <mysql.integration.enabled>false</mysql.integration.enabled>
 
         <!-- ANTLR configuration -->
         <antlr.source.directory>${project.basedir}/src/main/java/antlr4</antlr.source.directory>
@@ -436,6 +437,7 @@
                         <database.user>${yashandb.user}</database.user>
                         <database.password>${yashandb.password}</database.password>
                         <skipLongRunningTests>${skipLongRunningTests}</skipLongRunningTests>
+                        <mysql.integration.enabled>${mysql.integration.enabled}</mysql.integration.enabled>
                     </systemPropertyVariables>
                     <runOrder>${runOrder}</runOrder>
                 </configuration>
@@ -496,6 +498,51 @@
             <properties>
                 <docker.skip>true</docker.skip>
             </properties>
+        </profile>
+        <profile>
+            <id>mysql-integration-tests</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <mysql.integration.enabled>true</mysql.integration.enabled>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <configuration>
+                            <images>
+                                <image>
+                                    <name>${yashandb.image}:${yashandb.image.tag}</name>
+                                    <run>
+                                        <!-- install_args is passed to package install by the image.
+                                             Syntax mode must instead be set during config generation. -->
+                                        <entrypoint>
+                                            <exec>
+                                                <arg>/bin/bash</arg>
+                                                <arg>-c</arg>
+                                                <arg>exec /bin/bash &lt;(sed 's|./bin/yasboot package se gen |./bin/yasboot package se gen --mode mysql |' /usr/local/bin/entrypoint.sh)</arg>
+                                            </exec>
+                                        </entrypoint>
+                                    </run>
+                                </image>
+                            </images>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <!-- A MySQL-mode container cannot run the native-mode ITs. -->
+                            <includes>
+                                <include>**/YashanDbMySqlModeIT.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
         <profile>
             <id>quick</id>

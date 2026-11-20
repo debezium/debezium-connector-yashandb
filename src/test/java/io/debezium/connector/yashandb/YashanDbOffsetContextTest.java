@@ -6,6 +6,7 @@
 package io.debezium.connector.yashandb;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.HashMap;
 import java.util.List;
@@ -383,6 +384,8 @@ class YashanDbOffsetContextTest {
     void shouldStoreInitialSnapshotStateUntilSnapshotIsCompleted() {
         YashanDbOffsetContext offsetContext = baseOffsetContext();
 
+        assertThat(offsetContext.getOffset().get(YashanDbModeContext.OFFSET_KEY)).isEqualTo("yashan");
+
         offsetContext.preSnapshotStart(false);
         Map<String, ?> offset = offsetContext.getOffset();
 
@@ -406,6 +409,29 @@ class YashanDbOffsetContextTest {
 
         assertThat(offsetContext.isInitialSnapshotRunning()).isTrue();
         assertThat(offsetContext.getOffset().get(SourceInfo.SNAPSHOT_KEY)).isEqualTo(SnapshotType.INITIAL.toString());
+        assertThat(offsetContext.getOffset().get(YashanDbModeContext.OFFSET_KEY)).isEqualTo("yashan");
+    }
+
+    @Test
+    void shouldRejectOffsetsWrittenInAnotherDatabaseMode() {
+        YashanDbConnectorConfig mysqlConfig = new YashanDbConnectorConfig(TestHelper.defaultConfig().build(), new YashanDbModeContext(true));
+        YashanDbConnectorConfig nativeConfig = new YashanDbConnectorConfig(TestHelper.defaultConfig().build(), new YashanDbModeContext(false));
+        Map<String, Object> nativeOffset = Map.of(YashanDbModeContext.OFFSET_KEY, "yashan");
+        Map<String, Object> mysqlOffset = Map.of(YashanDbModeContext.OFFSET_KEY, "mysql");
+
+        assertThatThrownBy(() -> new YStreamOffsetContextLoader(mysqlConfig).load(nativeOffset))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Stored database_mode 'yashan' does not match connector mode 'mysql'");
+        assertThatThrownBy(() -> new YStreamOffsetContextLoader(nativeConfig).load(mysqlOffset))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Stored database_mode 'mysql' does not match connector mode 'yashan'");
+    }
+
+    @Test
+    void shouldPersistMysqlModeInOffsets() {
+        YashanDbConnectorConfig mysqlConfig = new YashanDbConnectorConfig(TestHelper.defaultConfig().build(), new YashanDbModeContext(true));
+
+        assertThat(baseOffsetContext(mysqlConfig).getOffset().get(YashanDbModeContext.OFFSET_KEY)).isEqualTo("mysql");
     }
 
     @Test
@@ -436,8 +462,12 @@ class YashanDbOffsetContextTest {
     }
 
     private static YashanDbOffsetContext baseOffsetContext() {
+        return baseOffsetContext(new YashanDbConnectorConfig(TestHelper.defaultConfig().build()));
+    }
+
+    private static YashanDbOffsetContext baseOffsetContext(YashanDbConnectorConfig connectorConfig) {
         return YashanDbOffsetContext.create()
-                .logicalName(new YashanDbConnectorConfig(TestHelper.defaultConfig().build()))
+                .logicalName(connectorConfig)
                 .recoverPosition(new Position(new SystemChangeNumber(1000L), new LogPosition()))
                 .snapshotScn(Scn.valueOf(1000L))
                 .snapshotPendingTransactions(Map.of())

@@ -11,15 +11,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.StreamSupport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yashandb.jdbc.YasTypes;
 
+import io.debezium.antlr.AntlrDdlParser;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.yashandb.antlr.YashanDbDdlParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.CustomConverterRegistry;
 import io.debezium.relational.DefaultValueConverter;
@@ -38,7 +39,7 @@ import io.debezium.spi.topic.TopicNamingStrategy;
 public class YashanDbDatabaseSchema extends HistorizedRelationalDatabaseSchema {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(YashanDbDatabaseSchema.class);
-    private final YashanDbDdlParser ddlParser;
+    private final AntlrDdlParser<?, ?> ddlParser;
     private final ConcurrentMap<TableId, List<Column>> lobColumnsByTableId = new ConcurrentHashMap<>();
     private final YashanDbValueConverters valueConverters;
 
@@ -77,11 +78,8 @@ public class YashanDbDatabaseSchema extends HistorizedRelationalDatabaseSchema {
                 connectorConfig.getKeyMapper(), taskContext);
 
         this.valueConverters = valueConverters;
-        this.ddlParser = new YashanDbDdlParser(
-                true,
-                false,
-                connectorConfig.isSchemaCommentsHistoryEnabled(),
-                valueConverters,
+        this.ddlParser = connectorConfig.getModeContext().dialect().createDdlParser(
+                connectorConfig.isSchemaCommentsHistoryEnabled(), valueConverters,
                 connectorConfig.getTableFilters().dataCollectionFilter());
     }
 
@@ -104,7 +102,7 @@ public class YashanDbDatabaseSchema extends HistorizedRelationalDatabaseSchema {
     }
 
     @Override
-    public YashanDbDdlParser getDdlParser() {
+    public AntlrDdlParser<?, ?> getDdlParser() {
         return ddlParser;
     }
 
@@ -116,18 +114,27 @@ public class YashanDbDatabaseSchema extends HistorizedRelationalDatabaseSchema {
             case CREATE:
             case ALTER:
                 schemaChange.getTableChanges().forEach(x -> {
+                    if (x.getPreviousId() != null && !x.getPreviousId().equals(x.getId())) {
+                        removeSchema(x.getPreviousId());
+                        tables().removeTable(x.getPreviousId());
+                    }
                     buildAndRegisterSchema(x.getTable());
                     tables().overwriteTable(x.getTable());
                 });
                 break;
             case DROP:
-                schemaChange.getTableChanges().forEach(x -> removeSchema(x.getId()));
+                schemaChange.getTableChanges().forEach(x -> {
+                    removeSchema(x.getId());
+                    tables().removeTable(x.getId());
+                });
                 break;
             default:
         }
 
         if (!storeOnlyCapturedTables() ||
-                schemaChange.getTables().stream().map(Table::id).anyMatch(getTableFilter()::isIncluded)) {
+                schemaChange.getTables().stream().map(Table::id).anyMatch(getTableFilter()::isIncluded)
+                || StreamSupport.stream(schemaChange.getTableChanges().spliterator(), false)
+                        .anyMatch(change -> change.getPreviousId() != null && getTableFilter().isIncluded(change.getPreviousId()))) {
             LOGGER.debug("Recorded DDL statements for database '{}': {}", schemaChange.getDatabase(), schemaChange.getDdl());
             record(schemaChange, schemaChange.getTableChanges());
         }

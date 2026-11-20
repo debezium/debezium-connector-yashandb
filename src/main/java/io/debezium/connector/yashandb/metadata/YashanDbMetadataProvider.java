@@ -10,6 +10,7 @@ import java.util.List;
 import io.debezium.connector.yashandb.Module;
 import io.debezium.connector.yashandb.YashanDbConnector;
 import io.debezium.connector.yashandb.converters.DateToStringConverter;
+import io.debezium.connector.yashandb.converters.DatetimeToStringConverter;
 import io.debezium.connector.yashandb.converters.TimeToStringConverter;
 import io.debezium.connector.yashandb.converters.TimestampToStringConverter;
 import io.debezium.metadata.ComponentMetadata;
@@ -34,6 +35,7 @@ public class YashanDbMetadataProvider implements ComponentMetadataProvider {
                 componentMetadataFactory.createComponentMetadata(new YashanDbConnector(), Module.version()),
                 componentMetadataFactory.createComponentMetadata(new DateToStringConverter(), Module.version()),
                 componentMetadataFactory.createComponentMetadata(new TimeToStringConverter(), Module.version()),
+                componentMetadataFactory.createComponentMetadata(new DatetimeToStringConverter(), Module.version()),
                 componentMetadataFactory.createComponentMetadata(new TimestampToStringConverter(), Module.version()));
     }
 }
